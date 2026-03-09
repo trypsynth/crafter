@@ -8,10 +8,15 @@ const RESOURCES = {
 	dowels:  { label: "Dowels",  singular: "Dowel",  price: 14 },
 	handles: { label: "Handles", singular: "Handle", price: 22 },
 	shafts:  { label: "Shafts",  singular: "Shaft",  price: 60 },
+	frames:  { label: "Frames",  singular: "Frame",  price: 95 },
+	crates:  { label: "Crates",  singular: "Crate",  price: 125 },
+	cabinets:{ label: "Cabinets",singular: "Cabinet",price: 260 },
+	carts:   { label: "Carts",   singular: "Cart",   price: 420 },
+	furniture:{label: "Furniture", singular: "Furniture", price: 700 },
 };
 
 const BUILDING_CONFIG = {
-	workshop: {
+	lumber_yard: {
 		label:     "Lumber Yard",
 		desc:      "Fells trees and works raw logs into precision wood components.",
 		buildCost: 0,
@@ -62,6 +67,60 @@ const BUILDING_CONFIG = {
 				unlockCost:    1000,
 				baseSlotCost:  1000,
 				prereqProduct: "handles",
+			},
+		},
+	},
+	joinery: {
+		label:     "Joinery",
+		desc:      "Assembles finished wood goods from the Lumber Yard's precision parts.",
+		buildCost: 2500,
+		prereq:    () => state.buildings.lumber_yard?.unlocked && state.buildings.lumber_yard.products.shafts.unlocked,
+		products: {
+			frames: {
+				outputKey:      "frames",
+				outputAmt:      1,
+				inputs:         { timber: 2, dowels: 2 },
+				baseCycleMs:    20000,
+				unlockCost:     0,
+				baseSlotCost:   1400,
+				prereqProduct:  null,
+				startsUnlocked: true,
+			},
+			crates: {
+				outputKey:     "crates",
+				outputAmt:     1,
+				inputs:        { timber: 3, dowels: 1 },
+				baseCycleMs:   18000,
+				unlockCost:    1800,
+				baseSlotCost:  1800,
+				prereqProduct: "frames",
+			},
+			cabinets: {
+				outputKey:     "cabinets",
+				outputAmt:     1,
+				inputs:        { timber: 3, handles: 2, dowels: 2 },
+				baseCycleMs:   32000,
+				unlockCost:    3600,
+				baseSlotCost:  2800,
+				prereqProduct: "crates",
+			},
+			carts: {
+				outputKey:     "carts",
+				outputAmt:     1,
+				inputs:        { shafts: 2, frames: 1, handles: 2 },
+				baseCycleMs:   45000,
+				unlockCost:    6000,
+				baseSlotCost:  4200,
+				prereqProduct: "cabinets",
+			},
+			furniture: {
+				outputKey:     "furniture",
+				outputAmt:     1,
+				inputs:        { frames: 2, timber: 2, handles: 2, dowels: 4 },
+				baseCycleMs:   60000,
+				unlockCost:    9000,
+				baseSlotCost:  6500,
+				prereqProduct: "carts",
 			},
 		},
 	},
@@ -197,6 +256,12 @@ function load() {
 		const raw = localStorage.getItem(SAVE_KEY);
 		if (!raw) return;
 		const parsed = JSON.parse(raw);
+		if (parsed.buildings?.workshop && !parsed.buildings.lumber_yard) {
+			parsed.buildings.lumber_yard = parsed.buildings.workshop;
+		}
+		if (parsed.buildings?.workshop) {
+			delete parsed.buildings.workshop;
+		}
 		const fresh  = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
 		state = fresh;
@@ -510,7 +575,7 @@ function renderBuildTab() {
 			<h3>${cfg.label}</h3>
 			<p>${cfg.desc}</p>
 			<button data-action="build" data-bld="${bldKey}" ${disabled}>
-				Build - ${costLabel}
+				Build for ${costLabel}
 			</button>
 		</div>`;
 	}).join("");
