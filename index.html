@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Crafter</title>
+	<link rel="stylesheet" href="style.css">
+</head>
+<body>
+	<div id="app">
+		<div id="top-bar">
+			<h1>Crafter</h1>
+			<div id="hud-stats" role="region" aria-label="Stats">
+				<span id="hud-gold">500 gold</span>
+				<span id="hud-storage">0/50 items</span>
+			</div>
+		</div>
+
+		<div id="tab-bar" role="navigation" aria-label="Game areas">
+			<button id="tab-build" class="active">Construct</button>
+			<button id="tab-market">Market</button>
+			<button id="tab-settings">Settings</button>
+		</div>
+
+		<div id="content">
+
+			<div id="panel-build" class="tab-panel">
+				<!-- Filled by renderBuildTab() -->
+			</div>
+
+			<div id="panel-market" class="tab-panel" hidden>
+				<!-- Filled by renderMarketTab() -->
+			</div>
+
+			<div id="panel-settings" class="tab-panel" hidden>
+				<!-- Filled by renderSettingsTab() -->
+			</div>
+
+			<!-- Building panels appended here by addBuildingTab() -->
+
+		</div>
+	</div>
+
+	<script src="game.js"></script>
+
+	<div id="live-polite"    class="sr-only" aria-live="polite"    aria-atomic="true"></div>
+	<div id="live-assertive" class="sr-only" aria-live="assertive" aria-atomic="true"></div>
+</body>
+</html>
