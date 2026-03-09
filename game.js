@@ -606,14 +606,19 @@ function renderBuildingTab(bldKey) {
 		}
 	}
 	const hasChain = Object.keys(demandRates).length > 0;
-	const chainBalances = Object.entries(demandRates)
-		.filter(([k]) => RESOURCES[k])
-		.map(([k, demand]) => ({
-			resourceKey: k,
-			net: (supplyRates[k] || 0) - demand,
+	const chainBalances = Array.from(new Set([
+		...Object.keys(supplyRates),
+		...Object.keys(demandRates),
+	]))
+		.filter(resourceKey => RESOURCES[resourceKey])
+		.map(resourceKey => ({
+			resourceKey,
+			supply: supplyRates[resourceKey] || 0,
+			demand: demandRates[resourceKey] || 0,
+			net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
 		}));
 	const deficits = chainBalances
-		.filter(entry => entry.net < -0.05)
+		.filter(entry => entry.demand > 0 && entry.net < -0.05)
 		.sort((a, b) => a.net - b.net);
 	const surpluses = chainBalances
 		.filter(entry => entry.net > 0.05)
@@ -629,17 +634,19 @@ function renderBuildingTab(bldKey) {
 		if (!hasChain) return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
 		const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
 		if (totalDemand <= 0) return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
-		const totalSupply = Object.entries(demandRates).reduce((sum, [resourceKey]) => {
-			return sum + (supplyRates[resourceKey] || 0);
-		}, 0);
-		const ratio = totalSupply / totalDemand;
-		const pct   = Math.round(ratio * 100);
-		const chainLabel = ratio < 0.95
-			? `Input bottleneck${deficits.length ? ` (${formatEntries(deficits, "-")})` : ""}`
-			: ratio > 1.05
+		const fulfillment = chainBalances
+			.filter(entry => entry.demand > 0)
+			.reduce((sum, entry) => {
+				const coverage = Math.min(entry.supply / entry.demand, 1);
+				return sum + (entry.demand * coverage);
+			}, 0);
+		const pct = Math.round((fulfillment / totalDemand) * 100);
+		const chainLabel = deficits.length > 0
+			? `Input bottleneck (${formatEntries(deficits, "-")})`
+			: surpluses.length > 0
 				? "Output surplus"
 				: "OK";
-		const stateClass = ratio >= 0.95 && ratio <= 1.05 ? "health-ok" : "health-warn";
+		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
 		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${pct}%</li>`;
 	})();
 	const surplusRow = (() => {
