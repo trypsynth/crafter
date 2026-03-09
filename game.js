@@ -148,6 +148,7 @@ const DEFAULT_STATE = (() => ({
 						const pcfg = bcfg.products[pk];
 						return [pk, {
 							unlocked: pcfg.startsUnlocked ?? false,
+							enabled:  true,
 							slots:    [],
 							manual:   { active: false, progress: 0 },
 						}];
@@ -278,6 +279,7 @@ function load() {
 			for (const pst of Object.values(bst.products)) {
 				if (!pst.manual) pst.manual = { active: false, progress: 0 };
 				if (pst.manual.active === undefined) pst.manual.active = false;
+				if (pst.enabled === undefined) pst.enabled = true;
 			}
 		}
 	} catch (e) {
@@ -328,6 +330,13 @@ function advanceBuildings(deltaSec) {
 		if (!bst.unlocked) continue;
 		for (const [productKey, pst] of Object.entries(bst.products)) {
 			if (!pst.unlocked) continue;
+			if (!pst.enabled) {
+				if (pst.manual.active) {
+					pst.manual.active = false;
+					pst.manual.progress = 0;
+				}
+				continue;
+			}
 			const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
 
 			for (const slot of pst.slots) {
@@ -417,6 +426,10 @@ function addSlot(bldKey, productKey) {
 function manualProduce(bldKey, productKey) {
 	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
 	const pst  = state.buildings[bldKey].products[productKey];
+	if (!pst.enabled) {
+		announce(`${RESOURCES[pcfg.outputKey].label} production is paused.`, "assertive");
+		return;
+	}
 
 	if (pst.manual.active) {
 		pst.manual.progress += 0.25;
@@ -474,6 +487,19 @@ function sellProduct(resourceKey) {
 	state.inventory[resourceKey] = 0;
 	state.gold += earned;
 	announce(`Sold ${inv} ${formatResourceName(resourceKey, inv)} for ${earned} gold.`, "polite");
+	renderAll();
+}
+
+function toggleProductEnabled(bldKey, productKey) {
+	const pst = state.buildings[bldKey].products[productKey];
+	if (!pst.unlocked) return;
+	pst.enabled = !pst.enabled;
+	if (!pst.enabled) {
+		pst.manual.active = false;
+		pst.manual.progress = 0;
+	}
+	const outputKey = BUILDING_CONFIG[bldKey].products[productKey].outputKey;
+	announce(`${RESOURCES[outputKey].label} production ${pst.enabled ? "resumed" : "paused"}.`, "polite");
 	renderAll();
 }
 
@@ -537,6 +563,7 @@ function switchTab(tabId) {
 function renderAll() {
 	renderHUD();
 	if      (activeTab === "build")    renderBuildTab();
+	else if (activeTab === "production") renderProductionTab();
 	else if (activeTab === "market")   renderMarketTab();
 	else if (activeTab === "settings") renderSettingsTab();
 	else if (activeTab in BUILDING_CONFIG) renderBuildingTab(activeTab);
@@ -572,12 +599,13 @@ function getProductionOverview() {
 			const n = pst.slots.length;
 			productRows.push({
 				resourceKey: pcfg.outputKey,
+				enabled: pst.enabled,
 				slots: n,
 				outputAmt: pcfg.outputAmt,
 				baseCycleMs: pcfg.baseCycleMs,
 			});
 
-			if (n === 0) continue;
+			if (!pst.enabled || n === 0) continue;
 			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
 			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 				demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / pcfg.baseCycleMs;
@@ -637,7 +665,9 @@ function renderProductionPanel() {
 		.map(row => {
 			const res = RESOURCES[row.resourceKey];
 			const slotWord = row.slots === 1 ? "slot" : "slots";
-			const rateText = row.slots === 0
+			const rateText = !row.enabled
+				? "paused"
+				: row.slots === 0
 				? "no slots"
 				: `${row.slots} ${slotWord}, ${formatProductOutput(row.slots, row.outputAmt, row.baseCycleMs)}`;
 			return `<li><strong>${res.label}:</strong> ${rateText}</li>`;
@@ -670,14 +700,13 @@ function renderProductionPanel() {
 function renderBuildTab() {
 	const panel       = document.getElementById("panel-build");
 	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
-	const productionPanel = renderProductionPanel();
 
 	if (unbuildKeys.length === 0) {
-		panel.innerHTML = `${productionPanel}<p class="market-empty">All buildings constructed.</p>`;
+		panel.innerHTML = `<p class="market-empty">All buildings constructed.</p>`;
 		return;
 	}
 
-	panel.innerHTML = `${productionPanel}${unbuildKeys.map(bldKey => {
+	panel.innerHTML = `${unbuildKeys.map(bldKey => {
 		const cfg       = BUILDING_CONFIG[bldKey];
 		const prereqMet = cfg.prereq();
 		const canAfford = state.gold >= cfg.buildCost;
@@ -691,6 +720,51 @@ function renderBuildTab() {
 			</button>
 		</div>`;
 	}).join("")}`;
+}
+
+function renderProductionTab() {
+	const panel = document.getElementById("panel-production");
+	if (!panel) return;
+
+	const overviewHtml = renderProductionPanel() || `<p class="market-empty">No production online yet.</p>`;
+	const unlockedProducts = [];
+
+	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
+		const bst = state.buildings[bldKey];
+		if (!bst?.unlocked) continue;
+
+		for (const [productKey, pcfg] of Object.entries(cfg.products)) {
+			const pst = bst.products[productKey];
+			if (!pst?.unlocked) continue;
+			unlockedProducts.push({ bldKey, productKey, cfg, pcfg, pst });
+		}
+	}
+
+	const cardsHtml = unlockedProducts.length === 0
+		? ""
+		: `<div class="production-toggle-grid">${unlockedProducts.map(({ bldKey, productKey, cfg, pcfg, pst }) => {
+			const res = RESOURCES[pcfg.outputKey];
+			const slots = pst.slots.length;
+			const statusClass = pst.enabled ? "health-ok" : "health-warn";
+			const statusLabel = pst.enabled ? "Active" : "Paused";
+			const rateText = slots === 0 ? "no slots" : formatProductOutput(slots, pcfg.outputAmt, pcfg.baseCycleMs);
+			return `<section class="product-section production-toggle-card">
+				<div class="product-header">
+					<h3>${res.label}</h3>
+					<span class="production-building">${cfg.label}</span>
+				</div>
+				<p class="production-status ${statusClass}"><strong>Status:</strong> ${statusLabel}</p>
+				<p class="slot-summary">${slots} ${slots === 1 ? "slot" : "slots"}, ${rateText}</p>
+				${Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`}
+				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
+				        data-action="toggle-product"
+				        data-bld="${bldKey}" data-product="${productKey}">
+					${pst.enabled ? "Pause" : "Resume"} ${res.label}
+				</button>
+			</section>`;
+		}).join("")}</div>`;
+
+	panel.innerHTML = `<h2>Production</h2>${overviewHtml}${cardsHtml}`;
 }
 
 function updateMarketProducts() {
@@ -795,8 +869,9 @@ function renderBuildingTab(bldKey) {
 				${inputDesc}
 				<div class="manual-produce-row">
 					<button class="manual-produce-btn" data-action="manual-produce"
-					        data-bld="${bldKey}" data-product="${productKey}">
-						Produce ${res.singular}
+					        data-bld="${bldKey}" data-product="${productKey}"
+					        ${pst.enabled ? "" : "disabled"}>
+						${pst.enabled ? `Produce ${res.singular}` : `${res.label} Paused`}
 					</button>
 				</div>
 				<p class="slot-summary">${summary}</p>
@@ -927,6 +1002,7 @@ function handleClick(e) {
 		case "storage-upgrade": upgradeStorage();                    break;
 		case "sell":            sellProduct(btn.dataset.resource);   break;
 		case "sell-all":        sellAll();                           break;
+		case "toggle-product":  toggleProductEnabled(bld, product);  break;
 		case "save-now":        saveNow();                           break;
 		case "copy-save":       copySaveToClipboard();               break;
 		case "clear-save":      clearSaveData();                     break;
