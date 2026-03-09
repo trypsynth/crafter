@@ -556,16 +556,128 @@ function renderHUD() {
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
 }
 
+function getProductionOverview() {
+	const productRows = [];
+	const supplyRates = {};
+	const demandRates = {};
+
+	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
+		const bst = state.buildings[bldKey];
+		if (!bst?.unlocked) continue;
+
+		for (const [productKey, pcfg] of Object.entries(cfg.products)) {
+			const pst = bst.products[productKey];
+			if (!pst?.unlocked) continue;
+
+			const n = pst.slots.length;
+			productRows.push({
+				resourceKey: pcfg.outputKey,
+				slots: n,
+				outputAmt: pcfg.outputAmt,
+				baseCycleMs: pcfg.baseCycleMs,
+			});
+
+			if (n === 0) continue;
+			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
+			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
+				demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / pcfg.baseCycleMs;
+			}
+		}
+	}
+
+	const hasChain = Object.keys(demandRates).length > 0;
+	const balances = Array.from(new Set([
+		...Object.keys(supplyRates),
+		...Object.keys(demandRates),
+	]))
+		.filter(resourceKey => RESOURCES[resourceKey])
+		.map(resourceKey => ({
+			resourceKey,
+			supply: supplyRates[resourceKey] || 0,
+			demand: demandRates[resourceKey] || 0,
+			net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
+		}));
+
+	const deficits = balances
+		.filter(entry => entry.demand > 0 && entry.net < -0.05)
+		.sort((a, b) => a.net - b.net);
+	const surpluses = balances
+		.filter(entry => entry.net > 0.05)
+		.sort((a, b) => b.net - a.net);
+
+	const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
+	const fulfillment = totalDemand <= 0
+		? 0
+		: balances
+			.filter(entry => entry.demand > 0)
+			.reduce((sum, entry) => {
+				const coverage = Math.min(entry.supply / entry.demand, 1);
+				return sum + (entry.demand * coverage);
+			}, 0);
+	const efficiencyPct = totalDemand <= 0 ? null : Math.round((fulfillment / totalDemand) * 100);
+
+	return { productRows, hasChain, deficits, surpluses, efficiencyPct };
+}
+
+function formatBalanceEntries(entries, sign, limit = 3) {
+	return entries
+		.slice(0, limit)
+		.map(entry => {
+			const amt = (Math.round(Math.abs(entry.net) * 10) / 10).toFixed(1);
+			return `${RESOURCES[entry.resourceKey].label} ${sign}${amt}/min`;
+		})
+		.join(", ");
+}
+
+function renderProductionPanel() {
+	const { productRows, hasChain, deficits, surpluses, efficiencyPct } = getProductionOverview();
+	if (productRows.length === 0) return "";
+
+	const productItems = productRows
+		.map(row => {
+			const res = RESOURCES[row.resourceKey];
+			const slotWord = row.slots === 1 ? "slot" : "slots";
+			const rateText = row.slots === 0
+				? "no slots"
+				: `${row.slots} ${slotWord}, ${formatProductOutput(row.slots, row.outputAmt, row.baseCycleMs)}`;
+			return `<li><strong>${res.label}:</strong> ${rateText}</li>`;
+		})
+		.join("");
+
+	const chainRow = (() => {
+		if (!hasChain || efficiencyPct === null) {
+			return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
+		}
+		const chainLabel = deficits.length > 0
+			? `Input bottleneck (${formatBalanceEntries(deficits, "-")})`
+			: surpluses.length > 0
+				? "Output surplus"
+				: "OK";
+		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
+		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${efficiencyPct}%</li>`;
+	})();
+
+	const surplusRow = !hasChain || surpluses.length === 0
+		? ""
+		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
+
+	return `<section class="prod-summary production-panel" aria-label="Production overview">
+		<h3>Production Overview</h3>
+		<ul>${productItems}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul>
+	</section>`;
+}
+
 function renderBuildTab() {
 	const panel       = document.getElementById("panel-build");
 	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
+	const productionPanel = renderProductionPanel();
 
 	if (unbuildKeys.length === 0) {
-		panel.innerHTML = `<p class="market-empty">All buildings constructed.</p>`;
+		panel.innerHTML = `${productionPanel}<p class="market-empty">All buildings constructed.</p>`;
 		return;
 	}
 
-	panel.innerHTML = unbuildKeys.map(bldKey => {
+	panel.innerHTML = `${productionPanel}${unbuildKeys.map(bldKey => {
 		const cfg       = BUILDING_CONFIG[bldKey];
 		const prereqMet = cfg.prereq();
 		const canAfford = state.gold >= cfg.buildCost;
@@ -578,7 +690,7 @@ function renderBuildTab() {
 				Build for ${costLabel}
 			</button>
 		</div>`;
-	}).join("");
+	}).join("")}`;
 }
 
 function updateMarketProducts() {
@@ -656,76 +768,6 @@ function renderBuildingTab(bldKey) {
 	const bst = state.buildings[bldKey];
 
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
-	const summaryRows = unlockedProducts.map(([pk, pcfg]) => {
-		const pst = bst.products[pk];
-		const res = RESOURCES[pcfg.outputKey];
-		const n   = pst.slots.length;
-		const rateText = n === 0 ? "no slots" : `${n} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs)}`;
-		return `<li><strong>${res.label}:</strong> ${rateText}</li>`;
-	}).join("");
-
-	const supplyRates = {}, demandRates = {};
-	for (const [pk, pcfg] of Object.entries(cfg.products)) {
-		const pst = bst.products[pk];
-		if (!pst.unlocked || pst.slots.length === 0) continue;
-		const n = pst.slots.length;
-		supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
-		for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
-			demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / pcfg.baseCycleMs;
-		}
-	}
-	const hasChain = Object.keys(demandRates).length > 0;
-	const chainBalances = Array.from(new Set([
-		...Object.keys(supplyRates),
-		...Object.keys(demandRates),
-	]))
-		.filter(resourceKey => RESOURCES[resourceKey])
-		.map(resourceKey => ({
-			resourceKey,
-			supply: supplyRates[resourceKey] || 0,
-			demand: demandRates[resourceKey] || 0,
-			net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
-		}));
-	const deficits = chainBalances
-		.filter(entry => entry.demand > 0 && entry.net < -0.05)
-		.sort((a, b) => a.net - b.net);
-	const surpluses = chainBalances
-		.filter(entry => entry.net > 0.05)
-		.sort((a, b) => b.net - a.net);
-	const formatEntries = (entries, sign) => entries
-		.slice(0, 2)
-		.map(entry => {
-			const amt = (Math.round(Math.abs(entry.net) * 10) / 10).toFixed(1);
-			return `${RESOURCES[entry.resourceKey].label} ${sign}${amt}/min`;
-		})
-		.join(", ");
-	const chainRow = (() => {
-		if (!hasChain) return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
-		const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
-		if (totalDemand <= 0) return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
-		const fulfillment = chainBalances
-			.filter(entry => entry.demand > 0)
-			.reduce((sum, entry) => {
-				const coverage = Math.min(entry.supply / entry.demand, 1);
-				return sum + (entry.demand * coverage);
-			}, 0);
-		const pct = Math.round((fulfillment / totalDemand) * 100);
-		const chainLabel = deficits.length > 0
-			? `Input bottleneck (${formatEntries(deficits, "-")})`
-			: surpluses.length > 0
-				? "Output surplus"
-				: "OK";
-		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
-		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${pct}%</li>`;
-	})();
-	const surplusRow = (() => {
-		if (!hasChain || surpluses.length === 0) return "";
-		return `<li class="health-warn"><strong>Surplus:</strong> ${formatEntries(surpluses, "+")}</li>`;
-	})();
-
-	const statsHtml = summaryRows
-		? `<section class="prod-summary"><ul>${summaryRows}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul></section>`
-		: "";
 
 	const unlockedHtml = unlockedProducts
 		.map(([productKey, pcfg]) => {
@@ -785,7 +827,7 @@ function renderBuildingTab(bldKey) {
 	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
 	panel.innerHTML = `<div class="rate-mode-row">
 		<button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button>
-	</div><h2>${cfg.label}</h2>${statsHtml}${unlockedHtml}${unlockHtml}`;
+	</div><h2>${cfg.label}</h2>${unlockedHtml}${unlockHtml}`;
 }
 
 function renderMarketTab() {

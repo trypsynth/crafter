@@ -231,6 +231,18 @@ body {
 	margin-bottom: var(--space-md);
 }
 
+.production-panel {
+	grid-column: 1 / -1;
+}
+
+.prod-summary h3 {
+	font-size: var(--font-base);
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--space-sm);
+}
+
 .prod-summary ul {
 	list-style: none;
 	display: flex;
