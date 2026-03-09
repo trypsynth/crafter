@@ -543,7 +543,6 @@ function switchTab(tabId) {
 function renderAll() {
 	renderHUD();
 	if      (activeTab === "build")    renderBuildTab();
-	else if (activeTab === "production") renderProductionTab();
 	else if (activeTab === "market")   renderMarketTab();
 	else if (activeTab === "settings") renderSettingsTab();
 	else if (activeTab in BUILDING_CONFIG) renderBuildingTab(activeTab);
@@ -664,32 +663,8 @@ function renderProductionPanel() {
 }
 
 function renderBuildTab() {
-	const panel       = document.getElementById("panel-build");
-	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
-	if (unbuildKeys.length === 0) {
-		panel.innerHTML = `<p class="market-empty">All buildings constructed.</p>`;
-		return;
-	}
-	panel.innerHTML = `${unbuildKeys.map(bldKey => {
-		const cfg       = BUILDING_CONFIG[bldKey];
-		const prereqMet = cfg.prereq();
-		const canAfford = state.gold >= cfg.buildCost;
-		const disabled  = !prereqMet || !canAfford ? "disabled" : "";
-		const costLabel = cfg.buildCost === 0 ? "Free" : `${cfg.buildCost} gold`;
-		return `<div class="build-card">
-			<h3>${cfg.label}</h3>
-			<p>${cfg.desc}</p>
-			<button data-action="build" data-bld="${bldKey}" ${disabled}>
-				Build for ${costLabel}
-			</button>
-		</div>`;
-	}).join("")}`;
-}
-
-function renderProductionTab() {
-	const panel = document.getElementById("panel-production");
-	if (!panel) return;
-	const overviewHtml = renderProductionPanel() || `<p class="market-empty">No production online yet.</p>`;
+	const panel = document.getElementById("panel-build");
+	const overviewHtml = renderProductionPanel() || "";
 	const unlockedProducts = [];
 	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
 		const bst = state.buildings[bldKey];
@@ -723,7 +698,28 @@ function renderProductionTab() {
 				</button>
 			</section>`;
 		}).join("")}</div>`;
-	panel.innerHTML = `<h2>Production</h2>${overviewHtml}${cardsHtml}`;
+	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
+	const constructHtml = unbuildKeys.length === 0
+		? ""
+		: unbuildKeys.map(bldKey => {
+			const cfg       = BUILDING_CONFIG[bldKey];
+			const prereqMet = cfg.prereq();
+			const canAfford = state.gold >= cfg.buildCost;
+			const disabled  = !prereqMet || !canAfford ? "disabled" : "";
+			const costLabel = cfg.buildCost === 0 ? "Free" : `${cfg.buildCost} gold`;
+			return `<div class="build-card">
+				<h3>${cfg.label}</h3>
+				<p>${cfg.desc}</p>
+				<button data-action="build" data-bld="${bldKey}" ${disabled}>
+					Build for ${costLabel}
+				</button>
+			</div>`;
+		}).join("");
+	if (!overviewHtml && !cardsHtml && !constructHtml) {
+		panel.innerHTML = `<p class="market-empty">Nothing to manage yet.</p>`;
+		return;
+	}
+	panel.innerHTML = `<h2>Manage</h2>${overviewHtml}${cardsHtml}${constructHtml}`;
 }
 
 function updateMarketProducts() {
