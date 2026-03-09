@@ -67,8 +67,11 @@ const BUILDING_CONFIG = {
 	},
 };
 
-const STORAGE_TIERS = [50, 100, 200, 500, 1500, 9999];
-const STORAGE_COSTS = [150, 350, 800, 2000, 5000];
+const STORAGE_BASE = 50;
+const STORAGE_FIRST_UPGRADE = 100;
+const STORAGE_INCREMENT = 100;
+const STORAGE_BASE_COST = 150;
+const STORAGE_COST_GROWTH = 1.75;
 
 
 const DEFAULT_STATE = (() => ({
@@ -136,7 +139,17 @@ function totalItems() {
 }
 
 function storageMax() {
-	return STORAGE_TIERS[state.storage.tier];
+	if (state.storage.tier <= 0) return STORAGE_BASE;
+	return STORAGE_FIRST_UPGRADE + ((state.storage.tier - 1) * STORAGE_INCREMENT);
+}
+
+function nextStorageMax() {
+	if (state.storage.tier <= 0) return STORAGE_FIRST_UPGRADE;
+	return storageMax() + STORAGE_INCREMENT;
+}
+
+function storageUpgradeCost() {
+	return Math.round(STORAGE_BASE_COST * Math.pow(STORAGE_COST_GROWTH, state.storage.tier));
 }
 
 function nextSlotCost(bldKey, productKey) {
@@ -360,9 +373,7 @@ function manualProduce(bldKey, productKey) {
 }
 
 function upgradeStorage() {
-	const tier = state.storage.tier;
-	if (tier >= STORAGE_COSTS.length) return;
-	const cost = STORAGE_COSTS[tier];
+	const cost = storageUpgradeCost();
 	if (state.gold < cost) {
 		announce(`Need ${cost} gold to expand storage.`, "assertive");
 		return;
@@ -370,7 +381,7 @@ function upgradeStorage() {
 	state.gold -= cost;
 	state.storage.tier++;
 	const newMax = storageMax();
-	announce(`Storage expanded to ${newMax >= 9999 ? "unlimited" : newMax} items.`, "polite");
+	announce(`Storage expanded to ${newMax} items.`, "polite");
 	renderAll();
 }
 
@@ -468,9 +479,7 @@ function renderHUD() {
 	const max  = storageMax();
 
 	const goldText    = `${gold} gold`;
-	const storageText = max >= 9999
-		? `${used} items (unlimited)`
-		: `${used}/${max} items`;
+	const storageText = `${used}/${max} items`;
 
 	const goldEl    = document.getElementById("hud-gold");
 	const storageEl = document.getElementById("hud-storage");
@@ -537,16 +546,14 @@ function updateMarketProducts() {
 
 	const used = totalItems();
 	const max  = storageMax();
-	const pct  = max >= 9999 ? 0 : Math.min(100, Math.floor(used / max * 100));
+	const pct  = Math.min(100, Math.floor(used / max * 100));
 	const barFill = panel.querySelector(".storage-bar-fill");
 	const barWrap = panel.querySelector(".storage-bar-wrap");
 	const usedLabel = panel.querySelector(".storage-used-label");
 	if (barFill)  barFill.style.width = `${pct}%`;
 	if (barWrap)  barWrap.setAttribute("aria-valuenow", pct);
 	if (usedLabel) {
-		const label = max >= 9999
-			? `${used} items (unlimited)`
-			: `${used} / ${max} items (${pct}% full)`;
+		const label = `${used} / ${max} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
 	}
 
@@ -710,21 +717,13 @@ function renderMarketTab() {
 
 	const used  = totalItems();
 	const max   = storageMax();
-	const pct   = max >= 9999 ? 0 : Math.min(100, Math.floor(used / max * 100));
-	const tier  = state.storage.tier;
-	const storageLabel = max >= 9999
-		? `${used} items (unlimited)`
-		: `${used} / ${max} items (${pct}% full)`;
-	const upgHtml = tier >= STORAGE_COSTS.length
-		? `<button data-action="storage-upgrade" disabled>Storage Maxed</button>`
-		: (() => {
-			const cost    = STORAGE_COSTS[tier];
-			const current = STORAGE_TIERS[tier] >= 9999 ? "unlimited" : String(STORAGE_TIERS[tier]);
-			const next    = STORAGE_TIERS[tier + 1] >= 9999 ? "unlimited" : String(STORAGE_TIERS[tier + 1]);
-			return `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>
-				Expand Storage: ${current} to ${next} slots for ${cost} gold
-			</button>`;
-		})();
+	const pct   = Math.min(100, Math.floor(used / max * 100));
+	const cost  = storageUpgradeCost();
+	const next  = nextStorageMax();
+	const storageLabel = `${used} / ${max} items (${pct}% full)`;
+	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>
+		Expand Storage: ${max} to ${next} items for ${cost} gold
+	</button>`;
 
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
 
