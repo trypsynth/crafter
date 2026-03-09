@@ -133,6 +133,10 @@ function formatInputs(inputs) {
 		.join(", ");
 }
 
+function formatResourceName(resourceKey, amount) {
+	return amount === 1 ? RESOURCES[resourceKey].singular : RESOURCES[resourceKey].label;
+}
+
 
 function totalItems() {
 	return Object.keys(RESOURCES).reduce((sum, k) => sum + (state.inventory[k] ?? 0), 0);
@@ -404,7 +408,7 @@ function sellProduct(resourceKey) {
 	const earned = inv * currentPrice(resourceKey);
 	state.inventory[resourceKey] = 0;
 	state.gold += earned;
-	announce(`Sold ${inv} ${RESOURCES[resourceKey].label} for ${earned} gold.`, "polite");
+	announce(`Sold ${inv} ${formatResourceName(resourceKey, inv)} for ${earned} gold.`, "polite");
 	renderAll();
 }
 
@@ -575,7 +579,7 @@ function updateMarketProducts() {
 		const stockEl = card.querySelector(".market-product-stock");
 		if (stockEl) stockEl.textContent = `${inv} in stock, ${price} gold each`;
 		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) sellBtn.textContent = `Sell All ${RESOURCES[resourceKey].label} - ${earned} gold`;
+		if (sellBtn) sellBtn.textContent = `Sell All ${formatResourceName(resourceKey, inv)} - ${earned} gold`;
 	}
 }
 
@@ -750,7 +754,7 @@ function renderMarketTab() {
 					<span class="market-product-stock">${inv} in stock, ${res.price} gold each</span>
 				</div>
 				<button class="sell-btn" data-action="sell" data-resource="${resourceKey}">
-					Sell All ${res.label} - ${earned} gold
+					Sell All ${formatResourceName(resourceKey, inv)} - ${earned} gold
 				</button>
 			</div>`;
 		}).join("");
