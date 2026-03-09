@@ -575,7 +575,7 @@ function updateMarketProducts() {
 		const stockEl = card.querySelector(".market-product-stock");
 		if (stockEl) stockEl.textContent = `${inv} in stock, ${price} gold each`;
 		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) sellBtn.textContent = `Sell All - ${earned} gold`;
+		if (sellBtn) sellBtn.textContent = `Sell All ${RESOURCES[resourceKey].label} - ${earned} gold`;
 	}
 }
 
@@ -743,7 +743,7 @@ function renderMarketTab() {
 					<span class="market-product-stock">${inv} in stock, ${res.price} gold each</span>
 				</div>
 				<button class="sell-btn" data-action="sell" data-resource="${resourceKey}">
-					Sell All - ${earned} gold
+					Sell All ${res.label} - ${earned} gold
 				</button>
 			</div>`;
 		}).join("");
