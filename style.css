@@ -276,89 +276,6 @@ body {
 	color: var(--color-gold);
 }
 
-.product-locked-msg {
-	font-size: var(--font-sm);
-	color: var(--color-text-muted);
-	font-style: italic;
-	margin-bottom: var(--space-sm);
-}
-
-
-.slot-list {
-	display: flex;
-	flex-direction: column;
-	gap: var(--space-sm);
-	margin-bottom: var(--space-sm);
-}
-
-.slot-card {
-	background: var(--color-surface2);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius);
-	padding: var(--space-sm) var(--space-md);
-	display: flex;
-	align-items: center;
-	gap: var(--space-md);
-	flex-wrap: wrap;
-}
-
-.slot-label {
-	min-width: 48px;
-	font-size: var(--font-sm);
-	color: var(--color-text-muted);
-	flex-shrink: 0;
-}
-
-.slot-progress {
-	flex: 1;
-	min-width: 80px;
-	height: 8px;
-	border-radius: 4px;
-	border: none;
-	overflow: hidden;
-	-webkit-appearance: none;
-	-moz-appearance: none;
-	appearance: none;
-	background: var(--color-progress-bg);
-}
-.slot-progress::-webkit-progress-bar  { background: var(--color-progress-bg); border-radius: 4px; }
-.slot-progress::-webkit-progress-value { background: var(--color-progress); border-radius: 4px; transition: width 0.1s linear; }
-.slot-progress::-moz-progress-bar     { background: var(--color-progress); border-radius: 4px; transition: width 0.1s linear; }
-
-.slot-actions {
-	display: flex;
-	gap: var(--space-sm);
-	flex-shrink: 0;
-}
-
-.slot-actions button {
-	padding: var(--space-xs) var(--space-sm);
-	border: 1px solid var(--color-border);
-	border-radius: var(--radius);
-	background: var(--color-surface);
-	color: var(--color-text);
-	font-size: var(--font-sm);
-	cursor: pointer;
-	white-space: nowrap;
-	transition: background 0.15s, opacity 0.15s;
-}
-.slot-actions button:hover:not(:disabled) { background: var(--color-border); }
-.slot-actions button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-button[data-action="operate"]:not(:disabled) {
-	border-color: var(--color-progress);
-	color: #a8f0a8;
-}
-button[data-action="automate"]:not(:disabled) {
-	border-color: var(--color-gold-dim);
-	color: var(--color-gold);
-}
-
-.slot-auto-label {
-	font-size: var(--font-sm);
-	color: var(--color-progress);
-}
-
 .add-slot-btn {
 	padding: var(--space-xs) var(--space-md);
 	border: 1px solid var(--color-border);
@@ -503,20 +420,6 @@ button[data-action="automate"]:not(:disabled) {
 	color: var(--color-text-muted);
 }
 
-#sell-qty-btn {
-	padding: var(--space-xs) var(--space-md);
-	border: 1px solid var(--color-gold-dim);
-	border-radius: var(--radius);
-	background: var(--color-surface2);
-	color: var(--color-gold);
-	font-size: var(--font-base);
-	font-weight: 600;
-	cursor: pointer;
-	margin-bottom: var(--space-md);
-	transition: background 0.15s;
-}
-#sell-qty-btn:hover { background: var(--color-border); }
-
 .sell-btn {
 	padding: var(--space-sm) var(--space-md);
 	border: 1px solid var(--color-progress);
@@ -531,26 +434,6 @@ button[data-action="automate"]:not(:disabled) {
 }
 .sell-btn:hover:not(:disabled) { background: var(--color-border); }
 .sell-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.market-upgrade button {
-	padding: var(--space-xs) var(--space-md);
-	border: 1px solid var(--color-gold-dim);
-	border-radius: var(--radius);
-	background: var(--color-surface2);
-	color: var(--color-gold);
-	font-size: var(--font-sm);
-	cursor: pointer;
-	transition: background 0.15s, opacity 0.15s;
-}
-.market-upgrade button:hover:not(:disabled) { background: var(--color-border); }
-.market-upgrade button:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.market-upgrade-maxed {
-	font-size: var(--font-sm);
-	color: var(--color-text-muted);
-	font-style: italic;
-}
-
 
 .settings-section {
 	background: var(--color-surface);
@@ -588,13 +471,6 @@ button[data-action="automate"]:not(:disabled) {
 }
 .settings-row button:hover { background: var(--color-border); }
 
-.danger-confirm {
-	border-color: var(--color-accent) !important;
-	color: #f08090 !important;
-}
-
-.product-locked { opacity: 0.45; }
-
 .unlock-section {
 	display: flex;
 	gap: var(--space-sm);
@@ -611,5 +487,4 @@ button[data-action="automate"]:not(:disabled) {
 	#top-bar { flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }
 	#content { padding: var(--space-md); }
 	.market-product-header { flex-direction: column; gap: var(--space-xs); }
-	.slot-card { flex-wrap: wrap; }
 }
