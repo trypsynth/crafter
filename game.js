@@ -132,7 +132,6 @@ const STORAGE_INCREMENT = 100;
 const STORAGE_BASE_COST = 150;
 const STORAGE_COST_GROWTH = 1.75;
 
-
 const DEFAULT_STATE = (() => ({
 	gold:      0,
 	lastTick:  null,
@@ -159,7 +158,6 @@ const DEFAULT_STATE = (() => ({
 	),
 }))();
 
-
 let state     = deepClone(DEFAULT_STATE);
 let activeTab = "build";
 
@@ -169,7 +167,6 @@ const runtime = {
 	announceTimers: { polite: null, assertive: null },
 	rateDisplayMode: "minute",
 };
-
 
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
@@ -196,7 +193,6 @@ function formatInputs(inputs) {
 function formatResourceName(resourceKey, amount) {
 	return amount === 1 ? RESOURCES[resourceKey].singular : RESOURCES[resourceKey].label;
 }
-
 
 function totalItems() {
 	return Object.keys(RESOURCES).reduce((sum, k) => sum + (state.inventory[k] ?? 0), 0);
@@ -248,7 +244,6 @@ function formatDuration(seconds) {
 	return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
 
-
 function save() {
 	try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
 }
@@ -288,13 +283,11 @@ function load() {
 	}
 }
 
-
 function tryProduceSlot(bldKey, productKey, slot) {
 	const pcfg      = BUILDING_CONFIG[bldKey].products[productKey];
 	const inputSum  = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
 	const stallKey  = `${bldKey}-${productKey}-${slot.id}`;
-
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
 		slot.progress = Math.min(slot.progress, 0.999);
 		if (!runtime.stallAnnounced[stallKey]) {
@@ -304,7 +297,6 @@ function tryProduceSlot(bldKey, productKey, slot) {
 		}
 		return false;
 	}
-
 	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 		if (state.inventory[inputKey] < inputAmt) {
 			slot.progress = Math.min(slot.progress, 0.999);
@@ -316,7 +308,6 @@ function tryProduceSlot(bldKey, productKey, slot) {
 			return false;
 		}
 	}
-
 	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 		state.inventory[inputKey] -= inputAmt;
 	}
@@ -339,7 +330,6 @@ function advanceBuildings(deltaSec) {
 				continue;
 			}
 			const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
-
 			for (const slot of pst.slots) {
 				slot.progress += deltaSec / (pcfg.baseCycleMs / 1000);
 				while (slot.progress >= 1.0) {
@@ -347,7 +337,6 @@ function advanceBuildings(deltaSec) {
 					if (!tryProduceSlot(bldKey, productKey, slot)) break;
 				}
 			}
-
 			if (pst.manual.active) {
 				pst.manual.progress += deltaSec / (pcfg.baseCycleMs / 1000);
 				if (pst.manual.progress >= 1.0) {
@@ -364,7 +353,6 @@ function advanceBuildings(deltaSec) {
 	}
 }
 
-
 function unlockBuilding(bldKey) {
 	const cfg = BUILDING_CONFIG[bldKey];
 	const bst = state.buildings[bldKey];
@@ -376,13 +364,11 @@ function unlockBuilding(bldKey) {
 	}
 	state.gold -= cfg.buildCost;
 	bst.unlocked = true;
-
 	for (const [pk, pcfg] of Object.entries(cfg.products)) {
 		if (pcfg.unlockCost === 0 && !pcfg.prereqProduct) {
 			bst.products[pk].unlocked = true;
 		}
 	}
-
 	addBuildingTab(bldKey);
 	announce(`${cfg.label} built!`, "polite");
 	switchTab(bldKey);
@@ -431,12 +417,10 @@ function manualProduce(bldKey, productKey) {
 		announce(`${RESOURCES[pcfg.outputKey].label} production is paused.`, "assertive");
 		return;
 	}
-
 	if (pst.manual.active) {
 		pst.manual.progress += 0.25;
 		return;
 	}
-
 	const inputSum  = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
@@ -445,11 +429,10 @@ function manualProduce(bldKey, productKey) {
 	}
 	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 		if (state.inventory[inputKey] < inputAmt) {
-			announce(`Need ${formatInputs(pcfg.inputs)}.`, "assertive");
+		announce(`Need ${formatInputs(pcfg.inputs)}.`, "assertive");
 			return;
 		}
 	}
-
 	pst.manual.active   = true;
 	pst.manual.progress = 0;
 	announce("Crafting started.", "polite");
@@ -525,7 +508,6 @@ function copySaveToClipboard() {
 	);
 }
 
-
 function announce(msg, level = "polite") {
 	const el = document.getElementById(`live-${level}`);
 	if (!el) return;
@@ -535,13 +517,11 @@ function announce(msg, level = "polite") {
 	runtime.announceTimers[level] = setTimeout(() => { el.textContent = ""; }, 2000);
 }
 
-
 function addBuildingTab(bldKey) {
 	const btn = document.createElement("button");
 	btn.id = `tab-${bldKey}`;
 	btn.textContent = BUILDING_CONFIG[bldKey].label;
 	document.getElementById("tab-bar").insertBefore(btn, document.getElementById("tab-settings"));
-
 	const panel = document.createElement("div");
 	panel.id = `panel-${bldKey}`;
 	panel.className = "tab-panel building-panel";
@@ -560,7 +540,6 @@ function switchTab(tabId) {
 	renderAll();
 }
 
-
 function renderAll() {
 	renderHUD();
 	if      (activeTab === "build")    renderBuildTab();
@@ -574,10 +553,8 @@ function renderHUD() {
 	const gold = Math.floor(state.gold);
 	const used = totalItems();
 	const max  = storageMax();
-
 	const goldText    = `${gold} gold`;
 	const storageText = `${used}/${max} items`;
-
 	const goldEl    = document.getElementById("hud-gold");
 	const storageEl = document.getElementById("hud-storage");
 	if (goldEl    && goldEl.textContent    !== goldText)    goldEl.textContent    = goldText;
@@ -588,15 +565,12 @@ function getProductionOverview() {
 	const productRows = [];
 	const supplyRates = {};
 	const demandRates = {};
-
 	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
 		const bst = state.buildings[bldKey];
 		if (!bst?.unlocked) continue;
-
 		for (const [productKey, pcfg] of Object.entries(cfg.products)) {
 			const pst = bst.products[productKey];
 			if (!pst?.unlocked) continue;
-
 			const n = pst.slots.length;
 			productRows.push({
 				resourceKey: pcfg.outputKey,
@@ -605,7 +579,6 @@ function getProductionOverview() {
 				outputAmt: pcfg.outputAmt,
 				baseCycleMs: pcfg.baseCycleMs,
 			});
-
 			if (!pst.enabled || n === 0) continue;
 			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
 			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
@@ -613,7 +586,6 @@ function getProductionOverview() {
 			}
 		}
 	}
-
 	const hasChain = Object.keys(demandRates).length > 0;
 	const balances = Array.from(new Set([
 		...Object.keys(supplyRates),
@@ -626,14 +598,12 @@ function getProductionOverview() {
 			demand: demandRates[resourceKey] || 0,
 			net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
 		}));
-
 	const deficits = balances
 		.filter(entry => entry.demand > 0 && entry.net < -0.05)
 		.sort((a, b) => a.net - b.net);
 	const surpluses = balances
 		.filter(entry => entry.net > 0.05)
 		.sort((a, b) => b.net - a.net);
-
 	const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
 	const fulfillment = totalDemand <= 0
 		? 0
@@ -644,7 +614,6 @@ function getProductionOverview() {
 				return sum + (entry.demand * coverage);
 			}, 0);
 	const efficiencyPct = totalDemand <= 0 ? null : Math.round((fulfillment / totalDemand) * 100);
-
 	return { productRows, hasChain, deficits, surpluses, efficiencyPct };
 }
 
@@ -661,7 +630,6 @@ function formatBalanceEntries(entries, sign, limit = 3) {
 function renderProductionPanel() {
 	const { productRows, hasChain, deficits, surpluses, efficiencyPct } = getProductionOverview();
 	if (productRows.length === 0) return "";
-
 	const productItems = productRows
 		.map(row => {
 			const res = RESOURCES[row.resourceKey];
@@ -674,7 +642,6 @@ function renderProductionPanel() {
 			return `<li><strong>${res.label}:</strong> ${rateText}</li>`;
 		})
 		.join("");
-
 	const chainRow = (() => {
 		if (!hasChain || efficiencyPct === null) {
 			return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
@@ -687,11 +654,9 @@ function renderProductionPanel() {
 		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
 		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${efficiencyPct}%</li>`;
 	})();
-
 	const surplusRow = !hasChain || surpluses.length === 0
 		? ""
 		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
-
 	return `<section class="prod-summary production-panel" aria-label="Production overview">
 		<h3>Production Overview</h3>
 		<ul>${productItems}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul>
@@ -701,12 +666,10 @@ function renderProductionPanel() {
 function renderBuildTab() {
 	const panel       = document.getElementById("panel-build");
 	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
-
 	if (unbuildKeys.length === 0) {
 		panel.innerHTML = `<p class="market-empty">All buildings constructed.</p>`;
 		return;
 	}
-
 	panel.innerHTML = `${unbuildKeys.map(bldKey => {
 		const cfg       = BUILDING_CONFIG[bldKey];
 		const prereqMet = cfg.prereq();
@@ -726,21 +689,17 @@ function renderBuildTab() {
 function renderProductionTab() {
 	const panel = document.getElementById("panel-production");
 	if (!panel) return;
-
 	const overviewHtml = renderProductionPanel() || `<p class="market-empty">No production online yet.</p>`;
 	const unlockedProducts = [];
-
 	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
 		const bst = state.buildings[bldKey];
 		if (!bst?.unlocked) continue;
-
 		for (const [productKey, pcfg] of Object.entries(cfg.products)) {
 			const pst = bst.products[productKey];
 			if (!pst?.unlocked) continue;
 			unlockedProducts.push({ bldKey, productKey, cfg, pcfg, pst });
 		}
 	}
-
 	const cardsHtml = unlockedProducts.length === 0
 		? ""
 		: `<div class="production-toggle-grid">${unlockedProducts.map(({ bldKey, productKey, cfg, pcfg, pst }) => {
@@ -764,7 +723,6 @@ function renderProductionTab() {
 				</button>
 			</section>`;
 		}).join("")}</div>`;
-
 	panel.innerHTML = `<h2>Production</h2>${overviewHtml}${cardsHtml}`;
 }
 
@@ -773,15 +731,12 @@ function updateMarketProducts() {
 	if (!panel) return;
 	const container = panel.querySelector("#market-products");
 	if (!container) return;
-
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-
 	const existingCards = Array.from(container.querySelectorAll("[data-market-resource]"))
 		.map(el => el.dataset.marketResource);
 	const structureChanged =
 		withStock.length !== existingCards.length ||
 		withStock.some((k, i) => k !== existingCards[i]);
-
 	if (structureChanged) {
 		const focused          = document.activeElement;
 		const wasInPanel       = panel.contains(focused);
@@ -799,7 +754,6 @@ function updateMarketProducts() {
 		}
 		return;
 	}
-
 	const used = totalItems();
 	const max  = storageMax();
 	const pct  = Math.min(100, Math.floor(used / max * 100));
@@ -812,20 +766,16 @@ function updateMarketProducts() {
 		const label = `${used} / ${max} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
 	}
-
 	if (withStock.length === 0) return;
-
 	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
 	if (sellAllBtn) {
 		const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
 		sellAllBtn.textContent = `Sell Everything - ${totalValue} gold`;
 	}
-
 	for (const resourceKey of withStock) {
 		const inv    = state.inventory[resourceKey];
 		const price  = currentPrice(resourceKey);
 		const earned = inv * price;
-
 		const card = container.querySelector(`[data-market-resource="${resourceKey}"]`);
 		if (!card) continue;
 		const stockEl = card.querySelector(".market-product-stock");
@@ -838,12 +788,9 @@ function updateMarketProducts() {
 function renderBuildingTab(bldKey) {
 	const panel = document.getElementById(`panel-${bldKey}`);
 	if (!panel) return;
-
 	const cfg = BUILDING_CONFIG[bldKey];
 	const bst = state.buildings[bldKey];
-
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
-
 	const unlockedHtml = unlockedProducts
 		.map(([productKey, pcfg]) => {
 			const pst       = bst.products[productKey];
@@ -858,13 +805,10 @@ function renderBuildingTab(bldKey) {
 				: runtime.rateDisplayMode === "cycle"
 					? `${n} ${slotWord}, producing ${total} ${itemWord} every ${formatDuration(Math.round(pcfg.baseCycleMs / 1000))}`
 					: `${n} ${slotWord}, producing ${formatRate(n, pcfg.outputAmt, pcfg.baseCycleMs, res.label)}`;
-
 			const inputDesc = Object.keys(pcfg.inputs).length === 0
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
-
 			const slotRateDelta = formatRate(1, pcfg.outputAmt, pcfg.baseCycleMs, res.label);
-
 			return `<div class="product-section">
 				<div class="product-header"><h3>${res.label}</h3></div>
 				${inputDesc}
@@ -883,12 +827,10 @@ function renderBuildingTab(bldKey) {
 				</button>
 			</div>`;
 		}).join("");
-
 	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) =>
 		!bst.products[pk].unlocked &&
 		(!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked)
 	);
-
 	const unlockHtml = unlockables.length === 0 ? "" : `<div class="unlock-section">
 		${unlockables.map(([pk, pcfg]) => {
 			const res = RESOURCES[pcfg.outputKey];
@@ -899,7 +841,6 @@ function renderBuildingTab(bldKey) {
 			</button>`;
 		}).join("")}
 	</div>`;
-
 	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
 	panel.innerHTML = `<div class="rate-mode-row">
 		<button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button>
@@ -908,7 +849,6 @@ function renderBuildingTab(bldKey) {
 
 function renderMarketTab() {
 	const panel = document.getElementById("panel-market");
-
 	const used  = totalItems();
 	const max   = storageMax();
 	const pct   = Math.min(100, Math.floor(used / max * 100));
@@ -918,13 +858,10 @@ function renderMarketTab() {
 	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>
 		Expand Storage: ${max} to ${next} items for ${cost} gold
 	</button>`;
-
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-
 	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
 	const sellAllHtml = withStock.length === 0 ? "" :
 		`<button class="sell-all-btn" data-action="sell-all">Sell Everything - ${totalValue} gold</button>`;
-
 	const sellHtml = withStock.length === 0
 		? `<p class="market-empty">Nothing to sell yet.</p>`
 		: withStock.map(resourceKey => {
@@ -941,7 +878,6 @@ function renderMarketTab() {
 				</button>
 			</div>`;
 		}).join("");
-
 	panel.innerHTML = `<h2>Market</h2>
 		<div class="storage-info">
 			<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
@@ -959,7 +895,6 @@ function renderMarketTab() {
 function renderSettingsTab() {
 	const panel = document.getElementById("panel-settings");
 	if (!panel) return;
-
 	panel.innerHTML = `<h2>Settings</h2>
 		<section class="settings-section">
 			<h3>Save</h3>
@@ -971,7 +906,6 @@ function renderSettingsTab() {
 		</section>`;
 }
 
-
 function tick() {
 	const now   = Date.now();
 	const delta = (now - state.lastTick) / 1000;
@@ -981,7 +915,6 @@ function tick() {
 	if (activeTab === "market") updateMarketProducts();
 }
 
-
 function handleClick(e) {
 	const tab = e.target.closest("#tab-bar button");
 	if (tab) {
@@ -990,11 +923,9 @@ function handleClick(e) {
 	}
 	const btn = e.target.closest("button[data-action]");
 	if (!btn) return;
-
 	const { action } = btn.dataset;
 	const bld     = btn.dataset.bld;
 	const product = btn.dataset.product;
-
 	switch (action) {
 		case "build":           unlockBuilding(bld);                 break;
 		case "unlock-product":  unlockProduct(bld, product);         break;
@@ -1014,17 +945,13 @@ function handleClick(e) {
 	}
 }
 
-
 function init() {
 	load();
 	state.lastTick = Date.now();
-
 	for (const bldKey of Object.keys(BUILDING_CONFIG)) {
 		if (state.buildings[bldKey].unlocked) addBuildingTab(bldKey);
 	}
-
 	renderAll();
-
 	document.getElementById("app").addEventListener("click", handleClick);
 	setInterval(tick, 100);
 	setInterval(save, 5000);
