@@ -225,10 +225,11 @@ function currentPrice(resourceKey) {
 	return RESOURCES[resourceKey].price;
 }
 
-function formatRate(slots, outputAmt, baseCycleMs) {
+function formatRate(slots, outputAmt, baseCycleMs, label = "") {
 	const perMin = slots * outputAmt * 60000 / baseCycleMs;
 	const rounded = Math.round(perMin * 10) / 10;
-	return (rounded % 1 === 0 ? `${rounded}` : rounded.toFixed(1)) + "/min";
+	const num = rounded % 1 === 0 ? `${rounded}` : rounded.toFixed(1);
+	return label ? `${num} ${label}/min` : `${num}/min`;
 }
 
 function formatProductOutput(slots, outputAmt, baseCycleMs) {
@@ -856,13 +857,13 @@ function renderBuildingTab(bldKey) {
 				? "No slots yet."
 				: runtime.rateDisplayMode === "cycle"
 					? `${n} ${slotWord}, producing ${total} ${itemWord} every ${formatDuration(Math.round(pcfg.baseCycleMs / 1000))}`
-					: `${n} ${slotWord}, producing ${formatRate(n, pcfg.outputAmt, pcfg.baseCycleMs)} ${res.label}`;
+					: `${n} ${slotWord}, producing ${formatRate(n, pcfg.outputAmt, pcfg.baseCycleMs, res.label)}`;
 
 			const inputDesc = Object.keys(pcfg.inputs).length === 0
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
 
-			const slotRateDelta = formatRate(1, pcfg.outputAmt, pcfg.baseCycleMs);
+			const slotRateDelta = formatRate(1, pcfg.outputAmt, pcfg.baseCycleMs, res.label);
 
 			return `<div class="product-section">
 				<div class="product-header"><h3>${res.label}</h3></div>
