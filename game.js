@@ -674,7 +674,7 @@ function renderProductionPanel() {
 	const surplusRow = !hasChain || surpluses.length === 0
 		? ""
 		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
-	return `<section class="prod-summary production-panel" aria-label="Production overview">
+	return `<section class="prod-summary production-panel">
 		<h3>Production Overview</h3>
 		<ul>${productItems}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul>
 	</section>`;
