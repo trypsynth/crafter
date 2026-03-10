@@ -715,11 +715,18 @@ function renderBuildTab() {
 				</button>
 			</div>`;
 		}).join("");
-	if (!overviewHtml && !cardsHtml && !constructHtml) {
+	const productionSection = overviewHtml || cardsHtml
+		? `<section aria-label="Production">${overviewHtml}${cardsHtml}</section>`
+		: "";
+	const constructSection = constructHtml
+		? `<section aria-label="Construction">${constructHtml}</section>`
+		: "";
+	if (!productionSection && !constructSection) {
 		panel.innerHTML = `<p class="market-empty">Nothing to manage yet.</p>`;
 		return;
 	}
-	panel.innerHTML = `<h2>Manage</h2>${overviewHtml}${cardsHtml}${constructHtml}`;
+	const divider = productionSection && constructSection ? `<hr>` : "";
+	panel.innerHTML = `<h2>Manage</h2>${productionSection}${divider}${constructSection}`;
 }
 
 function updateMarketProducts() {
