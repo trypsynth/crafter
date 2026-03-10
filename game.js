@@ -217,6 +217,12 @@ function nextSlotCost(bldKey, productKey) {
 	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.4, n));
 }
 
+function lastSlotCost(bldKey, productKey) {
+	const n = state.buildings[bldKey].products[productKey].slots.length;
+	if (n === 0) return 0;
+	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.4, n - 1));
+}
+
 function currentPrice(resourceKey) {
 	return RESOURCES[resourceKey].price;
 }
@@ -408,6 +414,18 @@ function addSlot(bldKey, productKey) {
 	announce(`Slot added. ${label} now has ${pst.slots.length} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
 	renderAll();
 	document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`)?.focus();
+}
+
+function sellSlot(bldKey, productKey) {
+	const pst = state.buildings[bldKey].products[productKey];
+	if (pst.slots.length === 0) return;
+	const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
+	const sold = pst.slots.pop();
+	delete runtime.stallAnnounced[`${bldKey}-${productKey}-${sold.id}`];
+	state.gold += refund;
+	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
+	announce(`Slot sold for ${refund} gold. ${label} now has ${pst.slots.length} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
+	renderAll();
 }
 
 function manualProduce(bldKey, productKey) {
@@ -812,6 +830,7 @@ function renderBuildingTab(bldKey) {
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
 			const slotRateDelta = formatRate(1, pcfg.outputAmt, pcfg.baseCycleMs, res.label);
+			const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 			return `<div class="product-section">
 				<div class="product-header"><h3>${res.label}</h3></div>
 				${inputDesc}
@@ -827,6 +846,11 @@ function renderBuildingTab(bldKey) {
 				        data-bld="${bldKey}" data-product="${productKey}"
 				        ${state.gold >= slotCost ? "" : "disabled"}>
 					Add Slot for ${slotCost} gold (+${slotRateDelta})
+				</button>
+				<button class="sell-slot-btn" data-action="sell-slot"
+				        data-bld="${bldKey}" data-product="${productKey}"
+				        ${n > 0 ? "" : "disabled"}>
+					Sell Slot (${refund} gold, -${slotRateDelta})
 				</button>
 			</div>`;
 		}).join("");
@@ -933,6 +957,7 @@ function handleClick(e) {
 		case "build":           unlockBuilding(bld);                 break;
 		case "unlock-product":  unlockProduct(bld, product);         break;
 		case "add-slot":        addSlot(bld, product);               break;
+		case "sell-slot":       sellSlot(bld, product);              break;
 		case "manual-produce":  manualProduce(bld, product);         break;
 		case "storage-upgrade": upgradeStorage();                    break;
 		case "sell":            sellProduct(btn.dataset.resource);   break;
