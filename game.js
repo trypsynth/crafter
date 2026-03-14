@@ -700,14 +700,16 @@ function renderBuildTab() {
 			const slots = pst.slots.length;
 			const statusClass = pst.enabled ? "health-ok" : "health-warn";
 			const statusLabel = pst.enabled ? "Active" : "Paused";
-			const rateText = slots === 0 ? "no slots" : formatProductOutput(slots, pcfg.outputAmt, pcfg.baseCycleMs);
+			const slotSummary = slots === 0
+				? "0 slots"
+				: `${slots} ${slots === 1 ? "slot" : "slots"}, ${formatProductOutput(slots, pcfg.outputAmt, pcfg.baseCycleMs)}`;
 			return `<section class="product-section production-toggle-card">
 				<div class="product-header">
 					<h3>${res.label}</h3>
 					<span class="production-building">${cfg.label}</span>
 				</div>
 				<p class="production-status ${statusClass}"><strong>Status:</strong> ${statusLabel}</p>
-				<p class="slot-summary">${slots} ${slots === 1 ? "slot" : "slots"}, ${rateText}</p>
+				<p class="slot-summary">${slotSummary}</p>
 				${Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`}
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
 				        data-action="toggle-product"
