@@ -231,7 +231,7 @@ function formatRate(slots, outputAmt, baseCycleMs, label = "") {
 	const perMin = slots * outputAmt * 60000 / baseCycleMs;
 	const rounded = Math.round(perMin * 10) / 10;
 	const num = rounded % 1 === 0 ? `${rounded}` : rounded.toFixed(1);
-	return label ? `${num} ${label}/min` : `${num}/min`;
+	return label ? `${num} ${label} per minute` : `${num} per minute`;
 }
 
 function formatProductOutput(slots, outputAmt, baseCycleMs) {
@@ -639,7 +639,7 @@ function formatBalanceEntries(entries, sign, limit = 3) {
 		.slice(0, limit)
 		.map(entry => {
 			const amt = (Math.round(Math.abs(entry.net) * 10) / 10).toFixed(1);
-			return `${RESOURCES[entry.resourceKey].label} ${sign}${amt}/min`;
+			return `${RESOURCES[entry.resourceKey].label} ${sign}${amt} per minute`;
 		})
 		.join(", ");
 }
@@ -733,8 +733,12 @@ function renderBuildTab() {
 				</button>
 			</div>`;
 		}).join("");
+	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
+	const toggleHtml = overviewHtml || cardsHtml
+		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
+		: "";
 	const productionSection = overviewHtml || cardsHtml
-		? `<section aria-label="Production">${overviewHtml}${cardsHtml}</section>`
+		? `<section aria-label="Production">${toggleHtml}${overviewHtml}${cardsHtml}</section>`
 		: "";
 	const constructSection = constructHtml
 		? `<section aria-label="Construction">${constructHtml}</section>`
@@ -791,7 +795,7 @@ function updateMarketProducts() {
 	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
 	if (sellAllBtn) {
 		const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-		sellAllBtn.textContent = `Sell Everything - ${totalValue} gold`;
+		sellAllBtn.textContent = `Sell Everything for ${totalValue} gold`;
 	}
 	for (const resourceKey of withStock) {
 		const inv    = state.inventory[resourceKey];
@@ -802,7 +806,7 @@ function updateMarketProducts() {
 		const stockEl = card.querySelector(".market-product-stock");
 		if (stockEl) stockEl.textContent = `${inv} in stock, ${price} gold each`;
 		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) sellBtn.textContent = `Sell All ${RESOURCES[resourceKey].label} - ${earned} gold`;
+		if (sellBtn) sellBtn.textContent = `Sell All ${RESOURCES[resourceKey].label} for ${earned} gold`;
 	}
 }
 
@@ -814,22 +818,18 @@ function renderBuildingTab(bldKey) {
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
 	const unlockedHtml = unlockedProducts
 		.map(([productKey, pcfg]) => {
-			const pst       = bst.products[productKey];
-			const res       = RESOURCES[pcfg.outputKey];
-			const slotCost  = nextSlotCost(bldKey, productKey);
-			const n         = pst.slots.length;
-			const slotWord  = n === 1 ? "slot" : "slots";
-			const total     = n * pcfg.outputAmt;
-			const itemWord  = total === 1 ? res.singular : res.label;
-			const summary   = n === 0
-				? "No slots yet."
-				: runtime.rateDisplayMode === "cycle"
-					? `${n} ${slotWord}, producing ${total} ${itemWord} every ${formatDuration(Math.round(pcfg.baseCycleMs / 1000))}`
-					: `${n} ${slotWord}, producing ${formatRate(n, pcfg.outputAmt, pcfg.baseCycleMs, res.label)}`;
-			const inputDesc = Object.keys(pcfg.inputs).length === 0
+			const pst        = bst.products[productKey];
+			const res        = RESOURCES[pcfg.outputKey];
+			const slotCost   = nextSlotCost(bldKey, productKey);
+			const n          = pst.slots.length;
+			const slotWord   = n === 1 ? "slot" : "slots";
+			const cycleSecs  = Math.round(pcfg.baseCycleMs / 1000);
+			const cycleItem  = pcfg.outputAmt === 1 ? res.singular : res.label;
+			const cycleFmt   = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
+			const summary    = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${cycleFmt}`;
+			const inputDesc  = Object.keys(pcfg.inputs).length === 0
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
-			const slotRateDelta = formatRate(1, pcfg.outputAmt, pcfg.baseCycleMs, res.label);
 			const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 			return `<div class="product-section">
 				<div class="product-header"><h3>${res.label}</h3></div>
@@ -845,12 +845,12 @@ function renderBuildingTab(bldKey) {
 				<button class="add-slot-btn" data-action="add-slot"
 				        data-bld="${bldKey}" data-product="${productKey}"
 				        ${state.gold >= slotCost ? "" : "disabled"}>
-					Add Slot for ${slotCost} gold (+${slotRateDelta})
+					Add Slot for ${slotCost} gold (+${cycleFmt})
 				</button>
 				<button class="sell-slot-btn" data-action="sell-slot"
 				        data-bld="${bldKey}" data-product="${productKey}"
 				        ${n > 0 ? "" : "disabled"}>
-					Sell Slot (${refund} gold, -${slotRateDelta})
+					Sell Slot for ${refund} gold (-${cycleFmt})
 				</button>
 			</div>`;
 		}).join("");
@@ -868,10 +868,7 @@ function renderBuildingTab(bldKey) {
 			</button>`;
 		}).join("")}
 	</div>`;
-	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
-	panel.innerHTML = `<div class="rate-mode-row">
-		<button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button>
-	</div><h2>${cfg.label}</h2>${unlockedHtml}${unlockHtml}`;
+	panel.innerHTML = `<h2>${cfg.label}</h2>${unlockedHtml}${unlockHtml}`;
 }
 
 function renderMarketTab() {
@@ -888,7 +885,7 @@ function renderMarketTab() {
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
 	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
 	const sellAllHtml = withStock.length === 0 ? "" :
-		`<button class="sell-all-btn" data-action="sell-all">Sell Everything - ${totalValue} gold</button>`;
+		`<button class="sell-all-btn" data-action="sell-all">Sell Everything for ${totalValue} gold</button>`;
 	const sellHtml = withStock.length === 0
 		? `<p class="market-empty">Nothing to sell yet.</p>`
 		: withStock.map(resourceKey => {
@@ -901,7 +898,7 @@ function renderMarketTab() {
 					<span class="market-product-stock">${inv} in stock, ${res.price} gold each</span>
 				</div>
 				<button class="sell-btn" data-action="sell" data-resource="${resourceKey}">
-					Sell All ${res.label} - ${earned} gold
+					Sell All ${res.label} for ${earned} gold
 				</button>
 			</div>`;
 		}).join("");
