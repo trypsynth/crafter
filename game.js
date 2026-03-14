@@ -747,8 +747,7 @@ function renderBuildTab() {
 		panel.innerHTML = `<p class="market-empty">Nothing to manage yet.</p>`;
 		return;
 	}
-	const divider = productionSection && constructSection ? `<hr>` : "";
-	panel.innerHTML = `<h2>Manage</h2>${productionSection}${divider}${constructSection}`;
+	panel.innerHTML = `<h2>Manage</h2>${productionSection}${constructSection}`;
 }
 
 function updateMarketProducts() {
