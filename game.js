@@ -675,7 +675,7 @@ function renderProductionPanel() {
 		? ""
 		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
 	return `<section class="prod-summary production-panel">
-		<h3>Production Overview</h3>
+		<h3>Overview</h3>
 		<ul>${productItems}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul>
 	</section>`;
 }
@@ -738,16 +738,16 @@ function renderBuildTab() {
 		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
 		: "";
 	const productionSection = overviewHtml || cardsHtml
-		? `<section aria-label="Production">${toggleHtml}${overviewHtml}${cardsHtml}</section>`
+		? `<section aria-label="Production"><h2>Production</h2>${toggleHtml}${overviewHtml}${cardsHtml}</section>`
 		: "";
 	const constructSection = constructHtml
-		? `<section aria-label="Construction">${constructHtml}</section>`
+		? `<section aria-label="Construction"><h2>Build</h2>${constructHtml}</section>`
 		: "";
 	if (!productionSection && !constructSection) {
-		panel.innerHTML = `<p class="market-empty">Nothing to manage yet.</p>`;
+		panel.innerHTML = `<p class="market-empty">Nothing to manage yet. Build something first.</p>`;
 		return;
 	}
-	panel.innerHTML = `<h2>Manage</h2>${productionSection}${constructSection}`;
+	panel.innerHTML = `${productionSection}${constructSection}`;
 }
 
 function updateMarketProducts() {
