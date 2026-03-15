@@ -895,7 +895,9 @@ function renderBuildingTab(bldKey) {
 			const cycleSecs = Math.round(pcfg.baseCycleMs / 1000);
 			const cycleItem = pcfg.outputAmt === 1 ? res.singular : res.label;
 			const cycleFmt = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
-			const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${cycleFmt}`;
+			const totalAmt = n * pcfg.outputAmt;
+			const totalItem = totalAmt === 1 ? res.singular : res.label;
+			const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${totalAmt} ${totalItem} every ${formatDuration(cycleSecs)}`;
 			const inputDesc = Object.keys(pcfg.inputs).length === 0
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
