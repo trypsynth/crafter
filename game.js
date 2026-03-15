@@ -28,7 +28,7 @@ const BUILDING_CONFIG = {
 				inputs:         {},
 				baseCycleMs:    3000,
 				unlockCost:     0,
-				baseSlotCost:   75,
+				baseSlotCost: 75,
 				prereqProduct:  null,
 				startsUnlocked: true,
 			},
@@ -38,7 +38,7 @@ const BUILDING_CONFIG = {
 				inputs:        { logs: 2 },
 				baseCycleMs:   8000,
 				unlockCost:    150,
-				baseSlotCost:  250,
+				baseSlotCost:  175,
 				prereqProduct: "logs",
 			},
 			dowels: {
@@ -47,7 +47,7 @@ const BUILDING_CONFIG = {
 				inputs:        { timber: 1 },
 				baseCycleMs:   12000,
 				unlockCost:    300,
-				baseSlotCost:  400,
+				baseSlotCost:  300,
 				prereqProduct: "timber",
 			},
 			handles: {
@@ -214,13 +214,13 @@ function storageUpgradeCost() {
 
 function nextSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.4, n));
+	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.3, n));
 }
 
 function lastSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
 	if (n === 0) return 0;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.4, n - 1));
+	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.3, n - 1));
 }
 
 function currentPrice(resourceKey) {
