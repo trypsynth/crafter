@@ -92,13 +92,17 @@ body {
 
 #hud-stats {
 	display: flex;
-	gap: var(--space-lg);
+	flex-wrap: wrap;
+	gap: var(--space-sm) var(--space-lg);
 	font-size: var(--font-sm);
 	color: var(--color-text-muted);
-	white-space: nowrap;
 }
 #hud-stats strong { font-size: var(--font-base); }
 #hud-gold { color: var(--color-gold); }
+#hud-inventory { color: var(--color-text-muted); flex-wrap: wrap; }
+#hud-chain:empty { display: none; }
+.hud-ok   { color: var(--color-progress); }
+.hud-warn { color: #f5a623; }
 
 
 #tab-bar {

@@ -616,6 +616,34 @@ function renderHUD() {
 	const storageEl = document.getElementById("hud-storage");
 	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
+
+	const inventoryEl = document.getElementById("hud-inventory");
+	if (inventoryEl) {
+		const invText = Object.entries(state.inventory)
+			.filter(([, v]) => v > 0)
+			.map(([k, v]) => `${v} ${formatResourceName(k, v)}`)
+			.join(", ");
+		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
+	}
+
+	const chainEl = document.getElementById("hud-chain");
+	if (chainEl) {
+		const { hasChain, deficits, efficiencyPct } = getProductionOverview();
+		let chainText = "";
+		let chainClass = "";
+		if (hasChain) {
+			if (deficits.length > 0) {
+				const names = deficits.slice(0, 2).map(e => RESOURCES[e.resourceKey].label).join(", ");
+				chainText = `Bottleneck: ${names}`;
+				chainClass = "hud-warn";
+			} else if (efficiencyPct !== null) {
+				chainText = efficiencyPct === 100 ? "Chain: OK" : `Chain: ${efficiencyPct}%`;
+				chainClass = efficiencyPct === 100 ? "hud-ok" : "";
+			}
+		}
+		if (chainEl.textContent !== chainText) chainEl.textContent = chainText;
+		if (chainEl.className !== chainClass) chainEl.className = chainClass;
+	}
 }
 
 function getProductionOverview() {
