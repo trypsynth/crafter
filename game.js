@@ -671,7 +671,7 @@ function renderProductionPanel() {
 		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
 		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${efficiencyPct}%</li>`;
 	})();
-	const surplusRow = !hasChain || surpluses.length === 0
+	const surplusRow = !hasChain || surpluses.length === 0 || deficits.length > 0
 		? ""
 		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
 	return `<section class="prod-summary production-panel">
