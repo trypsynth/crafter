@@ -3,123 +3,123 @@
 const SAVE_KEY = "crafter";
 
 const RESOURCES = {
-	logs:    { label: "Logs",    singular: "Log",    price: 2  },
-	timber:  { label: "Timber",  singular: "Timber", price: 9  },
-	dowels:  { label: "Dowels",  singular: "Dowel",  price: 16 },
+	logs: { label: "Logs", singular: "Log", price: 2 },
+	timber: { label: "Timber", singular: "Timber", price: 9 },
+	dowels: { label: "Dowels", singular: "Dowel", price: 16 },
 	handles: { label: "Handles", singular: "Handle", price: 26 },
-	shafts:  { label: "Shafts",  singular: "Shaft",  price: 72 },
-	frames:  { label: "Frames",  singular: "Frame",  price: 120 },
-	crates:  { label: "Crates",  singular: "Crate",  price: 170 },
+	shafts: { label: "Shafts", singular: "Shaft", price: 72 },
+	frames: { label: "Frames", singular: "Frame", price: 120 },
+	crates: { label: "Crates", singular: "Crate", price: 170 },
 	cabinets:{ label: "Cabinets",singular: "Cabinet",price: 360 },
-	carts:   { label: "Carts",   singular: "Cart",   price: 620 },
+	carts: { label: "Carts", singular: "Cart", price: 620 },
 	furniture:{label: "Furniture", singular: "Furniture", price: 980 },
 };
 
 const BUILDING_CONFIG = {
 	lumber_yard: {
-		label:     "Lumber Yard",
-		desc:      "Fells trees and works raw logs into precision wood components.",
+		label: "Lumber Yard",
+		desc: "Fells trees and works raw logs into precision wood components.",
 		buildCost: 0,
-		prereq:    () => true,
+		prereq: () => true,
 		products: {
 			logs: {
-				outputKey:      "logs",
-				outputAmt:      1,
-				inputs:         {},
-				baseCycleMs:    3000,
-				unlockCost:     0,
+				outputKey: "logs",
+				outputAmt: 1,
+				inputs: {},
+				baseCycleMs: 3000,
+				unlockCost: 0,
 				baseSlotCost: 75,
-				prereqProduct:  null,
+				prereqProduct: null,
 				startsUnlocked: true,
 			},
 			timber: {
-				outputKey:     "timber",
-				outputAmt:     1,
-				inputs:        { logs: 2 },
-				baseCycleMs:   8000,
-				unlockCost:    150,
-				baseSlotCost:  175,
+				outputKey: "timber",
+				outputAmt: 1,
+				inputs: { logs: 2 },
+				baseCycleMs: 8000,
+				unlockCost: 150,
+				baseSlotCost: 175,
 				prereqProduct: "logs",
 			},
 			dowels: {
-				outputKey:     "dowels",
-				outputAmt:     1,
-				inputs:        { timber: 1 },
-				baseCycleMs:   12000,
-				unlockCost:    300,
-				baseSlotCost:  300,
+				outputKey: "dowels",
+				outputAmt: 1,
+				inputs: { timber: 1 },
+				baseCycleMs: 12000,
+				unlockCost: 300,
+				baseSlotCost: 300,
 				prereqProduct: "timber",
 			},
 			handles: {
-				outputKey:     "handles",
-				outputAmt:     1,
-				inputs:        { timber: 2 },
-				baseCycleMs:   18000,
-				unlockCost:    500,
-				baseSlotCost:  600,
+				outputKey: "handles",
+				outputAmt: 1,
+				inputs: { timber: 2 },
+				baseCycleMs: 18000,
+				unlockCost: 500,
+				baseSlotCost: 600,
 				prereqProduct: "timber",
 			},
 			shafts: {
-				outputKey:     "shafts",
-				outputAmt:     1,
-				inputs:        { handles: 1, dowels: 2 },
-				baseCycleMs:   30000,
-				unlockCost:    1000,
-				baseSlotCost:  1000,
+				outputKey: "shafts",
+				outputAmt: 1,
+				inputs: { handles: 1, dowels: 2 },
+				baseCycleMs: 30000,
+				unlockCost: 1000,
+				baseSlotCost: 1000,
 				prereqProduct: "handles",
 			},
 		},
 	},
 	joinery: {
-		label:     "Joinery",
-		desc:      "Assembles finished wood goods from the Lumber Yard's precision parts.",
+		label: "Joinery",
+		desc: "Assembles finished wood goods from the Lumber Yard's precision parts.",
 		buildCost: 1800,
-		prereq:    () => state.buildings.lumber_yard?.unlocked && state.buildings.lumber_yard.products.shafts.unlocked,
+		prereq: () => state.buildings.lumber_yard?.unlocked && state.buildings.lumber_yard.products.shafts.unlocked,
 		products: {
 			frames: {
-				outputKey:      "frames",
-				outputAmt:      1,
-				inputs:         { timber: 2, dowels: 2 },
-				baseCycleMs:    18000,
-				unlockCost:     0,
-				baseSlotCost:   1100,
-				prereqProduct:  null,
+				outputKey: "frames",
+				outputAmt: 1,
+				inputs: { timber: 2, dowels: 2 },
+				baseCycleMs: 18000,
+				unlockCost: 0,
+				baseSlotCost: 1100,
+				prereqProduct: null,
 				startsUnlocked: true,
 			},
 			crates: {
-				outputKey:     "crates",
-				outputAmt:     1,
-				inputs:        { timber: 3, dowels: 1 },
-				baseCycleMs:   16000,
-				unlockCost:    1200,
-				baseSlotCost:  1500,
+				outputKey: "crates",
+				outputAmt: 1,
+				inputs: { timber: 3, dowels: 1 },
+				baseCycleMs: 16000,
+				unlockCost: 1200,
+				baseSlotCost: 1500,
 				prereqProduct: "frames",
 			},
 			cabinets: {
-				outputKey:     "cabinets",
-				outputAmt:     1,
-				inputs:        { timber: 3, handles: 2, dowels: 2 },
-				baseCycleMs:   28000,
-				unlockCost:    2600,
-				baseSlotCost:  2300,
+				outputKey: "cabinets",
+				outputAmt: 1,
+				inputs: { timber: 3, handles: 2, dowels: 2 },
+				baseCycleMs: 28000,
+				unlockCost: 2600,
+				baseSlotCost: 2300,
 				prereqProduct: "crates",
 			},
 			carts: {
-				outputKey:     "carts",
-				outputAmt:     1,
-				inputs:        { shafts: 2, frames: 1, handles: 2 },
-				baseCycleMs:   42000,
-				unlockCost:    4200,
-				baseSlotCost:  3600,
+				outputKey: "carts",
+				outputAmt: 1,
+				inputs: { shafts: 2, frames: 1, handles: 2 },
+				baseCycleMs: 42000,
+				unlockCost: 4200,
+				baseSlotCost: 3600,
 				prereqProduct: "cabinets",
 			},
 			furniture: {
-				outputKey:     "furniture",
-				outputAmt:     1,
-				inputs:        { frames: 2, timber: 2, handles: 2, dowels: 4 },
-				baseCycleMs:   54000,
-				unlockCost:    6800,
-				baseSlotCost:  5200,
+				outputKey: "furniture",
+				outputAmt: 1,
+				inputs: { frames: 2, timber: 2, handles: 2, dowels: 4 },
+				baseCycleMs: 54000,
+				unlockCost: 6800,
+				baseSlotCost: 5200,
 				prereqProduct: "carts",
 			},
 		},
@@ -133,10 +133,10 @@ const STORAGE_BASE_COST = 150;
 const STORAGE_COST_GROWTH = 1.75;
 
 const DEFAULT_STATE = (() => ({
-	gold:      0,
-	lastTick:  null,
+	gold: 0,
+	lastTick: null,
 	inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
-	storage:   { tier: 0 },
+	storage: { tier: 0 },
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
@@ -147,9 +147,9 @@ const DEFAULT_STATE = (() => ({
 						const pcfg = bcfg.products[pk];
 						return [pk, {
 							unlocked: pcfg.startsUnlocked ?? false,
-							enabled:  true,
-							slots:    [],
-							manual:   { active: false, progress: 0 },
+							enabled: true,
+							slots: [],
+							manual: { active: false, progress: 0 },
 						}];
 					})
 				),
@@ -158,11 +158,11 @@ const DEFAULT_STATE = (() => ({
 	),
 }))();
 
-let state     = deepClone(DEFAULT_STATE);
+let state = deepClone(DEFAULT_STATE);
 let activeTab = "build";
 
 const runtime = {
-	nextSlotId:     0,
+	nextSlotId: 0,
 	stallAnnounced: {},
 	announceTimers: { polite: null, assertive: null },
 	rateDisplayMode: "minute",
@@ -243,9 +243,9 @@ function formatProductOutput(slots, outputAmt, baseCycleMs) {
 }
 
 function formatDuration(seconds) {
-	if (seconds < 60)  return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+	if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
 	const mins = Math.round(seconds / 60);
-	if (mins   < 60)   return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
+	if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
 	const hours = Math.round(mins / 60);
 	return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
@@ -265,7 +265,7 @@ function load() {
 		if (parsed.buildings?.workshop) {
 			delete parsed.buildings.workshop;
 		}
-		const fresh  = deepClone(DEFAULT_STATE);
+		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
 		state = fresh;
 		let maxId = 0;
@@ -290,10 +290,10 @@ function load() {
 }
 
 function tryProduceSlot(bldKey, productKey, slot) {
-	const pcfg      = BUILDING_CONFIG[bldKey].products[productKey];
-	const inputSum  = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
+	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
+	const inputSum = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
-	const stallKey  = `${bldKey}-${productKey}-${slot.id}`;
+	const stallKey = `${bldKey}-${productKey}-${slot.id}`;
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
 		slot.progress = Math.min(slot.progress, 0.999);
 		if (!runtime.stallAnnounced[stallKey]) {
@@ -347,7 +347,7 @@ function advanceBuildings(deltaSec) {
 				pst.manual.progress += deltaSec / (pcfg.baseCycleMs / 1000);
 				if (pst.manual.progress >= 1.0) {
 					pst.manual.progress = 0;
-					pst.manual.active   = false;
+					pst.manual.active = false;
 					for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 						state.inventory[inputKey] -= inputAmt;
 					}
@@ -383,7 +383,7 @@ function unlockBuilding(bldKey) {
 
 function unlockProduct(bldKey, productKey) {
 	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
-	const pst  = state.buildings[bldKey].products[productKey];
+	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.unlocked) return;
 	if (pcfg.prereqProduct && !state.buildings[bldKey].products[pcfg.prereqProduct].unlocked) return;
 	if (state.gold < pcfg.unlockCost) {
@@ -430,7 +430,7 @@ function sellSlot(bldKey, productKey) {
 
 function manualProduce(bldKey, productKey) {
 	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
-	const pst  = state.buildings[bldKey].products[productKey];
+	const pst = state.buildings[bldKey].products[productKey];
 	if (!pst.enabled) {
 		announce(`${RESOURCES[pcfg.outputKey].label} production is paused.`, "assertive");
 		return;
@@ -439,7 +439,7 @@ function manualProduce(bldKey, productKey) {
 		pst.manual.progress += 0.25;
 		return;
 	}
-	const inputSum  = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
+	const inputSum = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
 		announce("Storage is full.", "assertive");
@@ -451,7 +451,7 @@ function manualProduce(bldKey, productKey) {
 			return;
 		}
 	}
-	pst.manual.active   = true;
+	pst.manual.active = true;
 	pst.manual.progress = 0;
 	announce("Crafting started.", "polite");
 }
@@ -518,11 +518,11 @@ function clearSaveData() {
 }
 
 function copySaveToClipboard() {
-	const json   = localStorage.getItem(SAVE_KEY) ?? JSON.stringify(DEFAULT_STATE);
+	const json = localStorage.getItem(SAVE_KEY) ?? JSON.stringify(DEFAULT_STATE);
 	const base64 = btoa(json);
 	navigator.clipboard.writeText(base64).then(
-		()  => announce("Save copied to clipboard.", "polite"),
-		()  => announce("Clipboard access denied.", "assertive"),
+		() => announce("Save copied to clipboard.", "polite"),
+		() => announce("Clipboard access denied.", "assertive"),
 	);
 }
 
@@ -552,16 +552,16 @@ function switchTab(tabId) {
 	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
 	document.querySelectorAll("#tab-bar button").forEach(b => b.classList.remove("active"));
 	const panel = document.getElementById(`panel-${tabId}`);
-	const btn   = document.getElementById(`tab-${tabId}`);
+	const btn = document.getElementById(`tab-${tabId}`);
 	if (panel) panel.hidden = false;
-	if (btn)   btn.classList.add("active");
+	if (btn) btn.classList.add("active");
 	renderAll();
 }
 
 function renderAll() {
 	renderHUD();
-	if      (activeTab === "build")    renderBuildTab();
-	else if (activeTab === "market")   renderMarketTab();
+	if (activeTab === "build") renderBuildTab();
+	else if (activeTab === "market") renderMarketTab();
 	else if (activeTab === "settings") renderSettingsTab();
 	else if (activeTab in BUILDING_CONFIG) renderBuildingTab(activeTab);
 }
@@ -569,12 +569,12 @@ function renderAll() {
 function renderHUD() {
 	const gold = Math.floor(state.gold);
 	const used = totalItems();
-	const max  = storageMax();
-	const goldText    = `${gold} gold`;
+	const max = storageMax();
+	const goldText = `${gold} gold`;
 	const storageText = `${used}/${max} items`;
-	const goldEl    = document.getElementById("hud-gold");
+	const goldEl = document.getElementById("hud-gold");
 	const storageEl = document.getElementById("hud-storage");
-	if (goldEl    && goldEl.textContent    !== goldText)    goldEl.textContent    = goldText;
+	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
 }
 
@@ -712,8 +712,8 @@ function renderBuildTab() {
 				<p class="slot-summary">${slotSummary}</p>
 				${Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`}
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
-				        data-action="toggle-product"
-				        data-bld="${bldKey}" data-product="${productKey}">
+				 data-action="toggle-product"
+				 data-bld="${bldKey}" data-product="${productKey}">
 					${pst.enabled ? "Pause" : "Resume"} ${res.label}
 				</button>
 			</section>`;
@@ -722,10 +722,10 @@ function renderBuildTab() {
 	const constructHtml = unbuildKeys.length === 0
 		? ""
 		: unbuildKeys.map(bldKey => {
-			const cfg       = BUILDING_CONFIG[bldKey];
+			const cfg = BUILDING_CONFIG[bldKey];
 			const prereqMet = cfg.prereq();
 			const canAfford = state.gold >= cfg.buildCost;
-			const disabled  = !prereqMet || !canAfford ? "disabled" : "";
+			const disabled = !prereqMet || !canAfford ? "disabled" : "";
 			const costLabel = cfg.buildCost === 0 ? "Free" : `${cfg.buildCost} gold`;
 			return `<div class="build-card">
 				<h3>${cfg.label}</h3>
@@ -764,9 +764,9 @@ function updateMarketProducts() {
 		withStock.length !== existingCards.length ||
 		withStock.some((k, i) => k !== existingCards[i]);
 	if (structureChanged) {
-		const focused          = document.activeElement;
-		const wasInPanel       = panel.contains(focused);
-		const focusedResource  = focused?.closest("[data-market-resource]")?.dataset.marketResource;
+		const focused = document.activeElement;
+		const wasInPanel = panel.contains(focused);
+		const focusedResource = focused?.closest("[data-market-resource]")?.dataset.marketResource;
 		renderMarketTab();
 		if (wasInPanel) {
 			const sameBtn = focusedResource &&
@@ -781,13 +781,13 @@ function updateMarketProducts() {
 		return;
 	}
 	const used = totalItems();
-	const max  = storageMax();
-	const pct  = Math.min(100, Math.floor(used / max * 100));
+	const max = storageMax();
+	const pct = Math.min(100, Math.floor(used / max * 100));
 	const barFill = panel.querySelector(".storage-bar-fill");
 	const barWrap = panel.querySelector(".storage-bar-wrap");
 	const usedLabel = panel.querySelector(".storage-used-label");
-	if (barFill)  barFill.style.width = `${pct}%`;
-	if (barWrap)  barWrap.setAttribute("aria-valuenow", pct);
+	if (barFill) barFill.style.width = `${pct}%`;
+	if (barWrap) barWrap.setAttribute("aria-valuenow", pct);
 	if (usedLabel) {
 		const label = `${used} / ${max} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
@@ -799,8 +799,8 @@ function updateMarketProducts() {
 		sellAllBtn.textContent = `Sell Everything for ${totalValue} gold`;
 	}
 	for (const resourceKey of withStock) {
-		const inv    = state.inventory[resourceKey];
-		const price  = currentPrice(resourceKey);
+		const inv = state.inventory[resourceKey];
+		const price = currentPrice(resourceKey);
 		const earned = inv * price;
 		const card = container.querySelector(`[data-market-resource="${resourceKey}"]`);
 		if (!card) continue;
@@ -819,16 +819,16 @@ function renderBuildingTab(bldKey) {
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
 	const unlockedHtml = unlockedProducts
 		.map(([productKey, pcfg]) => {
-			const pst        = bst.products[productKey];
-			const res        = RESOURCES[pcfg.outputKey];
-			const slotCost   = nextSlotCost(bldKey, productKey);
-			const n          = pst.slots.length;
-			const slotWord   = n === 1 ? "slot" : "slots";
-			const cycleSecs  = Math.round(pcfg.baseCycleMs / 1000);
-			const cycleItem  = pcfg.outputAmt === 1 ? res.singular : res.label;
-			const cycleFmt   = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
-			const summary    = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${cycleFmt}`;
-			const inputDesc  = Object.keys(pcfg.inputs).length === 0
+			const pst = bst.products[productKey];
+			const res = RESOURCES[pcfg.outputKey];
+			const slotCost = nextSlotCost(bldKey, productKey);
+			const n = pst.slots.length;
+			const slotWord = n === 1 ? "slot" : "slots";
+			const cycleSecs = Math.round(pcfg.baseCycleMs / 1000);
+			const cycleItem = pcfg.outputAmt === 1 ? res.singular : res.label;
+			const cycleFmt = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
+			const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${cycleFmt}`;
+			const inputDesc = Object.keys(pcfg.inputs).length === 0
 				? ""
 				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
 			const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
@@ -837,20 +837,20 @@ function renderBuildingTab(bldKey) {
 				${inputDesc}
 				<div class="manual-produce-row">
 					<button class="manual-produce-btn" data-action="manual-produce"
-					        data-bld="${bldKey}" data-product="${productKey}"
-					        ${pst.enabled ? "" : "disabled"}>
+					 data-bld="${bldKey}" data-product="${productKey}"
+					 ${pst.enabled ? "" : "disabled"}>
 						${pst.enabled ? `Produce ${res.singular}` : `${res.label} Paused`}
 					</button>
 				</div>
 				<p class="slot-summary">${summary}</p>
 				<button class="add-slot-btn" data-action="add-slot"
-				        data-bld="${bldKey}" data-product="${productKey}"
-				        ${state.gold >= slotCost ? "" : "disabled"}>
+				 data-bld="${bldKey}" data-product="${productKey}"
+				 ${state.gold >= slotCost ? "" : "disabled"}>
 					Add Slot for ${slotCost} gold (+${cycleFmt})
 				</button>
 				<button class="sell-slot-btn" data-action="sell-slot"
-				        data-bld="${bldKey}" data-product="${productKey}"
-				        ${n > 0 ? "" : "disabled"}>
+				 data-bld="${bldKey}" data-product="${productKey}"
+				 ${n > 0 ? "" : "disabled"}>
 					Sell Slot for ${refund} gold (-${cycleFmt})
 				</button>
 			</div>`;
@@ -863,8 +863,8 @@ function renderBuildingTab(bldKey) {
 		${unlockables.map(([pk, pcfg]) => {
 			const res = RESOURCES[pcfg.outputKey];
 			return `<button class="unlock-product-btn" data-action="unlock-product"
-			        data-bld="${bldKey}" data-product="${pk}"
-			        ${state.gold >= pcfg.unlockCost ? "" : "disabled"}>
+			 data-bld="${bldKey}" data-product="${pk}"
+			 ${state.gold >= pcfg.unlockCost ? "" : "disabled"}>
 				Unlock ${res.label} for ${pcfg.unlockCost} gold
 			</button>`;
 		}).join("")}
@@ -874,11 +874,11 @@ function renderBuildingTab(bldKey) {
 
 function renderMarketTab() {
 	const panel = document.getElementById("panel-market");
-	const used  = totalItems();
-	const max   = storageMax();
-	const pct   = Math.min(100, Math.floor(used / max * 100));
-	const cost  = storageUpgradeCost();
-	const next  = nextStorageMax();
+	const used = totalItems();
+	const max = storageMax();
+	const pct = Math.min(100, Math.floor(used / max * 100));
+	const cost = storageUpgradeCost();
+	const next = nextStorageMax();
 	const storageLabel = `${used} / ${max} items (${pct}% full)`;
 	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>
 		Expand Storage: ${max} to ${next} items for ${cost} gold
@@ -890,8 +890,8 @@ function renderMarketTab() {
 	const sellHtml = withStock.length === 0
 		? `<p class="market-empty">Nothing to sell yet.</p>`
 		: withStock.map(resourceKey => {
-			const res    = RESOURCES[resourceKey];
-			const inv    = state.inventory[resourceKey];
+			const res = RESOURCES[resourceKey];
+			const inv = state.inventory[resourceKey];
 			const earned = inv * res.price;
 			return `<div class="market-product" data-market-resource="${resourceKey}">
 				<div class="market-product-header">
@@ -906,7 +906,7 @@ function renderMarketTab() {
 	panel.innerHTML = `<h2>Market</h2>
 		<div class="storage-info">
 			<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
-			     aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+			 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
 				<div class="storage-bar-fill" style="width:${pct}%"></div>
 			</div>
 			<p class="storage-used-label">${storageLabel}</p>
@@ -932,7 +932,7 @@ function renderSettingsTab() {
 }
 
 function tick() {
-	const now   = Date.now();
+	const now = Date.now();
 	const delta = (now - state.lastTick) / 1000;
 	state.lastTick = now;
 	try { advanceBuildings(delta); } catch (e) { console.error("advanceBuildings:", e); }
@@ -949,21 +949,21 @@ function handleClick(e) {
 	const btn = e.target.closest("button[data-action]");
 	if (!btn) return;
 	const { action } = btn.dataset;
-	const bld     = btn.dataset.bld;
+	const bld = btn.dataset.bld;
 	const product = btn.dataset.product;
 	switch (action) {
-		case "build":           unlockBuilding(bld);                 break;
-		case "unlock-product":  unlockProduct(bld, product);         break;
-		case "add-slot":        addSlot(bld, product);               break;
-		case "sell-slot":       sellSlot(bld, product);              break;
-		case "manual-produce":  manualProduce(bld, product);         break;
-		case "storage-upgrade": upgradeStorage();                    break;
-		case "sell":            sellProduct(btn.dataset.resource);   break;
-		case "sell-all":        sellAll();                           break;
-		case "toggle-product":  toggleProductEnabled(bld, product);  break;
-		case "save-now":        saveNow();                           break;
-		case "copy-save":       copySaveToClipboard();               break;
-		case "clear-save":      clearSaveData();                     break;
+		case "build": unlockBuilding(bld); break;
+		case "unlock-product": unlockProduct(bld, product); break;
+		case "add-slot": addSlot(bld, product); break;
+		case "sell-slot": sellSlot(bld, product); break;
+		case "manual-produce": manualProduce(bld, product); break;
+		case "storage-upgrade": upgradeStorage(); break;
+		case "sell": sellProduct(btn.dataset.resource); break;
+		case "sell-all": sellAll(); break;
+		case "toggle-product": toggleProductEnabled(bld, product); break;
+		case "save-now": saveNow(); break;
+		case "copy-save": copySaveToClipboard(); break;
+		case "clear-save": clearSaveData(); break;
 		case "toggle-rate-mode":
 			runtime.rateDisplayMode = runtime.rateDisplayMode === "minute" ? "cycle" : "minute";
 			renderAll();
