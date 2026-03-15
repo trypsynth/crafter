@@ -20,6 +20,7 @@ const BUILDING_CONFIG = {
 		label: "Lumber Yard",
 		desc: "Fells trees and works raw logs into precision wood components.",
 		buildCost: 0,
+		slotCostExponent: 1.65,
 		prereq: () => true,
 		products: {
 			logs: {
@@ -74,7 +75,8 @@ const BUILDING_CONFIG = {
 		label: "Joinery",
 		desc: "Assembles finished wood goods from the Lumber Yard's precision parts.",
 		buildCost: 1800,
-		prereq: () => state.buildings.lumber_yard?.unlocked && state.buildings.lumber_yard.products.shafts.unlocked,
+		slotCostExponent: 1.45,
+		prereq: () => state.buildings.lumber_yard?.unlocked && state.buildings.lumber_yard.products.timber.unlocked,
 		products: {
 			frames: {
 				outputKey: "frames",
@@ -214,13 +216,15 @@ function storageUpgradeCost() {
 
 function nextSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.3, n));
+	const exp = BUILDING_CONFIG[bldKey].slotCostExponent ?? 1.5;
+	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n));
 }
 
 function lastSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
 	if (n === 0) return 0;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(1.3, n - 1));
+	const exp = BUILDING_CONFIG[bldKey].slotCostExponent ?? 1.5;
+	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n - 1));
 }
 
 function currentPrice(resourceKey) {
