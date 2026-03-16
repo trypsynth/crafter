@@ -3,18 +3,18 @@
 const SAVE_KEY = "crafter";
 
 const RESOURCES = {
-	logs:      { label: "Logs",      singular: "Log",       price: 2   },
-	timber:    { label: "Timber",    singular: "Timber",    price: 9   },
-	dowels:    { label: "Dowels",    singular: "Dowel",     price: 16  },
-	handles:   { label: "Handles",   singular: "Handle",    price: 26  },
-	shafts:    { label: "Shafts",    singular: "Shaft",     price: 72  },
-	planks:    { label: "Planks",    singular: "Plank",     price: 10  },
-	boards:    { label: "Boards",    singular: "Board",     price: 22  },
-	beams:     { label: "Beams",     singular: "Beam",      price: 40  },
-	crates:    { label: "Crates",    singular: "Crate",     price: 130 },
+	logs: { label: "Logs", singular: "Log", price: 2 },
+	timber: { label: "Timber", singular: "Timber", price: 9 },
+	dowels: { label: "Dowels", singular: "Dowel", price: 16 },
+	handles: { label: "Handles", singular: "Handle", price: 26 },
+	shafts: { label: "Shafts", singular: "Shaft", price: 72 },
+	planks: { label: "Planks", singular: "Plank", price: 10 },
+	boards: { label: "Boards", singular: "Board", price: 22 },
+	beams: { label: "Beams", singular: "Beam", price: 40 },
+	crates: { label: "Crates", singular: "Crate", price: 130 },
 	furniture: { label: "Furniture", singular: "Furniture", price: 225 },
-	coaches:   { label: "Coaches",   singular: "Coach",     price: 550 },
-	manors:    { label: "Manors",    singular: "Manor",     price: 750 },
+	coaches: { label: "Coaches", singular: "Coach", price: 550 },
+	manors: { label: "Manors", singular: "Manor", price: 750 },
 };
 
 const BUILDING_CONFIG = {
@@ -22,7 +22,7 @@ const BUILDING_CONFIG = {
 		label: "Lumber Yard",
 		desc: "Fells trees and works raw logs into precision wood components.",
 		buildCost: 0,
-		slotCostExponent: 1.4,
+		slotCostExponent: 1.3,
 		prereq: () => true,
 		products: {
 			logs: {
@@ -77,35 +77,35 @@ const BUILDING_CONFIG = {
 		label: "Sawmill",
 		desc: "Cuts raw logs into structural lumber for construction and trade.",
 		buildCost: 600,
-		slotCostExponent: 1.55,
+		slotCostExponent: 1.35,
 		prereq: () => state.buildings.lumber_yard?.unlocked,
 		products: {
 			planks: {
-				outputKey:      "planks",
-				outputAmt:      1,
-				inputs:         { logs: 2 },
-				baseCycleMs:    5000,
-				unlockCost:     0,
-				baseSlotCost:   150,
-				prereqProduct:  null,
+				outputKey: "planks",
+				outputAmt: 1,
+				inputs: { logs: 2 },
+				baseCycleMs: 5000,
+				unlockCost: 0,
+				baseSlotCost: 150,
+				prereqProduct: null,
 				startsUnlocked: true,
 			},
 			boards: {
-				outputKey:     "boards",
-				outputAmt:     1,
-				inputs:        { logs: 3 },
-				baseCycleMs:   10000,
-				unlockCost:    500,
-				baseSlotCost:  350,
+				outputKey: "boards",
+				outputAmt: 1,
+				inputs: { logs: 3 },
+				baseCycleMs: 10000,
+				unlockCost: 500,
+				baseSlotCost: 350,
 				prereqProduct: "planks",
 			},
 			beams: {
-				outputKey:     "beams",
-				outputAmt:     1,
-				inputs:        { logs: 5 },
-				baseCycleMs:   18000,
-				unlockCost:    1200,
-				baseSlotCost:  700,
+				outputKey: "beams",
+				outputAmt: 1,
+				inputs: { logs: 5 },
+				baseCycleMs: 18000,
+				unlockCost: 1200,
+				baseSlotCost: 700,
 				prereqProduct: "boards",
 			},
 		},
@@ -114,44 +114,44 @@ const BUILDING_CONFIG = {
 		label: "Workshop",
 		desc: "Combines lumber and precision parts into finished goods for the empire.",
 		buildCost: 3000,
-		slotCostExponent: 1.35,
+		slotCostExponent: 1.25,
 		prereq: () => state.buildings.sawmill?.unlocked && state.buildings.sawmill.products.boards.unlocked,
 		products: {
 			crates: {
-				outputKey:      "crates",
-				outputAmt:      1,
-				inputs:         { planks: 2, dowels: 2 },
-				baseCycleMs:    20000,
-				unlockCost:     0,
-				baseSlotCost:   1200,
-				prereqProduct:  null,
+				outputKey: "crates",
+				outputAmt: 1,
+				inputs: { planks: 2, dowels: 2 },
+				baseCycleMs: 20000,
+				unlockCost: 0,
+				baseSlotCost: 1200,
+				prereqProduct: null,
 				startsUnlocked: true,
 			},
 			furniture: {
-				outputKey:     "furniture",
-				outputAmt:     1,
-				inputs:        { boards: 2, handles: 2 },
-				baseCycleMs:   32000,
-				unlockCost:    2000,
-				baseSlotCost:  2000,
+				outputKey: "furniture",
+				outputAmt: 1,
+				inputs: { boards: 2, handles: 2 },
+				baseCycleMs: 32000,
+				unlockCost: 2000,
+				baseSlotCost: 2000,
 				prereqProduct: "crates",
 			},
 			coaches: {
-				outputKey:     "coaches",
-				outputAmt:     1,
-				inputs:        { beams: 2, shafts: 2 },
-				baseCycleMs:   50000,
-				unlockCost:    4500,
-				baseSlotCost:  3500,
+				outputKey: "coaches",
+				outputAmt: 1,
+				inputs: { beams: 2, shafts: 2 },
+				baseCycleMs: 50000,
+				unlockCost: 4500,
+				baseSlotCost: 3500,
 				prereqProduct: "furniture",
 			},
 			manors: {
-				outputKey:     "manors",
-				outputAmt:     1,
-				inputs:        { beams: 3, boards: 2, shafts: 2 },
-				baseCycleMs:   72000,
-				unlockCost:    8000,
-				baseSlotCost:  5500,
+				outputKey: "manors",
+				outputAmt: 1,
+				inputs: { beams: 3, boards: 2, shafts: 2 },
+				baseCycleMs: 72000,
+				unlockCost: 8000,
+				baseSlotCost: 5500,
 				prereqProduct: "coaches",
 			},
 		},
@@ -285,7 +285,9 @@ function formatDuration(seconds) {
 }
 
 function save() {
-	try { localStorage.setItem(SAVE_KEY, JSON.stringify(state)); } catch (e) {}
+	try {
+		localStorage.setItem(SAVE_KEY, JSON.stringify(state));
+	} catch (e) {}
 }
 
 function load() {
@@ -839,11 +841,20 @@ function updateMarketProducts() {
 		if (wasInPanel) {
 			const sameBtn = focusedResource &&
 				panel.querySelector(`[data-market-resource="${focusedResource}"] .sell-btn`);
-			if (sameBtn) { sameBtn.focus(); return; }
+			if (sameBtn) {
+				sameBtn.focus();
+				return;
+			}
 			const firstSell = panel.querySelector(".sell-btn");
-			if (firstSell) { firstSell.focus(); return; }
+			if (firstSell) {
+				firstSell.focus();
+				return;
+			}
 			const sellAllBtn = panel.querySelector("[data-action='sell-all']");
-			if (sellAllBtn) { sellAllBtn.focus(); return; }
+			if (sellAllBtn) {
+				sellAllBtn.focus();
+				return;
+			}
 			panel.querySelector("[data-action='storage-upgrade']")?.focus();
 		}
 		return;
@@ -1005,7 +1016,11 @@ function tick() {
 	const now = Date.now();
 	const delta = (now - state.lastTick) / 1000;
 	state.lastTick = now;
-	try { advanceBuildings(delta); } catch (e) { console.error("advanceBuildings:", e); }
+	try {
+		advanceBuildings(delta);
+	} catch (e) {
+		console.error("advanceBuildings:", e);
+	}
 	renderHUD();
 	if (activeTab === "market") updateMarketProducts();
 }
