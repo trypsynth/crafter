@@ -335,10 +335,12 @@ function tryProduceSlot(bldKey, productKey, slot) {
 	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
 	const inputSum = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
-	const stallKey = `${bldKey}-${productKey}-${slot.id}`;
+	const stallKey = `${bldKey}-${productKey}`;
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
 		slot.progress = Math.min(slot.progress, 0.999);
 		if (!runtime.stallAnnounced[stallKey]) {
+			runtime.stallAnnounced[stallKey] = "pending";
+		} else if (runtime.stallAnnounced[stallKey] === "pending") {
 			runtime.stallAnnounced[stallKey] = true;
 			if (activeTab === bldKey)
 				announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`, "assertive");
@@ -349,6 +351,8 @@ function tryProduceSlot(bldKey, productKey, slot) {
 		if (state.inventory[inputKey] < inputAmt) {
 			slot.progress = Math.min(slot.progress, 0.999);
 			if (!runtime.stallAnnounced[stallKey]) {
+				runtime.stallAnnounced[stallKey] = "pending";
+			} else if (runtime.stallAnnounced[stallKey] === "pending") {
 				runtime.stallAnnounced[stallKey] = true;
 				if (activeTab === bldKey)
 					announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`, "assertive");
@@ -462,8 +466,8 @@ function sellSlot(bldKey, productKey) {
 	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.slots.length === 0) return;
 	const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
-	const sold = pst.slots.pop();
-	delete runtime.stallAnnounced[`${bldKey}-${productKey}-${sold.id}`];
+	pst.slots.pop();
+	if (pst.slots.length === 0) delete runtime.stallAnnounced[`${bldKey}-${productKey}`];
 	state.gold += refund;
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
 	announce(`Slot sold for ${refund} gold. ${label} now has ${pst.slots.length} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
