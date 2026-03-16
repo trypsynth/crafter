@@ -22,7 +22,7 @@ const BUILDING_CONFIG = {
 		label: "Lumber Yard",
 		desc: "Fells trees and works raw logs into precision wood components.",
 		buildCost: 0,
-		slotCostExponent: 1.3,
+		slotCostExponent: 1.25,
 		prereq: () => true,
 		products: {
 			logs: {
