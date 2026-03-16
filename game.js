@@ -572,6 +572,23 @@ function copySaveToClipboard() {
 	);
 }
 
+function importSaveFromClipboard() {
+	navigator.clipboard.readText().then(
+		text => {
+			try {
+				const json = atob(text.trim());
+				JSON.parse(json);
+				localStorage.setItem(SAVE_KEY, json);
+				announce("Save imported. Reloading...", "polite");
+				setTimeout(() => location.reload(), 800);
+			} catch {
+				announce("Invalid save data in clipboard.", "assertive");
+			}
+		},
+		() => announce("Clipboard access denied.", "assertive"),
+	);
+}
+
 function announce(msg, level = "polite") {
 	const el = document.getElementById(`live-${level}`);
 	if (!el) return;
@@ -1011,6 +1028,7 @@ function renderSettingsTab() {
 			<div class="settings-row">
 				<button data-action="save-now">Save Now</button>
 				<button data-action="copy-save">Copy Save</button>
+				<button data-action="import-save">Import Save</button>
 				<button data-action="clear-save">Clear Save</button>
 			</div>
 		</section>`;
@@ -1052,6 +1070,7 @@ function handleClick(e) {
 		case "toggle-product": toggleProductEnabled(bld, product); break;
 		case "save-now": saveNow(); break;
 		case "copy-save": copySaveToClipboard(); break;
+		case "import-save": importSaveFromClipboard(); break;
 		case "clear-save": clearSaveData(); break;
 		case "toggle-rate-mode":
 			runtime.rateDisplayMode = runtime.rateDisplayMode === "minute" ? "cycle" : "minute";
