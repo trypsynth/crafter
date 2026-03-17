@@ -295,16 +295,6 @@ function load() {
 		const raw = localStorage.getItem(SAVE_KEY);
 		if (!raw) return;
 		const parsed = JSON.parse(raw);
-		if (parsed.buildings?.workshop && !parsed.buildings.lumber_yard) {
-			parsed.buildings.lumber_yard = parsed.buildings.workshop;
-			delete parsed.buildings.workshop;
-		}
-		if (parsed.buildings?.joinery) {
-			delete parsed.buildings.joinery;
-		}
-		for (const key of ["frames", "cabinets", "carts"]) {
-			if (parsed.inventory) delete parsed.inventory[key];
-		}
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
 		state = fresh;
