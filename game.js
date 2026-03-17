@@ -297,8 +297,6 @@ function load() {
 		const parsed = JSON.parse(raw);
 		if (parsed.buildings?.workshop && !parsed.buildings.lumber_yard) {
 			parsed.buildings.lumber_yard = parsed.buildings.workshop;
-		}
-		if (parsed.buildings?.workshop) {
 			delete parsed.buildings.workshop;
 		}
 		if (parsed.buildings?.joinery) {
