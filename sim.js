@@ -166,6 +166,13 @@ function buildingPrereq(st, bk) {
 	if (bk === "sawmill")     return st.buildings.lumber_yard?.unlocked;
 	if (bk === "workshop")    return st.buildings.sawmill?.unlocked
 	                              && st.buildings.sawmill.products.boards.unlocked;
+	if (bk === "forge")       return st.buildings.workshop?.unlocked;
+	if (bk === "foundry")     return st.buildings.forge?.unlocked
+	                              && st.buildings.forge.products.iron_fittings.unlocked;
+	if (bk === "armoury")     return st.buildings.foundry?.unlocked
+	                              && st.buildings.foundry.products.mechanisms.unlocked;
+	if (bk === "shipyard")    return st.buildings.armoury?.unlocked
+	                              && st.buildings.armoury.products.cannons.unlocked;
 	throw new Error(`buildingPrereq: unknown building "${bk}" — update sim.js`);
 }
 
@@ -235,13 +242,6 @@ function aiDecide(st, metrics) {
 			}
 		}
 
-		const storageFill = storageMax(st) > 0 ? totalItems(st) / storageMax(st) : 1;
-		const storageCost = storageUpgradeCost(st);
-		if (storageFill > 0.5 || st.storage.tier < 2) {
-			const urgency = Math.max(storageFill, st.storage.tier < 2 ? 0.6 : 0);
-			candidates.push({ type: "storage", cost: storageCost, roi: urgency / storageCost * 1000 });
-		}
-
 		for (const bk of Object.keys(BUILDING_CONFIG)) {
 			if (!st.buildings[bk].unlocked) continue;
 			for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
@@ -252,7 +252,7 @@ function aiDecide(st, metrics) {
 				const gps = slotGps(bk, pk);
 				if (gps <= 0) continue;
 				const combinedCost = pcfg.unlockCost + pcfg.baseSlotCost;
-				const roi = (gps / combinedCost) * 0.9 * inputAvailabilityMultiplier(st, bk, pk);
+				const roi = (gps / combinedCost) * 3 * inputAvailabilityMultiplier(st, bk, pk);
 				candidates.push({ type: "unlock-product", bk, pk, cost: pcfg.unlockCost, roi });
 			}
 		}
@@ -262,20 +262,34 @@ function aiDecide(st, metrics) {
 			if (!buildingPrereq(st, bk)) continue;
 			const cfg      = BUILDING_CONFIG[bk];
 			const products = Object.keys(cfg.products);
-			const avgGps   = products.reduce((s, pk) => s + slotGps(bk, pk), 0) / products.length;
-			const roi      = (avgGps / Math.max(cfg.buildCost, 1)) * 1.5;
+			// Use best (max) product gps rather than average — buildings unlock high-value chains.
+			// Large multiplier ensures buildings are prioritized over marginal extra slots.
+			const maxGps = products.reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
+			const roi    = (maxGps / Math.max(cfg.buildCost, 1)) * 12;
 			candidates.push({ type: "build", bk, cost: cfg.buildCost, roi });
 		}
 
 		candidates.sort((a, b) => b.roi - a.roi);
-		const best = candidates.find(c => st.gold >= c.cost);
+		const bestOverall    = candidates[0];
+		const bestAffordable = candidates.find(c => st.gold >= c.cost);
+		// Save mode: if a building has much higher ROI than anything currently affordable,
+		// hold off on slot/unlock purchases to accumulate gold for it.
+		const saving = bestOverall && bestAffordable
+			&& bestOverall !== bestAffordable
+			&& (bestOverall.type === "build" || bestOverall.type === "unlock-product")
+			&& bestOverall.roi > bestAffordable.roi * 2;
+		const best = saving ? null : bestAffordable;
+
+		// Storage is handled separately — never competes with buildings in ROI scoring.
+		// Buy when fill is high and not blocking a save for a building.
+		const storageFill     = storageMax(st) > 0 ? totalItems(st) / storageMax(st) : 1;
+		const storageCost     = storageUpgradeCost(st);
+		const storageCritical = storageFill > 0.88 || st.storage.tier < 2;
+		const storageWanted   = storageFill > 0.65 && !saving;
 
 		if (best) {
 			let ok = false;
-			if (best.type === "storage") {
-				ok = doUpgradeStorage(st);
-				if (ok) { metrics.storageUpgrades++; metrics.totalSpent += storageCost; }
-			} else if (best.type === "slot") {
+			if (best.type === "slot") {
 				ok = doAddSlot(st, best.bk, best.pk);
 				if (ok) {
 					const key = `${best.bk}/${best.pk}`;
@@ -301,19 +315,13 @@ function aiDecide(st, metrics) {
 			if (ok) { anyAction = true; madePurchase = true; }
 		}
 
-		if (!anyAction) {
-			const allStalled = Object.keys(BUILDING_CONFIG).every(bk => {
-				if (!st.buildings[bk].unlocked) return true;
-				return Object.keys(BUILDING_CONFIG[bk].products).every(pk => {
-					const pst = st.buildings[bk].products[pk];
-					if (!pst.unlocked || pst.slots.length === 0) return true;
-					return pst.slots.every(s => s.progress >= 0.999);
-				});
-			});
-			if (allStalled && st.gold >= storageUpgradeCost(st)) {
+		// Storage upgrade: buy when desired (independent of main purchase decision).
+		if (!anyAction || madePurchase) {
+			if ((storageCritical || storageWanted) && st.gold >= storageCost) {
 				if (doUpgradeStorage(st)) {
 					metrics.storageUpgrades++;
-					anyAction = true;
+					metrics.totalSpent += storageCost;
+					anyAction    = true;
 					madePurchase = true;
 				}
 			}
