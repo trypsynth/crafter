@@ -789,7 +789,7 @@ function renderBuildTab() {
 				</div>
 				<p class="production-status ${statusClass}"><strong>Status:</strong> ${statusLabel}</p>
 				<p class="slot-summary">${slotSummary}</p>
-				${Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`}
+				${Object.keys(pcfg.inputs).length === 0 || slots === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * slots])))} per cycle</p>`}
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
 				 data-action="toggle-product"
 				 data-bld="${bldKey}" data-product="${productKey}">
@@ -918,9 +918,9 @@ function renderBuildingTab(bldKey) {
 			const totalAmt = n * pcfg.outputAmt;
 			const totalItem = totalAmt === 1 ? res.singular : res.label;
 			const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${totalAmt} ${totalItem} every ${formatDuration(cycleSecs)}`;
-			const inputDesc = Object.keys(pcfg.inputs).length === 0
+			const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
 				? ""
-				: `<p class="product-inputs">Requires: ${formatInputs(pcfg.inputs)} per cycle</p>`;
+				: `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * n])))} per cycle</p>`;
 			const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 			return `<div class="product-section">
 				<div class="product-header"><h3>${res.label}</h3></div>
