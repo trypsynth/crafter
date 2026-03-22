@@ -766,20 +766,27 @@ function copySaveToClipboard() {
 }
 
 function importSaveFromClipboard() {
-	navigator.clipboard.readText().then(
-		text => {
-			try {
-				const json = atob(text.trim());
-				JSON.parse(json);
-				localStorage.setItem(SAVE_KEY, json);
-				announce("Save imported. Reloading...", "polite");
-				setTimeout(() => location.reload(), 800);
-			} catch {
-				announce("Invalid save data in clipboard.", "assertive");
-			}
-		},
-		() => announce("Clipboard access denied.", "assertive"),
-	);
+	function applyText(text) {
+		try {
+			const json = atob(text.trim());
+			JSON.parse(json);
+			localStorage.setItem(SAVE_KEY, json);
+			announce("Save imported. Reloading...", "polite");
+			setTimeout(() => location.reload(), 800);
+		} catch {
+			announce("Invalid save data.", "assertive");
+		}
+	}
+
+	if (navigator.clipboard?.readText) {
+		navigator.clipboard.readText().then(applyText, () => {
+			const text = prompt("Paste your save data:");
+			if (text) applyText(text);
+		});
+	} else {
+		const text = prompt("Paste your save data:");
+		if (text) applyText(text);
+	}
 }
 
 function announce(msg, level = "polite") {
