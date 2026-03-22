@@ -1079,8 +1079,15 @@ function init() {
 	setInterval(save, 5000);
 }
 
-if (document.readyState === "loading") {
-	document.addEventListener("DOMContentLoaded", init);
-} else {
-	init();
+if (typeof document !== "undefined") {
+	if (document.readyState === "loading") {
+		document.addEventListener("DOMContentLoaded", init);
+	} else {
+		init();
+	}
+}
+if (typeof module !== "undefined") {
+	module.exports = { RESOURCES, BUILDING_CONFIG,
+		STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT,
+		STORAGE_BASE_COST, STORAGE_COST_GROWTH };
 }
