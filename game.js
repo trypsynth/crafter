@@ -7,14 +7,14 @@ const RESOURCES = {
 	timber: { label: "Timber", singular: "Timber", price: 9 },
 	dowels: { label: "Dowels", singular: "Dowel", price: 16 },
 	handles: { label: "Handles", singular: "Handle", price: 26 },
-	shafts: { label: "Shafts", singular: "Shaft", price: 72 },
+	shafts: { label: "Shafts", singular: "Shaft", price: 90 },
 	planks: { label: "Planks", singular: "Plank", price: 10 },
 	boards: { label: "Boards", singular: "Board", price: 22 },
 	beams: { label: "Beams", singular: "Beam", price: 40 },
 	crates: { label: "Crates", singular: "Crate", price: 130 },
 	furniture: { label: "Furniture", singular: "Furniture", price: 225 },
 	coaches: { label: "Coaches", singular: "Coach", price: 550 },
-	manors: { label: "Manors", singular: "Manor", price: 750 },
+	manors: { label: "Manors", singular: "Manor", price: 920 },
 };
 
 const BUILDING_CONFIG = {
@@ -56,7 +56,7 @@ const BUILDING_CONFIG = {
 			handles: {
 				outputKey: "handles",
 				outputAmt: 1,
-				inputs: { timber: 2 },
+				inputs: { timber: 1 },
 				baseCycleMs: 18000,
 				unlockCost: 1000,
 				baseSlotCost: 600,
@@ -83,7 +83,7 @@ const BUILDING_CONFIG = {
 			planks: {
 				outputKey: "planks",
 				outputAmt: 1,
-				inputs: { logs: 2 },
+				inputs: { logs: 1 },
 				baseCycleMs: 5000,
 				unlockCost: 0,
 				baseSlotCost: 150,
@@ -93,7 +93,7 @@ const BUILDING_CONFIG = {
 			boards: {
 				outputKey: "boards",
 				outputAmt: 1,
-				inputs: { logs: 3 },
+				inputs: { logs: 2 },
 				baseCycleMs: 10000,
 				unlockCost: 500,
 				baseSlotCost: 350,
@@ -102,7 +102,7 @@ const BUILDING_CONFIG = {
 			beams: {
 				outputKey: "beams",
 				outputAmt: 1,
-				inputs: { logs: 5 },
+				inputs: { logs: 4 },
 				baseCycleMs: 18000,
 				unlockCost: 1200,
 				baseSlotCost: 700,
@@ -148,9 +148,9 @@ const BUILDING_CONFIG = {
 			manors: {
 				outputKey: "manors",
 				outputAmt: 1,
-				inputs: { beams: 3, boards: 2, shafts: 2 },
+				inputs: { beams: 2, boards: 2, shafts: 2 },
 				baseCycleMs: 72000,
-				unlockCost: 8000,
+				unlockCost: 6000,
 				baseSlotCost: 5500,
 				prereqProduct: "coaches",
 			},
@@ -1087,7 +1087,5 @@ if (typeof document !== "undefined") {
 	}
 }
 if (typeof module !== "undefined") {
-	module.exports = { RESOURCES, BUILDING_CONFIG,
-		STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT,
-		STORAGE_BASE_COST, STORAGE_COST_GROWTH };
+	module.exports = { RESOURCES, BUILDING_CONFIG, STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT, STORAGE_BASE_COST, STORAGE_COST_GROWTH };
 }
