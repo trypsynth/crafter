@@ -1048,38 +1048,7 @@ function updateMarketProducts() {
 	if (!panel) return;
 	const container = panel.querySelector("#market-products");
 	if (!container) return;
-	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-	const existingCards = Array.from(container.querySelectorAll("[data-market-resource]"))
-		.map(el => el.dataset.marketResource);
-	const structureChanged =
-		withStock.length !== existingCards.length ||
-		withStock.some((k, i) => k !== existingCards[i]);
-	if (structureChanged) {
-		const focused = document.activeElement;
-		const wasInPanel = panel.contains(focused);
-		const focusedResource = focused?.closest("[data-market-resource]")?.dataset.marketResource;
-		renderMarketTab();
-		if (wasInPanel) {
-			const sameBtn = focusedResource &&
-				panel.querySelector(`[data-market-resource="${focusedResource}"] .sell-btn`);
-			if (sameBtn) {
-				sameBtn.focus();
-				return;
-			}
-			const firstSell = panel.querySelector(".sell-btn");
-			if (firstSell) {
-				firstSell.focus();
-				return;
-			}
-			const sellAllBtn = panel.querySelector("[data-action='sell-all']");
-			if (sellAllBtn) {
-				sellAllBtn.focus();
-				return;
-			}
-			panel.querySelector("[data-action='storage-upgrade']")?.focus();
-		}
-		return;
-	}
+
 	const used = totalItems();
 	const max = storageMax();
 	const pct = Math.min(100, Math.floor(used / max * 100));
@@ -1092,22 +1061,34 @@ function updateMarketProducts() {
 		const label = `${used} / ${max} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
 	}
-	if (withStock.length === 0) return;
+
+	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
+	const hasStock = withStock.length > 0;
+	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
+
 	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
 	if (sellAllBtn) {
-		const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-		sellAllBtn.textContent = `Sell Everything for ${totalValue} gold`;
+		sellAllBtn.hidden = !hasStock;
+		if (hasStock) sellAllBtn.textContent = `Sell Everything for ${totalValue} gold`;
 	}
-	for (const resourceKey of withStock) {
-		const inv = state.inventory[resourceKey];
-		const price = currentPrice(resourceKey);
-		const earned = inv * price;
+	const emptyMsg = panel.querySelector(".market-empty");
+	if (emptyMsg) emptyMsg.hidden = hasStock;
+
+	for (const [resourceKey, res] of Object.entries(RESOURCES)) {
+		const inv = state.inventory[resourceKey] || 0;
+		const hasItem = inv > 0;
 		const card = container.querySelector(`[data-market-resource="${resourceKey}"]`);
 		if (!card) continue;
+		card.hidden = !hasItem;
+		const price = currentPrice(resourceKey);
+		const earned = inv * price;
 		const stockEl = card.querySelector(".market-product-stock");
 		if (stockEl) stockEl.textContent = `${inv} in stock, ${price} gold each`;
 		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) sellBtn.textContent = `Sell All ${RESOURCES[resourceKey].label} for ${earned} gold`;
+		if (sellBtn) {
+			sellBtn.disabled = !hasItem;
+			sellBtn.textContent = `Sell All ${res.label} for ${earned} gold`;
+		}
 	}
 }
 
@@ -1186,25 +1167,23 @@ function renderMarketTab() {
 		Expand Storage: ${max} to ${next} items for ${cost} gold
 	</button>`;
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
+	const hasStock = withStock.length > 0;
 	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-	const sellAllHtml = withStock.length === 0 ? "" :
-		`<button class="sell-all-btn" data-action="sell-all">Sell Everything for ${totalValue} gold</button>`;
-	const sellHtml = withStock.length === 0
-		? `<p class="market-empty">Nothing to sell yet.</p>`
-		: withStock.map(resourceKey => {
-			const res = RESOURCES[resourceKey];
-			const inv = state.inventory[resourceKey];
-			const earned = inv * res.price;
-			return `<div class="market-product" data-market-resource="${resourceKey}">
-				<div class="market-product-header">
-					<span class="market-product-name">${res.label}</span>
-					<span class="market-product-stock">${inv} in stock, ${res.price} gold each</span>
-				</div>
-				<button class="sell-btn" data-action="sell" data-resource="${resourceKey}">
-					Sell All ${res.label} for ${earned} gold
-				</button>
-			</div>`;
-		}).join("");
+	const productCards = Object.entries(RESOURCES).map(([resourceKey, res]) => {
+		const inv = state.inventory[resourceKey] || 0;
+		const hasItem = inv > 0;
+		const price = currentPrice(resourceKey);
+		const earned = inv * price;
+		return `<div class="market-product" data-market-resource="${resourceKey}"${hasItem ? "" : " hidden"}>
+			<div class="market-product-header">
+				<span class="market-product-name">${res.label}</span>
+				<span class="market-product-stock">${inv} in stock, ${price} gold each</span>
+			</div>
+			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>
+				Sell All ${res.label} for ${earned} gold
+			</button>
+		</div>`;
+	}).join("");
 	panel.innerHTML = `<h2>Market</h2>
 		<div class="storage-info">
 			<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
@@ -1215,8 +1194,9 @@ function renderMarketTab() {
 			${upgHtml}
 		</div>
 		<div class="market-divider"></div>
-		${sellAllHtml}
-		<div id="market-products">${sellHtml}</div>`;
+		<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
+		<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
+		<div id="market-products">${productCards}</div>`;
 }
 
 function renderSettingsTab() {
