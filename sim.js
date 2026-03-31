@@ -1,16 +1,64 @@
 "use strict";
 
+const { Worker, isMainThread, parentPort, workerData } = require("worker_threads");
 const {
 	RESOURCES, BUILDING_CONFIG,
 	STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT,
 	STORAGE_BASE_COST, STORAGE_COST_GROWTH,
 } = require("./game.js");
 
-const SIM_HOURS      = parseFloat(process.argv[2] ?? "2");
-const TICK_SEC       = 0.5;
-const SELL_THRESHOLD = 0.75;
-const SIM_SECS       = SIM_HOURS * 3600;
+// ---------------------------------------------------------------------------
+// Profiles — each represents a different player spending style.
+// sellThreshold:    fraction of storage full before auto-selling
+// saveMultiplier:   how much better a future item must be (ROI ratio) to hold gold
+// storageCritical:  fill fraction that triggers storage upgrade even while saving
+// storageWanted:    fill fraction that triggers storage upgrade when not saving
+// ---------------------------------------------------------------------------
+const PROFILES = [
+	{
+		name:             "Greedy",
+		desc:             "Buys first affordable thing, sells early, never saves",
+		sellThreshold:    0.55,
+		saveMultiplier:   1.0,   // never waits — always buys best affordable
+		storageCritical:  0.92,
+		storageWanted:    0.72,
+	},
+	{
+		name:             "Balanced",
+		desc:             "Default behaviour — moderate saving, mid sell threshold",
+		sellThreshold:    0.75,
+		saveMultiplier:   2.0,
+		storageCritical:  0.88,
+		storageWanted:    0.65,
+	},
+	{
+		name:             "Patient",
+		desc:             "Saves aggressively for high-ROI investments",
+		sellThreshold:    0.75,
+		saveMultiplier:   4.0,
+		storageCritical:  0.88,
+		storageWanted:    0.65,
+	},
+	{
+		name:             "Miser",
+		desc:             "Sells late, saves hard, upgrades storage heavily",
+		sellThreshold:    0.92,
+		saveMultiplier:   5.0,
+		storageCritical:  0.70,
+		storageWanted:    0.50,
+	},
+];
 
+// ---------------------------------------------------------------------------
+// Simulation constants
+// ---------------------------------------------------------------------------
+const SIM_HOURS = parseFloat(process.argv[2] ?? "2");
+const TICK_SEC  = 0.5;
+const SIM_SECS  = SIM_HOURS * 3600;
+
+// ---------------------------------------------------------------------------
+// Game state helpers (mirror game.js logic)
+// ---------------------------------------------------------------------------
 function makeState() {
 	return {
 		gold: 0,
@@ -160,7 +208,6 @@ function doSellAll(st) {
 	return earned;
 }
 
-// Add a line here for each new building added to BUILDING_CONFIG.
 function buildingPrereq(st, bk) {
 	if (bk === "lumber_yard") return true;
 	if (bk === "sawmill")     return st.buildings.lumber_yard?.unlocked;
@@ -185,7 +232,6 @@ function slotGps(bk, pk) {
 	return outGps - inGps;
 }
 
-// How many units/sec of a resource are currently being produced across all buildings.
 function productionRate(st, resourceKey) {
 	let rate = 0;
 	for (const bk of Object.keys(BUILDING_CONFIG)) {
@@ -200,8 +246,6 @@ function productionRate(st, resourceKey) {
 	return rate;
 }
 
-// Multiplier applied to ROI when inputs aren't being produced yet.
-// Prevents the AI from buying high-value slots whose entire input chain doesn't exist.
 function inputAvailabilityMultiplier(st, bk, pk) {
 	const pcfg = BUILDING_CONFIG[bk].products[pk];
 	let multiplier = 1;
@@ -211,14 +255,17 @@ function inputAvailabilityMultiplier(st, bk, pk) {
 	return multiplier;
 }
 
-function aiDecide(st, metrics) {
+// ---------------------------------------------------------------------------
+// AI decision engine — parameterised by profile
+// ---------------------------------------------------------------------------
+function aiDecide(st, metrics, profile) {
 	let anyAction    = true;
 	let madePurchase = false;
 
 	while (anyAction) {
 		anyAction = false;
 
-		if (totalItems(st) / storageMax(st) >= SELL_THRESHOLD) {
+		if (totalItems(st) / storageMax(st) >= profile.sellThreshold) {
 			const earned = doSellAll(st);
 			if (earned > 0) {
 				metrics.totalEarned += earned;
@@ -262,8 +309,6 @@ function aiDecide(st, metrics) {
 			if (!buildingPrereq(st, bk)) continue;
 			const cfg      = BUILDING_CONFIG[bk];
 			const products = Object.keys(cfg.products);
-			// Use best (max) product gps rather than average — buildings unlock high-value chains.
-			// Large multiplier ensures buildings are prioritized over marginal extra slots.
 			const maxGps = products.reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
 			const roi    = (maxGps / Math.max(cfg.buildCost, 1)) * 12;
 			candidates.push({ type: "build", bk, cost: cfg.buildCost, roi });
@@ -272,20 +317,16 @@ function aiDecide(st, metrics) {
 		candidates.sort((a, b) => b.roi - a.roi);
 		const bestOverall    = candidates[0];
 		const bestAffordable = candidates.find(c => st.gold >= c.cost);
-		// Save mode: if a building has much higher ROI than anything currently affordable,
-		// hold off on slot/unlock purchases to accumulate gold for it.
 		const saving = bestOverall && bestAffordable
 			&& bestOverall !== bestAffordable
 			&& (bestOverall.type === "build" || bestOverall.type === "unlock-product")
-			&& bestOverall.roi > bestAffordable.roi * 2;
+			&& bestOverall.roi > bestAffordable.roi * profile.saveMultiplier;
 		const best = saving ? null : bestAffordable;
 
-		// Storage is handled separately — never competes with buildings in ROI scoring.
-		// Buy when fill is high and not blocking a save for a building.
 		const storageFill     = storageMax(st) > 0 ? totalItems(st) / storageMax(st) : 1;
 		const storageCost     = storageUpgradeCost(st);
-		const storageCritical = storageFill > 0.88 || st.storage.tier < 2;
-		const storageWanted   = storageFill > 0.65 && !saving;
+		const storageCritical = storageFill > profile.storageCritical || st.storage.tier < 2;
+		const storageWanted   = storageFill > profile.storageWanted && !saving;
 
 		if (best) {
 			let ok = false;
@@ -315,7 +356,6 @@ function aiDecide(st, metrics) {
 			if (ok) { anyAction = true; madePurchase = true; }
 		}
 
-		// Storage upgrade: buy when desired (independent of main purchase decision).
 		if (!anyAction || madePurchase) {
 			if ((storageCritical || storageWanted) && st.gold >= storageCost) {
 				if (doUpgradeStorage(st)) {
@@ -327,7 +367,6 @@ function aiDecide(st, metrics) {
 			}
 		}
 
-		// Bootstrap phase: manually produce input-free items until first slot is purchased.
 		if (!anyAction) {
 			const hasAnySlot = Object.keys(BUILDING_CONFIG).some(bk =>
 				st.buildings[bk].unlocked &&
@@ -373,43 +412,25 @@ function checkGoldMilestones(metrics, totalEarned) {
 	}
 }
 
-function fmtTime(sec) {
-	const h = Math.floor(sec / 3600);
-	const m = Math.floor((sec % 3600) / 60);
-	const s = Math.floor(sec % 60);
-	return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
-}
-
-function fmtDur(sec) {
-	if (sec < 60)   return `${Math.round(sec)}s`;
-	if (sec < 3600) return `${Math.floor(sec/60)}m ${Math.round(sec%60)}s`;
-	return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;
-}
-
-function formatGold(n) {
-	if (n >= 1000000) return `${(n/1000000).toFixed(1)}M gold`;
-	if (n >= 1000)    return `${(n/1000).toFixed(0)}k gold`;
-	return `${n} gold`;
-}
-
-function pad(str, len) { return String(str).padEnd(len); }
-
-function run() {
+// ---------------------------------------------------------------------------
+// Run one full simulation for a given profile
+// ---------------------------------------------------------------------------
+function runSim(profile) {
 	const st        = makeState();
 	const stallSecs = {};
 	const metrics   = {
-		currentTimeSec:      0,
-		milestones:          [],
-		goldLog:             [],
-		idleGoldTime:        0,
-		totalEarned:         0,
-		totalSpent:          0,
-		sellEvents:          0,
-		slotsBought:         {},
-		storageUpgrades:     0,
-		peakGoldRate:        0,
-		_lastGoldLogTime:    0,
-		_lastGoldLogAmount:  0,
+		currentTimeSec:     0,
+		milestones:         [],
+		goldLog:            [],
+		idleGoldTime:       0,
+		totalEarned:        0,
+		totalSpent:         0,
+		sellEvents:         0,
+		slotsBought:        {},
+		storageUpgrades:    0,
+		peakGoldRate:       0,
+		_lastGoldLogTime:   0,
+		_lastGoldLogAmount: 0,
 	};
 
 	doUnlockBuilding(st, "lumber_yard");
@@ -423,7 +444,7 @@ function run() {
 
 		advance(st, TICK_SEC, stallSecs);
 
-		const madePurchase = aiDecide(st, metrics);
+		const madePurchase = aiDecide(st, metrics, profile);
 		checkGoldMilestones(metrics, metrics.totalEarned);
 
 		if (!madePurchase) {
@@ -451,14 +472,203 @@ function run() {
 	}
 
 	metrics.currentTimeSec = SIM_SECS;
-	printReport(st, metrics, stallSecs);
+	return { profile, st, metrics, stallSecs };
 }
 
-function printReport(st, metrics, stallSecs) {
+// ---------------------------------------------------------------------------
+// Formatting helpers
+// ---------------------------------------------------------------------------
+function fmtTime(sec) {
+	const h = Math.floor(sec / 3600);
+	const m = Math.floor((sec % 3600) / 60);
+	const s = Math.floor(sec % 60);
+	return `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+function fmtDur(sec) {
+	if (sec < 60)   return `${Math.round(sec)}s`;
+	if (sec < 3600) return `${Math.floor(sec/60)}m ${Math.round(sec%60)}s`;
+	return `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}m`;
+}
+
+function formatGold(n) {
+	if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`;
+	if (n >= 1000)    return `${(n/1000).toFixed(0)}k`;
+	return `${n}`;
+}
+
+function pad(str, len, right = false) {
+	const s = String(str);
+	return right ? s.padStart(len) : s.padEnd(len);
+}
+
+// ---------------------------------------------------------------------------
+// Comparison table — printed once at the top
+// ---------------------------------------------------------------------------
+function printComparison(results) {
+	const COL = 12;
+	const LBL = 26;
+	const sep = "─".repeat(LBL + COL * results.length);
+
+	console.log(`\nCRAFTER MULTI-SIM COMPARISON — ${SIM_HOURS}h`);
+	console.log(sep);
+
+	// Header
+	process.stdout.write(pad("", LBL));
+	for (const r of results) process.stdout.write(pad(r.profile.name, COL));
+	console.log();
+	console.log(sep);
+
+	// Key metrics
+	function row(label, fn) {
+		process.stdout.write(pad(label, LBL));
+		for (const r of results) process.stdout.write(pad(fn(r), COL));
+		console.log();
+	}
+
+	const endRate = r => r.metrics.goldLog.length
+		? r.metrics.goldLog[r.metrics.goldLog.length - 1].rate
+		: 0;
+
+	row("Total earned",      r => `${formatGold(r.metrics.totalEarned)}g`);
+	row("Final gold",        r => `${formatGold(Math.floor(r.st.gold))}g`);
+	row("Peak g/min",        r => `${Math.round(r.metrics.peakGoldRate).toLocaleString()}`);
+	row("End g/min",         r => `${Math.round(endRate(r)).toLocaleString()}`);
+	row("Sell triggers",     r => `${r.metrics.sellEvents}`);
+	row("Storage tier",      r => `${r.st.storage.tier} (${storageMax(r.st)} cap)`);
+	row("Idle gold %",       r => `${(r.metrics.idleGoldTime / SIM_SECS * 100).toFixed(1)}%`);
+
+	// Gold income growth: show rate at 25%, 50%, 75% of sim time
+	console.log();
+	for (const frac of [0.25, 0.5, 0.75]) {
+		const label = `g/min at ${Math.round(frac * SIM_HOURS)}h`;
+		row(label, r => {
+			const target = SIM_SECS * frac;
+			const entry  = r.metrics.goldLog.reduce((best, e) =>
+				Math.abs(e.timeSec - target) < Math.abs(best.timeSec - target) ? e : best,
+				r.metrics.goldLog[0] ?? { timeSec: 0, rate: 0 }
+			);
+			return entry ? Math.round(entry.rate).toLocaleString() : "-";
+		});
+	}
+
+	// Milestone timing comparison
+	const milestoneLabels = [
+		...Object.values(BUILDING_CONFIG).map(c => `${c.label} built`),
+		"10k total earned",
+		"100k total earned",
+		"1.0M total earned",
+	];
+	console.log();
+	console.log(pad("MILESTONES", LBL + COL * results.length));
+	for (const label of milestoneLabels) {
+		const anyHit = results.some(r => r.metrics.milestones.find(m => m.label === label));
+		if (!anyHit) continue;
+		process.stdout.write(pad(label, LBL));
+		for (const r of results) {
+			const m = r.metrics.milestones.find(m => m.label === label);
+			process.stdout.write(pad(m ? fmtTime(m.timeSec) : "—", COL));
+		}
+		console.log();
+	}
+
+	// Bottleneck comparison
+	const allStallKeys = new Set(results.flatMap(r => Object.keys(r.stallSecs)));
+	const significantStalls = [...allStallKeys].filter(key =>
+		results.some(r => (r.stallSecs[key] ?? 0) / SIM_SECS * 100 > 1)
+	);
+	if (significantStalls.length > 0) {
+		console.log();
+		console.log(pad("BOTTLENECKS (% stall)", LBL + COL * results.length));
+		for (const key of significantStalls.sort()) {
+			process.stdout.write(pad(key, LBL));
+			for (const r of results) {
+				const pct = (r.stallSecs[key] ?? 0) / SIM_SECS * 100;
+				process.stdout.write(pad(pct < 0.5 ? "-" : `${pct.toFixed(1)}%`, COL));
+			}
+			console.log();
+		}
+	}
+
+	// Chain efficiency comparison — resources with deficit in any profile
+	console.log();
+	console.log(pad("CHAIN DEFICITS (supply/demand)", LBL + COL * results.length));
+	let anyDeficit = false;
+	for (const rk of Object.keys(RESOURCES)) {
+		const cols = results.map(r => {
+			const { supply, demand } = chainRates(r.st);
+			const s = supply[rk] ?? 0;
+			const d = demand[rk] ?? 0;
+			if (d === 0) return null;
+			return s / d;
+		});
+		const hasDeficit = cols.some(v => v !== null && v < 0.9);
+		const hasData    = cols.some(v => v !== null);
+		if (!hasData || !hasDeficit) continue;
+		anyDeficit = true;
+		process.stdout.write(pad(RESOURCES[rk].label, LBL));
+		for (const ratio of cols) {
+			if (ratio === null) { process.stdout.write(pad("-", COL)); continue; }
+			const tag = ratio < 0.9 ? `${ratio.toFixed(2)}x !!` : `${ratio.toFixed(2)}x`;
+			process.stdout.write(pad(tag, COL));
+		}
+		console.log();
+	}
+	if (!anyDeficit) console.log(pad("  none detected", LBL));
+
+	// Summary verdict per profile
+	console.log();
+	console.log(pad("VERDICT", LBL + COL * results.length));
+	process.stdout.write(pad("", LBL));
+	for (const r of results) {
+		const notes = [];
+		const idlePct = r.metrics.idleGoldTime / SIM_SECS * 100;
+		if (idlePct > 15) notes.push("idle");
+		if (r.metrics.sellEvents / SIM_HOURS > 120) notes.push("sold too often");
+		const { supply, demand } = chainRates(r.st);
+		for (const rk of Object.keys(RESOURCES)) {
+			const s = supply[rk] ?? 0, d = demand[rk] ?? 0;
+			if (d > 0 && s / d < 0.9) notes.push(`${RESOURCES[rk].label} deficit`);
+		}
+		const bottleneckBad = Object.entries(r.stallSecs)
+			.some(([, secs]) => secs / SIM_SECS * 100 > 10);
+		if (bottleneckBad) notes.push("stalls");
+		process.stdout.write(pad(notes.length === 0 ? "ok" : notes.join(", "), COL));
+	}
+	console.log();
+	console.log(sep);
+}
+
+function chainRates(st) {
+	const supply = {}, demand = {};
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		const bst = st.buildings[bk];
+		if (!bst.unlocked) continue;
+		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+			const pst = bst.products[pk];
+			if (!pst.unlocked || pst.slots.length === 0) continue;
+			const n          = pst.slots.length;
+			const cycleSec   = pcfg.baseCycleMs / 1000;
+			const ratePerMin = n * pcfg.outputAmt / cycleSec * 60;
+			supply[pcfg.outputKey] = (supply[pcfg.outputKey] ?? 0) + ratePerMin;
+			for (const [ik, amt] of Object.entries(pcfg.inputs))
+				demand[ik] = (demand[ik] ?? 0) + (n * amt / cycleSec * 60);
+		}
+	}
+	return { supply, demand };
+}
+
+// ---------------------------------------------------------------------------
+// Individual detailed report (unchanged from original, per-profile)
+// ---------------------------------------------------------------------------
+function printReport(result) {
+	const { profile, st, metrics, stallSecs } = result;
 	const totalSec = SIM_SECS;
 	const sep      = "-".repeat(56);
 
-	console.log(`\nCRAFTER BALANCE REPORT — ${SIM_HOURS}h sim`);
+	console.log(`\n${"=".repeat(56)}`);
+	console.log(`PROFILE: ${profile.name.toUpperCase()} — ${profile.desc}`);
+	console.log(`  sell@${(profile.sellThreshold*100).toFixed(0)}%  save×${profile.saveMultiplier}  storage-critical@${(profile.storageCritical*100).toFixed(0)}%`);
 	console.log(sep);
 
 	console.log("\nMILESTONES");
@@ -498,23 +708,7 @@ function printReport(st, metrics, stallSecs) {
 			console.log(`  ${pad(b.key, 28)} ${b.pct.toFixed(1)}%`);
 	}
 
-	const supply = {};
-	const demand = {};
-	for (const bk of Object.keys(BUILDING_CONFIG)) {
-		const bst = st.buildings[bk];
-		if (!bst.unlocked) continue;
-		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
-			const pst = bst.products[pk];
-			if (!pst.unlocked || pst.slots.length === 0) continue;
-			const n          = pst.slots.length;
-			const cycleSec   = pcfg.baseCycleMs / 1000;
-			const ratePerMin = n * pcfg.outputAmt / cycleSec * 60;
-			supply[pcfg.outputKey] = (supply[pcfg.outputKey] ?? 0) + ratePerMin;
-			for (const [ik, amt] of Object.entries(pcfg.inputs))
-				demand[ik] = (demand[ik] ?? 0) + (n * amt / cycleSec * 60);
-		}
-	}
-
+	const { supply, demand } = chainRates(st);
 	console.log("\nCHAIN EFFICIENCY  (supply / demand per minute)");
 	const allResources = new Set([...Object.keys(supply), ...Object.keys(demand)]);
 	for (const rk of Object.keys(RESOURCES)) {
@@ -525,7 +719,7 @@ function printReport(st, metrics, stallSecs) {
 			console.log(`  ${pad(RESOURCES[rk].label, 12)} ${s.toFixed(1)}/min  (no downstream demand)`);
 		} else {
 			const ratio = s / d;
-			const tag   = ratio >= 1.05 ? "ok" : ratio >= 0.95 ? "ok" : "DEFICIT";
+			const tag   = ratio < 0.9 ? "DEFICIT" : "ok";
 			console.log(`  ${pad(RESOURCES[rk].label, 12)} ${ratio.toFixed(2)}x  ${tag}  (${s.toFixed(1)} supply / ${d.toFixed(1)} demand)`);
 		}
 	}
@@ -559,7 +753,37 @@ function printReport(st, metrics, stallSecs) {
 
 	console.log("\nBALANCE NOTES");
 	for (const n of notes) console.log(`  ${n}`);
-	console.log();
 }
 
-run();
+// ---------------------------------------------------------------------------
+// Entry point — worker mode vs main thread
+// ---------------------------------------------------------------------------
+if (!isMainThread) {
+	// Running as a worker: execute one profile and post result back.
+	const result = runSim(workerData.profile);
+	// Strip non-serializable slot progress objects from state to keep message small.
+	for (const bk of Object.keys(result.st.buildings)) {
+		for (const pk of Object.keys(result.st.buildings[bk].products)) {
+			result.st.buildings[bk].products[pk].slots =
+				result.st.buildings[bk].products[pk].slots.map(() => ({}));
+		}
+	}
+	parentPort.postMessage(result);
+} else {
+	// Main thread: spawn one worker per profile, collect results, then report.
+	const pending = PROFILES.map(profile => new Promise((resolve, reject) => {
+		const w = new Worker(__filename, { workerData: { profile } });
+		w.on("message", resolve);
+		w.on("error", reject);
+	}));
+
+	Promise.all(pending).then(results => {
+		printComparison(results);
+		console.log("\n\nDETAILED REPORTS");
+		for (const r of results) printReport(r);
+		console.log();
+	}).catch(err => {
+		console.error("Simulation error:", err);
+		process.exit(1);
+	});
+}
