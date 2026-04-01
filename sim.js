@@ -42,7 +42,7 @@ const PROFILES = [
 	{
 		name:             "Miser",
 		desc:             "Sells late, saves hard, upgrades storage heavily",
-		sellThreshold:    0.92,
+		sellThreshold:    0.85,
 		saveMultiplier:   5.0,
 		storageCritical:  0.70,
 		storageWanted:    0.50,
@@ -246,11 +246,38 @@ function productionRate(st, resourceKey) {
 	return rate;
 }
 
-function inputAvailabilityMultiplier(st, bk, pk) {
+// Snapshot of current production supply/demand (units/sec) across all active slots.
+// Computed once per aiDecide iteration so we don't re-scan buildings per candidate.
+function snapshotChainRates(st) {
+	const supply = {}, demand = {};
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		const bst = st.buildings[bk];
+		if (!bst.unlocked) continue;
+		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+			const pst = bst.products[pk];
+			if (!pst.unlocked || pst.slots.length === 0) continue;
+			const n = pst.slots.length, cycleSec = pcfg.baseCycleMs / 1000;
+			supply[pcfg.outputKey] = (supply[pcfg.outputKey] ?? 0) + n * pcfg.outputAmt / cycleSec;
+			for (const [ik, amt] of Object.entries(pcfg.inputs))
+				demand[ik] = (demand[ik] ?? 0) + n * amt / cycleSec;
+		}
+	}
+	return { supply, demand };
+}
+
+// Continuous ROI multiplier [0.05..1]: penalises a slot when its inputs are already
+// over-demanded. The old binary version (0.05 if zero production, else 1.0) missed
+// partial deficits — e.g. logs at 0.60x got no penalty at all.
+function inputAvailabilityMultiplier(rates, bk, pk) {
 	const pcfg = BUILDING_CONFIG[bk].products[pk];
+	if (Object.keys(pcfg.inputs).length === 0) return 1;
 	let multiplier = 1;
-	for (const ik of Object.keys(pcfg.inputs)) {
-		if (productionRate(st, ik) === 0) multiplier *= 0.05;
+	for (const [ik] of Object.entries(pcfg.inputs)) {
+		const s = rates.supply[ik] ?? 0;
+		const d = rates.demand[ik] ?? 0;
+		if (s === 0) { multiplier *= 0.05; continue; }  // input chain doesn't exist yet
+		if (d === 0) continue;                           // no competing demand, no penalty
+		multiplier *= Math.min(1.0, s / d);              // scale linearly with deficit
 	}
 	return multiplier;
 }
@@ -276,6 +303,7 @@ function aiDecide(st, metrics, profile) {
 		}
 
 		const candidates = [];
+		const rates = snapshotChainRates(st);
 
 		for (const bk of Object.keys(BUILDING_CONFIG)) {
 			if (!st.buildings[bk].unlocked) continue;
@@ -284,7 +312,7 @@ function aiDecide(st, metrics, profile) {
 				const cost = nextSlotCost(st, bk, pk);
 				const gps  = slotGps(bk, pk);
 				if (gps <= 0) continue;
-				const roi = (gps / cost) * inputAvailabilityMultiplier(st, bk, pk);
+				const roi = (gps / cost) * inputAvailabilityMultiplier(rates, bk, pk);
 				candidates.push({ type: "slot", bk, pk, cost, roi });
 			}
 		}
@@ -299,7 +327,7 @@ function aiDecide(st, metrics, profile) {
 				const gps = slotGps(bk, pk);
 				if (gps <= 0) continue;
 				const combinedCost = pcfg.unlockCost + pcfg.baseSlotCost;
-				const roi = (gps / combinedCost) * 3 * inputAvailabilityMultiplier(st, bk, pk);
+				const roi = (gps / combinedCost) * 3 * inputAvailabilityMultiplier(rates, bk, pk);
 				candidates.push({ type: "unlock-product", bk, pk, cost: pcfg.unlockCost, roi });
 			}
 		}
@@ -320,6 +348,7 @@ function aiDecide(st, metrics, profile) {
 		const saving = bestOverall && bestAffordable
 			&& bestOverall !== bestAffordable
 			&& (bestOverall.type === "build" || bestOverall.type === "unlock-product")
+			&& profile.saveMultiplier > 1
 			&& bestOverall.roi > bestAffordable.roi * profile.saveMultiplier;
 		const best = saving ? null : bestAffordable;
 
@@ -541,7 +570,7 @@ function printComparison(results) {
 	// Gold income growth: show rate at 25%, 50%, 75% of sim time
 	console.log();
 	for (const frac of [0.25, 0.5, 0.75]) {
-		const label = `g/min at ${Math.round(frac * SIM_HOURS)}h`;
+		const label = `g/min at ${Math.round(frac * SIM_HOURS * 60)}m`;
 		row(label, r => {
 			const target = SIM_SECS * frac;
 			const entry  = r.metrics.goldLog.reduce((best, e) =>
@@ -602,40 +631,41 @@ function printComparison(results) {
 			if (d === 0) return null;
 			return s / d;
 		});
-		const hasDeficit = cols.some(v => v !== null && v < 0.9);
+		const hasDeficit = cols.some(v => v !== null && v < 1.0);
 		const hasData    = cols.some(v => v !== null);
 		if (!hasData || !hasDeficit) continue;
 		anyDeficit = true;
 		process.stdout.write(pad(RESOURCES[rk].label, LBL));
 		for (const ratio of cols) {
 			if (ratio === null) { process.stdout.write(pad("-", COL)); continue; }
-			const tag = ratio < 0.9 ? `${ratio.toFixed(2)}x !!` : `${ratio.toFixed(2)}x`;
+			const tag = ratio < 0.9  ? `${ratio.toFixed(2)}x !!`
+			          : ratio < 1.0  ? `${ratio.toFixed(2)}x !`
+			          :                `${ratio.toFixed(2)}x`;
 			process.stdout.write(pad(tag, COL));
 		}
 		console.log();
 	}
 	if (!anyDeficit) console.log(pad("  none detected", LBL));
 
-	// Summary verdict per profile
+	// Summary verdict per profile (one line each to avoid column overflow)
 	console.log();
-	console.log(pad("VERDICT", LBL + COL * results.length));
-	process.stdout.write(pad("", LBL));
+	console.log("VERDICT");
 	for (const r of results) {
 		const notes = [];
 		const idlePct = r.metrics.idleGoldTime / SIM_SECS * 100;
-		if (idlePct > 15) notes.push("idle");
-		if (r.metrics.sellEvents / SIM_HOURS > 120) notes.push("sold too often");
+		if (idlePct > 15) notes.push(`held-gold ${idlePct.toFixed(0)}%`);
+		if (r.metrics.sellEvents / SIM_HOURS > 200) notes.push(`overselling (${r.metrics.sellEvents}×)`);
 		const { supply, demand } = chainRates(r.st);
 		for (const rk of Object.keys(RESOURCES)) {
 			const s = supply[rk] ?? 0, d = demand[rk] ?? 0;
 			if (d > 0 && s / d < 0.9) notes.push(`${RESOURCES[rk].label} deficit`);
 		}
-		const bottleneckBad = Object.entries(r.stallSecs)
-			.some(([, secs]) => secs / SIM_SECS * 100 > 10);
-		if (bottleneckBad) notes.push("stalls");
-		process.stdout.write(pad(notes.length === 0 ? "ok" : notes.join(", "), COL));
+		const worstStall = Object.entries(r.stallSecs)
+			.map(([k, secs]) => ({ k, pct: secs / SIM_SECS * 100 }))
+			.sort((a, b) => b.pct - a.pct)[0];
+		if (worstStall && worstStall.pct > 10) notes.push(`stall: ${worstStall.k} ${worstStall.pct.toFixed(0)}%`);
+		console.log(`  ${pad(r.profile.name + ":", 11)}${notes.length === 0 ? "ok" : notes.join(", ")}`);
 	}
-	console.log();
 	console.log(sep);
 }
 
