@@ -541,6 +541,68 @@ body {
 }
 
 
+#panel-tutorial {
+	display: flex;
+	align-items: flex-start;
+	justify-content: center;
+	padding: var(--space-xl) var(--space-lg);
+}
+
+.tutorial-step {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: var(--space-xl);
+	max-width: 480px;
+	width: 100%;
+}
+
+.tutorial-step h2 {
+	font-size: var(--font-xl);
+	color: var(--color-gold);
+	margin-bottom: var(--space-md);
+}
+
+.tut-body {
+	color: var(--color-text);
+	line-height: 1.6;
+	margin-bottom: var(--space-lg);
+}
+
+.tut-body strong {
+	color: var(--color-gold);
+}
+
+.tut-actions {
+	display: flex;
+	gap: var(--space-sm);
+	align-items: center;
+}
+
+.tut-ok-btn {
+	padding: var(--space-sm) var(--space-lg);
+	border: 1px solid var(--color-progress);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: #a8f0a8;
+	font-size: var(--font-base);
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.tut-ok-btn:hover { background: var(--color-border); }
+
+.tut-skip-btn {
+	padding: var(--space-sm) var(--space-md);
+	border: none;
+	background: none;
+	color: var(--color-text-muted);
+	font-size: var(--font-sm);
+	cursor: pointer;
+	transition: color 0.15s;
+}
+.tut-skip-btn:hover { color: var(--color-text); }
+
 @media (max-width: 700px) {
 	#top-bar { flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }
 	#content { padding: var(--space-md); }

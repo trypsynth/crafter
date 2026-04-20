@@ -1,6 +1,37 @@
 "use strict";
 
 const SAVE_KEY = "crafter";
+const TUTORIAL_SAVE_KEY = "crafter_tut";
+
+const TUTORIAL_STEPS = [
+	{
+		id: "welcome",
+		heading: "Welcome to Crafter!",
+		body: "Your goal is to build an empire, starting from raw materials such as logs and timber. They may seem basic and limiting at first, but you'll eventually be building warships and clockwork marvels. To get started, click Build for Free under the Lumber Yard heading to build your first production site.",
+		shouldShow: () => true,
+	},
+	{
+		id: "produce",
+		heading: "Lumber Yard ready!",
+		body: "Your Lumber Yard is ready, and you have been automatically switched to it. Click Produce Log to begin production of a log. While producing, you can click the button repeatedly to make the process go faster.",
+		shouldShow: () => state.buildings.lumber_yard?.unlocked,
+	},
+	{
+		id: "sell",
+		heading: "You're ready to Sell.",
+		body: "You've got a decent supply of logs in storage now. Open the Market tab and sell them for gold. Gold is used to buy production slots for automatic crafting and unlock new buildings.",
+		shouldShow: () => (state.inventory.logs ?? 0) > 25,
+	},
+	{
+		id: "done",
+		heading: "You're in Business.",
+		body: "That's the core loop: craft resources, sell them for gold, reinvest in more slots, buildings, and storage. Good luck!",
+		shouldShow: () => tutRuntime.firstSellDone,
+	},
+];
+
+let tutState = { dismissed: false, acked: 0 };
+const tutRuntime = { firstSellDone: false, lastRenderedIdx: null };
 
 const RESOURCES = {
 	// Wood chain
@@ -618,6 +649,7 @@ function unlockBuilding(bldKey) {
 	announce(`${cfg.label} built!`, "polite");
 	switchTab(bldKey);
 	document.getElementById(`tab-${bldKey}`)?.focus();
+	checkAndRenderTutorial();
 }
 
 function unlockProduct(bldKey, productKey) {
@@ -718,7 +750,10 @@ function sellAll() {
 	}
 	state.gold += totalEarned;
 	announce(`Sold everything for ${totalEarned} gold.`, "polite");
+	tutRuntime.firstSellDone = true;
+	tutRuntime.lastRenderedIdx = null;
 	renderAll();
+	checkAndRenderTutorial();
 }
 
 function sellProduct(resourceKey) {
@@ -728,7 +763,10 @@ function sellProduct(resourceKey) {
 	state.inventory[resourceKey] = 0;
 	state.gold += earned;
 	announce(`Sold ${inv} ${formatResourceName(resourceKey, inv)} for ${earned} gold.`, "polite");
+	tutRuntime.firstSellDone = true;
+	tutRuntime.lastRenderedIdx = null;
 	renderAll();
+	checkAndRenderTutorial();
 }
 
 function toggleProductEnabled(bldKey, productKey) {
@@ -752,6 +790,7 @@ function saveNow() {
 function clearSaveData() {
 	if (confirm("Clear your save and start over?")) {
 		localStorage.removeItem(SAVE_KEY);
+		localStorage.removeItem(TUTORIAL_SAVE_KEY);
 		location.reload();
 	}
 }
@@ -812,12 +851,12 @@ function addBuildingTab(bldKey) {
 
 function switchTab(tabId) {
 	activeTab = tabId;
-	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
 	document.querySelectorAll("#tab-bar button").forEach(b => b.classList.remove("active"));
+	document.getElementById(`tab-${tabId}`)?.classList.add("active");
+	if (currentTutorialStep() !== -1) return;
+	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
 	const panel = document.getElementById(`panel-${tabId}`);
-	const btn = document.getElementById(`tab-${tabId}`);
 	if (panel) panel.hidden = false;
-	if (btn) btn.classList.add("active");
 	renderAll();
 }
 
@@ -1225,6 +1264,7 @@ function tick() {
 	}
 	renderHUD();
 	if (activeTab === "market") updateMarketProducts();
+	checkAndRenderTutorial();
 }
 
 function handleClick(e) {
@@ -1248,6 +1288,8 @@ function handleClick(e) {
 		case "sell": sellProduct(btn.dataset.resource); break;
 		case "sell-all": sellAll(); break;
 		case "toggle-product": toggleProductEnabled(bld, product); break;
+		case "tutorial-ok": tutorialOk(); break;
+		case "tutorial-dismiss": tutorialDismiss(); break;
 		case "save-now": saveNow(); break;
 		case "copy-save": copySaveToClipboard(); break;
 		case "import-save": importSaveFromClipboard(); break;
@@ -1259,13 +1301,86 @@ function handleClick(e) {
 	}
 }
 
+function loadTutorial() {
+	try {
+		const raw = localStorage.getItem(TUTORIAL_SAVE_KEY);
+		if (raw) {
+			const parsed = JSON.parse(raw);
+			if (typeof parsed.dismissed === "boolean") tutState.dismissed = parsed.dismissed;
+			if (typeof parsed.acked === "number") tutState.acked = parsed.acked;
+		}
+	} catch (e) {}
+}
+
+function saveTutorial() {
+	try { localStorage.setItem(TUTORIAL_SAVE_KEY, JSON.stringify(tutState)); } catch (e) {}
+}
+
+function currentTutorialStep() {
+	if (tutState.dismissed || tutState.acked >= TUTORIAL_STEPS.length) return -1;
+	return TUTORIAL_STEPS[tutState.acked].shouldShow() ? tutState.acked : -1;
+}
+
+function showTutorialPanel(idx) {
+	const step = TUTORIAL_STEPS[idx];
+	const tPanel = document.getElementById("panel-tutorial");
+	if (!tPanel) return;
+	document.querySelector("header").hidden = true;
+	document.getElementById("tab-bar").hidden = true;
+	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
+	tPanel.hidden = false;
+	tPanel.innerHTML = `<section class="tutorial-step" role="region" aria-labelledby="tut-heading">
+		<h2 id="tut-heading">${step.heading}</h2>
+		<p class="tut-body">${step.body}</p>
+		<div class="tut-actions">
+			<button class="tut-ok-btn" data-action="tutorial-ok">OK</button>
+			<button class="tut-skip-btn" data-action="tutorial-dismiss">Don't show again</button>
+		</div>
+	</section>`;
+}
+
+function hideTutorialPanel() {
+	const tPanel = document.getElementById("panel-tutorial");
+	if (tPanel) tPanel.hidden = true;
+	document.querySelector("header").hidden = false;
+	document.getElementById("tab-bar").hidden = false;
+	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
+	const activePanel = document.getElementById(`panel-${activeTab}`);
+	if (activePanel) activePanel.hidden = false;
+	renderAll();
+}
+
+function checkAndRenderTutorial() {
+	const idx = currentTutorialStep();
+	if (idx === tutRuntime.lastRenderedIdx) return;
+	tutRuntime.lastRenderedIdx = idx;
+	if (idx !== -1) showTutorialPanel(idx);
+	else hideTutorialPanel();
+}
+
+function tutorialOk() {
+	tutState.acked++;
+	saveTutorial();
+	tutRuntime.lastRenderedIdx = null;
+	checkAndRenderTutorial();
+}
+
+function tutorialDismiss() {
+	tutState.dismissed = true;
+	saveTutorial();
+	tutRuntime.lastRenderedIdx = null;
+	checkAndRenderTutorial();
+}
+
 function init() {
 	load();
+	loadTutorial();
 	state.lastTick = Date.now();
 	for (const bldKey of Object.keys(BUILDING_CONFIG)) {
 		if (state.buildings[bldKey].unlocked) addBuildingTab(bldKey);
 	}
 	renderAll();
+	checkAndRenderTutorial();
 	document.getElementById("app").addEventListener("click", handleClick);
 	setInterval(tick, 100);
 	setInterval(save, 5000);
