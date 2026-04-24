@@ -32,6 +32,208 @@ const TUTORIAL_STEPS = [
 
 let tutState = { dismissed: false, acked: 0 };
 const tutRuntime = { firstSellDone: false, lastRenderedIdx: null };
+let _questsRenderKey = "";
+
+const PRESTIGE_KEY = "crafter_prestige";
+let prestige = { runs: 0, rewards: [], completedQuestIds: [], seenBuildings: [] };
+
+// Generates the reward label string from a reward object.
+function rewardLabel(r) {
+	if (r.type === "starting_gold")  return `+${r.amount.toLocaleString()} Starting Gold`;
+	if (r.type === "slot_cost_pct")  return `Slot Costs -${r.amount}%`;
+	if (r.type === "unlock_cost_pct")return `Unlock Costs -${r.amount}%`;
+	if (r.type === "build_cost_pct") return `Build Costs -${r.amount}%`;
+	if (r.type === "sell_price_pct") return `Sell Prices +${r.amount}%`;
+	if (r.type === "storage_tier")   return `+${r.amount} Starting Storage Tier${r.amount > 1 ? "s" : ""}`;
+	if (r.type === "cycle_speed_pct")return `Production Speed +${r.amount}%`;
+	return "";
+}
+
+// Each chain has ordered tiers. Completing a tier unlocks the next one. The active quest pool is drawn from the current frontier of each chain.
+// prereq: building key that must appear in prestige.seenBuildings before this chain is offered.
+const QUEST_CHAINS = [
+	{ id: "sell_logs", type: "sell", resource: "logs", tiers: [
+		{ target: 20, label: "Sell 20 Logs", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 50, label: "Sell 50 Logs", reward: { type: "starting_gold", amount: 150 } },
+		{ target: 150, label: "Sell 150 Logs", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 400, label: "Sell 400 Logs", reward: { type: "starting_gold", amount: 500 } },
+	]},
+	{ id: "sell_timber", type: "sell", resource: "timber", tiers: [
+		{ target: 10, label: "Sell 10 Timber", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 30, label: "Sell 30 Timber", reward: { type: "starting_gold", amount: 250 } },
+		{ target: 100, label: "Sell 100 Timber", reward: { type: "unlock_cost_pct", amount: 3 } },
+	]},
+	{ id: "sell_dowels", type: "sell", resource: "dowels", tiers: [
+		{ target: 10, label: "Sell 10 Dowels", reward: { type: "unlock_cost_pct", amount: 2 } },
+		{ target: 30, label: "Sell 30 Dowels", reward: { type: "starting_gold", amount: 350 } },
+	]},
+	{ id: "sell_handles", type: "sell", resource: "handles", tiers: [
+		{ target: 10, label: "Sell 10 Handles", reward: { type: "unlock_cost_pct", amount: 2 } },
+		{ target: 30, label: "Sell 30 Handles", reward: { type: "starting_gold", amount: 400 } },
+	]},
+	{ id: "sell_shafts", type: "sell", resource: "shafts", tiers: [
+		{ target: 5, label: "Sell 5 Shafts", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 15, label: "Sell 15 Shafts", reward: { type: "sell_price_pct", amount: 3 } },
+	]},
+	{ id: "sell_planks", type: "sell", resource: "planks", prereq: "sawmill", tiers: [
+		{ target: 10, label: "Sell 10 Planks", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 40, label: "Sell 40 Planks", reward: { type: "starting_gold", amount: 300 } },
+		{ target: 100, label: "Sell 100 Planks", reward: { type: "slot_cost_pct", amount: 3 } },
+	]},
+	{ id: "sell_boards", type: "sell", resource: "boards", prereq: "sawmill", tiers: [
+		{ target: 5, label: "Sell 5 Boards", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 20, label: "Sell 20 Boards", reward: { type: "starting_gold", amount: 400 } },
+		{ target: 60, label: "Sell 60 Boards", reward: { type: "sell_price_pct", amount: 3 } },
+	]},
+	{ id: "sell_beams", type: "sell", resource: "beams", prereq: "sawmill", tiers: [
+		{ target: 5, label: "Sell 5 Beams", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 15, label: "Sell 15 Beams", reward: { type: "starting_gold", amount: 500 } },
+		{ target: 40, label: "Sell 40 Beams", reward: { type: "slot_cost_pct", amount: 5 } },
+	]},
+	{ id: "sell_crates", type: "sell", resource: "crates", prereq: "workshop", tiers: [
+		{ target: 5, label: "Sell 5 Crates", reward: { type: "storage_tier", amount: 1 } },
+		{ target: 20, label: "Sell 20 Crates", reward: { type: "starting_gold", amount: 900 } },
+		{ target: 50, label: "Sell 50 Crates", reward: { type: "slot_cost_pct", amount: 5 } },
+	]},
+	{ id: "sell_furniture", type: "sell", resource: "furniture", prereq: "workshop", tiers: [
+		{ target: 3, label: "Sell 3 Furniture", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 10, label: "Sell 10 Furniture", reward: { type: "starting_gold", amount: 1500 } },
+		{ target: 25, label: "Sell 25 Furniture", reward: { type: "sell_price_pct", amount: 5 } },
+	]},
+	{ id: "sell_coaches", type: "sell", resource: "coaches", prereq: "workshop", tiers: [
+		{ target: 2, label: "Sell 2 Coaches", reward: { type: "build_cost_pct", amount: 3 } },
+		{ target: 8, label: "Sell 8 Coaches", reward: { type: "build_cost_pct", amount: 5 } },
+	]},
+	{ id: "sell_manors", type: "sell", resource: "manors", prereq: "workshop", tiers: [
+		{ target: 1, label: "Sell 1 Manor", reward: { type: "cycle_speed_pct", amount: 3 } },
+		{ target: 4, label: "Sell 4 Manors", reward: { type: "starting_gold", amount: 2500 } },
+	]},
+	{ id: "sell_iron_ore", type: "sell", resource: "iron_ore", prereq: "forge", tiers: [
+		{ target: 25, label: "Sell 25 Iron Ore", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 80, label: "Sell 80 Iron Ore", reward: { type: "starting_gold", amount: 400 } },
+		{ target: 200, label: "Sell 200 Iron Ore", reward: { type: "slot_cost_pct", amount: 3 } },
+	]},
+	{ id: "sell_iron_bars", type: "sell", resource: "iron_bars", prereq: "forge", tiers: [
+		{ target: 5, label: "Sell 5 Iron Bars", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 25, label: "Sell 25 Iron Bars", reward: { type: "starting_gold", amount: 600 } },
+		{ target: 60, label: "Sell 60 Iron Bars", reward: { type: "unlock_cost_pct", amount: 5 } },
+	]},
+	{ id: "sell_nails", type: "sell", resource: "nails", prereq: "forge", tiers: [
+		{ target: 10, label: "Sell 10 Nails", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 30, label: "Sell 30 Nails", reward: { type: "starting_gold", amount: 750 } },
+	]},
+	{ id: "sell_fittings", type: "sell", resource: "iron_fittings", prereq: "forge", tiers: [
+		{ target: 5, label: "Sell 5 Iron Fittings", reward: { type: "unlock_cost_pct", amount: 3 } },
+		{ target: 15, label: "Sell 15 Iron Fittings", reward: { type: "sell_price_pct", amount: 3 } },
+	]},
+	{ id: "sell_gears", type: "sell", resource: "gears", prereq: "foundry", tiers: [
+		{ target: 3, label: "Sell 3 Gears", reward: { type: "build_cost_pct", amount: 3 } },
+		{ target: 10, label: "Sell 10 Gears", reward: { type: "starting_gold", amount: 1500 } },
+	]},
+	{ id: "sell_springs", type: "sell", resource: "springs", prereq: "foundry", tiers: [
+		{ target: 3, label: "Sell 3 Springs", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 8, label: "Sell 8 Springs", reward: { type: "sell_price_pct", amount: 5 } },
+	]},
+	{ id: "sell_mechanisms", type: "sell", resource: "mechanisms", prereq: "foundry", tiers: [
+		{ target: 2, label: "Sell 2 Mechanisms", reward: { type: "build_cost_pct", amount: 4 } },
+		{ target: 6, label: "Sell 6 Mechanisms", reward: { type: "build_cost_pct", amount: 5 } },
+	]},
+	{ id: "sell_clockwork", type: "sell", resource: "clockwork", prereq: "foundry", tiers: [
+		{ target: 1, label: "Sell 1 Clockwork", reward: { type: "slot_cost_pct", amount: 5 } },
+		{ target: 3, label: "Sell 3 Clockwork", reward: { type: "slot_cost_pct", amount: 8 } },
+	]},
+	{ id: "sell_blades", type: "sell", resource: "blades", prereq: "armoury", tiers: [
+		{ target: 3, label: "Sell 3 Blades", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 10, label: "Sell 10 Blades", reward: { type: "starting_gold", amount: 2000 } },
+	]},
+	{ id: "sell_crossbows", type: "sell", resource: "crossbows", prereq: "armoury", tiers: [
+		{ target: 2, label: "Sell 2 Crossbows", reward: { type: "cycle_speed_pct", amount: 3 } },
+		{ target: 5, label: "Sell 5 Crossbows", reward: { type: "sell_price_pct", amount: 5 } },
+	]},
+	{ id: "sell_cannons", type: "sell", resource: "cannons", prereq: "armoury", tiers: [
+		{ target: 1, label: "Sell 1 Cannon", reward: { type: "build_cost_pct", amount: 5 } },
+		{ target: 3, label: "Sell 3 Cannons", reward: { type: "build_cost_pct", amount: 8 } },
+	]},
+	{ id: "sell_artillery", type: "sell", resource: "artillery", prereq: "armoury", tiers: [
+		{ target: 1, label: "Sell 1 Artillery", reward: { type: "starting_gold", amount: 4000 } },
+		{ target: 2, label: "Sell 2 Artillery", reward: { type: "cycle_speed_pct", amount: 5 } },
+	]},
+	{ id: "sell_hulls", type: "sell", resource: "hulls", prereq: "shipyard", tiers: [
+		{ target: 2, label: "Sell 2 Hulls", reward: { type: "sell_price_pct", amount: 4 } },
+		{ target: 5, label: "Sell 5 Hulls", reward: { type: "sell_price_pct", amount: 5 } },
+	]},
+	{ id: "sell_rigging", type: "sell", resource: "rigging", prereq: "shipyard", tiers: [
+		{ target: 2, label: "Sell 2 Rigging", reward: { type: "cycle_speed_pct", amount: 3 } },
+		{ target: 5, label: "Sell 5 Rigging", reward: { type: "starting_gold", amount: 3000 } },
+	]},
+	{ id: "sell_galleons", type: "sell", resource: "galleons", prereq: "shipyard", tiers: [
+		{ target: 1, label: "Sell 1 Galleon", reward: { type: "starting_gold", amount: 6000 } },
+		{ target: 2, label: "Sell 2 Galleons", reward: { type: "sell_price_pct", amount: 8 } },
+	]},
+	{ id: "sell_dreadnoughts", type: "sell", resource: "dreadnoughts", prereq: "shipyard", tiers: [
+		{ target: 1, label: "Sell 1 Dreadnought", reward: { type: "cycle_speed_pct", amount: 10 } },
+	]},
+	{ id: "slots_logs", type: "slots", bld: "lumber_yard", product: "logs", tiers: [
+		{ target: 3, label: "Own 3 Log Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 5, label: "Own 5 Log Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 8, label: "Own 8 Log Slots", reward: { type: "sell_price_pct", amount: 3 } },
+	]},
+	{ id: "slots_iron_ore", type: "slots", bld: "forge", product: "iron_ore", prereq: "forge", tiers: [
+		{ target: 3, label: "Own 3 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 5, label: "Own 5 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 8, label: "Own 8 Iron Ore Slots", reward: { type: "sell_price_pct", amount: 3 } },
+	]},
+	{ id: "slots_timber", type: "slots", bld: "lumber_yard", product: "timber", tiers: [
+		{ target: 3, label: "Own 3 Timber Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 5, label: "Own 5 Timber Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+	]},
+	{ id: "total_slots", type: "total_slots", tiers: [
+		{ target: 10, label: "Own 10 Slots Total", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 20, label: "Own 20 Slots Total", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 35, label: "Own 35 Slots Total", reward: { type: "slot_cost_pct", amount: 5 } },
+		{ target: 50, label: "Own 50 Slots Total", reward: { type: "cycle_speed_pct", amount: 5 } },
+	]},
+	{ id: "build_sawmill", type: "build", bld: "sawmill", tiers: [{ target: 1, label: "Build the Sawmill", reward: { type: "build_cost_pct", amount: 3 } }]},
+	{ id: "build_workshop", type: "build", bld: "workshop", tiers: [{ target: 1, label: "Build the Workshop", reward: { type: "storage_tier", amount: 1 } }]},
+	{ id: "build_forge", type: "build", bld: "forge", tiers: [{ target: 1, label: "Build the Forge", reward: { type: "storage_tier", amount: 1 } }]},
+	{ id: "build_foundry", type: "build", bld: "foundry", prereq: "forge", tiers: [{ target: 1, label: "Build the Foundry", reward: { type: "build_cost_pct", amount: 5 } }]},
+	{ id: "build_armoury", type: "build", bld: "armoury", prereq: "foundry", tiers: [{ target: 1, label: "Build the Armoury", reward: { type: "sell_price_pct", amount: 5 } }]},
+	{ id: "build_shipyard", type: "build", bld: "shipyard", prereq: "armoury", tiers: [{ target: 1, label: "Build the Shipyard", reward: { type: "cycle_speed_pct", amount: 5 } }]},
+	{ id: "unlock_boards", type: "unlock", bld: "sawmill", product: "boards", prereq: "sawmill", tiers: [{ target: 1, label: "Unlock Boards", reward: { type: "unlock_cost_pct", amount: 2 } }]},
+	{ id: "unlock_shafts", type: "unlock", bld: "lumber_yard", product: "shafts", tiers: [{ target: 1, label: "Unlock Shafts", reward: { type: "unlock_cost_pct", amount: 3 } }]},
+	{ id: "unlock_furniture", type: "unlock", bld: "workshop", product: "furniture", prereq: "workshop", tiers: [{ target: 1, label: "Unlock Furniture", reward: { type: "sell_price_pct", amount: 3 } }]},
+	{ id: "unlock_fittings", type: "unlock", bld: "forge", product: "iron_fittings", prereq: "forge", tiers: [{ target: 1, label: "Unlock Iron Fittings", reward: { type: "unlock_cost_pct", amount: 4 } }]},
+	{ id: "unlock_clockwork", type: "unlock", bld: "foundry", product: "clockwork", prereq: "foundry", tiers: [{ target: 1, label: "Unlock Clockwork", reward: { type: "build_cost_pct", amount: 8 } }]},
+	{ id: "unlock_artillery", type: "unlock", bld: "armoury", product: "artillery", prereq: "armoury", tiers: [{ target: 1, label: "Unlock Artillery", reward: { type: "sell_price_pct", amount: 8 } }]},
+	{ id: "unlock_dreadnoughts", type: "unlock", bld: "shipyard", product: "dreadnoughts", prereq: "shipyard", tiers: [{ target: 1, label: "Unlock Dreadnoughts", reward: { type: "cycle_speed_pct", amount: 8 } }]},
+	{ id: "storage_upgrades", type: "storage", tiers: [
+		{ target: 3, label: "Upgrade Storage 3 Times", reward: { type: "storage_tier", amount: 1 } },
+		{ target: 6, label: "Upgrade Storage 6 Times", reward: { type: "storage_tier", amount: 1 } },
+		{ target: 10, label: "Upgrade Storage 10 Times", reward: { type: "storage_tier", amount: 2 } },
+	]},
+	{ id: "earn_gold", type: "gold_earned", tiers: [
+		{ target: 1000, label: "Earn 1,000 Gold", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 5000, label: "Earn 5,000 Gold", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 25000, label: "Earn 25,000 Gold", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 100000, label: "Earn 100,000 Gold", reward: { type: "unlock_cost_pct", amount: 8 } },
+		{ target: 500000, label: "Earn 500,000 Gold", reward: { type: "cycle_speed_pct", amount: 8 } },
+	]},
+];
+
+// Flat quest pool built from chains. Each entry gets id = `${chainId}_t${tierIndex}`.
+const QUEST_POOL = QUEST_CHAINS.flatMap(chain => chain.tiers.map((tier, i) => ({
+	id:          `${chain.id}_t${i}`,
+	chainId:     chain.id,
+	tierIndex:   i,
+	label:       tier.label,
+	type:        chain.type,
+	resource:    chain.resource,
+	bld:         chain.bld,
+	product:     chain.product,
+	target:      tier.target,
+	reward:      tier.reward,
+	rewardLabel: rewardLabel(tier.reward),
+})));
 
 const RESOURCES = {
 	// Wood chain
@@ -405,6 +607,8 @@ const DEFAULT_STATE = (() => ({
 	lastTick: null,
 	inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
 	storage: { tier: 0 },
+	stats: { goldEarned: 0, soldByResource: {} },
+	quests: { active: [], completed: [] },
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
@@ -467,12 +671,14 @@ function totalItems() {
 }
 
 function storageMax() {
-	if (state.storage.tier <= 0) return STORAGE_BASE;
-	return STORAGE_FIRST_UPGRADE + ((state.storage.tier - 1) * STORAGE_INCREMENT);
+	const tier = state.storage.tier + getPrestigeBonus("storage_tier");
+	if (tier <= 0) return STORAGE_BASE;
+	return STORAGE_FIRST_UPGRADE + ((tier - 1) * STORAGE_INCREMENT);
 }
 
 function nextStorageMax() {
-	if (state.storage.tier <= 0) return STORAGE_FIRST_UPGRADE;
+	const tier = state.storage.tier + getPrestigeBonus("storage_tier");
+	if (tier <= 0) return STORAGE_FIRST_UPGRADE;
 	return storageMax() + STORAGE_INCREMENT;
 }
 
@@ -483,18 +689,20 @@ function storageUpgradeCost() {
 function nextSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
 	const exp = BUILDING_CONFIG[bldKey].slotCostExponent ?? 1.5;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n));
+	const base = BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n);
+	return Math.round(base * prestigeSlotCostMult());
 }
 
 function lastSlotCost(bldKey, productKey) {
 	const n = state.buildings[bldKey].products[productKey].slots.length;
 	if (n === 0) return 0;
 	const exp = BUILDING_CONFIG[bldKey].slotCostExponent ?? 1.5;
-	return Math.round(BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n - 1));
+	const base = BUILDING_CONFIG[bldKey].products[productKey].baseSlotCost * Math.pow(exp, n - 1);
+	return Math.round(base * prestigeSlotCostMult());
 }
 
 function currentPrice(resourceKey) {
-	return RESOURCES[resourceKey].price;
+	return Math.round(RESOURCES[resourceKey].price * prestigeSellMult());
 }
 
 function formatRate(slots, outputAmt, baseCycleMs, label = "") {
@@ -519,6 +727,57 @@ function formatDuration(seconds) {
 	const hours = Math.round(mins / 60);
 	return `${hours} ${hours === 1 ? "hour" : "hours"}`;
 }
+
+function formatNum(n) {
+	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+	return n.toLocaleString();
+}
+
+function loadPrestige() {
+	try {
+		const raw = localStorage.getItem(PRESTIGE_KEY);
+		if (raw) {
+			const p = JSON.parse(raw);
+			if (typeof p.runs === "number") prestige.runs = p.runs;
+			if (Array.isArray(p.rewards)) prestige.rewards = p.rewards;
+			if (Array.isArray(p.completedQuestIds)) prestige.completedQuestIds = p.completedQuestIds;
+			if (Array.isArray(p.seenBuildings)) prestige.seenBuildings = p.seenBuildings;
+		}
+	} catch (e) {}
+}
+
+function eligibleQuestPool() {
+	const completed = new Set(prestige.completedQuestIds);
+	const seen = new Set(["lumber_yard", ...prestige.seenBuildings]);
+	const pool = [];
+	for (const chain of QUEST_CHAINS) {
+		if (chain.prereq && !seen.has(chain.prereq)) continue;
+		for (let i = 0; i < chain.tiers.length; i++) {
+			const questId = `${chain.id}_t${i}`;
+			if (!completed.has(questId)) {
+				const q = QUEST_POOL.find(e => e.id === questId);
+				if (q) pool.push(q);
+				break;
+			}
+		}
+	}
+	return pool;
+}
+
+function savePrestige() {
+	try { localStorage.setItem(PRESTIGE_KEY, JSON.stringify(prestige)); } catch (e) {}
+}
+
+function getPrestigeBonus(type) {
+	return prestige.rewards.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
+}
+
+function prestigeSlotCostMult()   { return Math.max(0.1, 1 - getPrestigeBonus("slot_cost_pct")   / 100); }
+function prestigeSellMult()        { return 1 + getPrestigeBonus("sell_price_pct")  / 100; }
+function prestigeBuildCostMult()   { return Math.max(0.1, 1 - getPrestigeBonus("build_cost_pct")  / 100); }
+function prestigeUnlockCostMult()  { return Math.max(0.1, 1 - getPrestigeBonus("unlock_cost_pct") / 100); }
+function prestigeSpeedMult()       { return 1 + getPrestigeBonus("cycle_speed_pct") / 100; }
 
 function save() {
 	try {
@@ -606,15 +865,16 @@ function advanceBuildings(deltaSec) {
 				continue;
 			}
 			const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
+			const cycleSec = (pcfg.baseCycleMs / 1000) / prestigeSpeedMult();
 			for (const slot of pst.slots) {
-				slot.progress += deltaSec / (pcfg.baseCycleMs / 1000);
+				slot.progress += deltaSec / cycleSec;
 				while (slot.progress >= 1.0) {
 					slot.progress -= 1.0;
 					if (!tryProduceSlot(bldKey, productKey, slot)) break;
 				}
 			}
 			if (pst.manual.active) {
-				pst.manual.progress += deltaSec / (pcfg.baseCycleMs / 1000);
+				pst.manual.progress += deltaSec / cycleSec;
 				if (pst.manual.progress >= 1.0) {
 					pst.manual.progress = 0;
 					pst.manual.active = false;
@@ -634,11 +894,12 @@ function unlockBuilding(bldKey) {
 	const bst = state.buildings[bldKey];
 	if (bst.unlocked) return;
 	if (!cfg.prereq()) return;
-	if (state.gold < cfg.buildCost) {
-		announce(`Need ${cfg.buildCost} gold to build ${cfg.label}.`, "assertive");
+	const buildCost = Math.round(cfg.buildCost * prestigeBuildCostMult());
+	if (state.gold < buildCost) {
+		announce(`Need ${buildCost} gold to build ${cfg.label}.`, "assertive");
 		return;
 	}
-	state.gold -= cfg.buildCost;
+	state.gold -= buildCost;
 	bst.unlocked = true;
 	for (const [pk, pcfg] of Object.entries(cfg.products)) {
 		if (pcfg.unlockCost === 0 && !pcfg.prereqProduct) {
@@ -657,11 +918,12 @@ function unlockProduct(bldKey, productKey) {
 	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.unlocked) return;
 	if (pcfg.prereqProduct && !state.buildings[bldKey].products[pcfg.prereqProduct].unlocked) return;
-	if (state.gold < pcfg.unlockCost) {
-		announce(`Need ${pcfg.unlockCost} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`, "assertive");
+	const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
+	if (state.gold < unlockCost) {
+		announce(`Need ${unlockCost} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`, "assertive");
 		return;
 	}
-	state.gold -= pcfg.unlockCost;
+	state.gold -= unlockCost;
 	pst.unlocked = true;
 	announce(`${RESOURCES[pcfg.outputKey].label} production unlocked!`, "polite");
 	renderAll();
@@ -745,9 +1007,13 @@ function sellAll() {
 	if (resources.length === 0) return;
 	let totalEarned = 0;
 	for (const k of resources) {
-		totalEarned += state.inventory[k] * currentPrice(k);
+		const qty = state.inventory[k];
+		const earned = qty * currentPrice(k);
+		totalEarned += earned;
+		state.stats.soldByResource[k] = (state.stats.soldByResource[k] ?? 0) + qty;
 		state.inventory[k] = 0;
 	}
+	state.stats.goldEarned += totalEarned;
 	state.gold += totalEarned;
 	announce(`Sold everything for ${totalEarned} gold.`, "polite");
 	tutRuntime.firstSellDone = true;
@@ -761,6 +1027,8 @@ function sellProduct(resourceKey) {
 	if (inv <= 0) return;
 	const earned = inv * currentPrice(resourceKey);
 	state.inventory[resourceKey] = 0;
+	state.stats.soldByResource[resourceKey] = (state.stats.soldByResource[resourceKey] ?? 0) + inv;
+	state.stats.goldEarned += earned;
 	state.gold += earned;
 	announce(`Sold ${inv} ${formatResourceName(resourceKey, inv)} for ${earned} gold.`, "polite");
 	tutRuntime.firstSellDone = true;
@@ -788,9 +1056,10 @@ function saveNow() {
 }
 
 function clearSaveData() {
-	if (confirm("Clear your save and start over?")) {
+	if (confirm("Clear your save and start over? This also resets your tutorial and prestige bonuses.")) {
 		localStorage.removeItem(SAVE_KEY);
 		localStorage.removeItem(TUTORIAL_SAVE_KEY);
+		localStorage.removeItem(PRESTIGE_KEY);
 		location.reload();
 	}
 }
@@ -864,6 +1133,7 @@ function renderAll() {
 	renderHUD();
 	if (activeTab === "build") renderBuildTab();
 	else if (activeTab === "market") renderMarketTab();
+	else if (activeTab === "quests") renderQuestsTab();
 	else if (activeTab === "settings") renderSettingsTab();
 	else if (activeTab in BUILDING_CONFIG) renderBuildingTab(activeTab);
 }
@@ -1262,8 +1532,10 @@ function tick() {
 	} catch (e) {
 		console.error("advanceBuildings:", e);
 	}
+	checkQuestCompletion();
 	renderHUD();
 	if (activeTab === "market") updateMarketProducts();
+	if (activeTab === "quests") renderQuestsTab();
 	checkAndRenderTutorial();
 }
 
@@ -1290,6 +1562,7 @@ function handleClick(e) {
 		case "toggle-product": toggleProductEnabled(bld, product); break;
 		case "tutorial-ok": tutorialOk(); break;
 		case "tutorial-dismiss": tutorialDismiss(); break;
+		case "prestige-reset": doPrestigeReset(); break;
 		case "save-now": saveNow(); break;
 		case "copy-save": copySaveToClipboard(); break;
 		case "import-save": importSaveFromClipboard(); break;
@@ -1298,6 +1571,189 @@ function handleClick(e) {
 			runtime.rateDisplayMode = runtime.rateDisplayMode === "minute" ? "cycle" : "minute";
 			renderAll();
 			break;
+	}
+}
+
+function drawQuests() {
+	const pool = eligibleQuestPool().sort(() => Math.random() - 0.5);
+	const picked = pool.slice(0, 5);
+	state.quests.active = picked.map(q => q.id);
+	state.quests.completed = picked.map(() => false);
+}
+
+function getQuestProgress(def) {
+	switch (def.type) {
+		case "sell":
+			return { current: state.stats.soldByResource[def.resource] ?? 0, target: def.target };
+		case "slots": {
+			const slots = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
+			return { current: slots, target: def.target };
+		}
+		case "total_slots": {
+			let n = 0;
+			for (const bst of Object.values(state.buildings))
+				for (const pst of Object.values(bst.products)) n += pst.slots.length;
+			return { current: n, target: def.target };
+		}
+		case "build":
+			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: 1 };
+		case "unlock":
+			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: 1 };
+		case "storage":
+			return { current: state.storage.tier, target: def.target };
+		case "gold_earned":
+			return { current: state.stats.goldEarned, target: def.target };
+		default:
+			return { current: 0, target: 1 };
+	}
+}
+
+function checkQuestCompletion() {
+	if (!state.quests.active.length) return;
+	for (let i = 0; i < state.quests.active.length; i++) {
+		if (state.quests.completed[i]) continue;
+		const def = QUEST_POOL.find(q => q.id === state.quests.active[i]);
+		if (!def) continue;
+		const { current, target } = getQuestProgress(def);
+		if (current >= target) {
+			state.quests.completed[i] = true;
+			announce(`Quest complete: ${def.label}!`, "polite");
+			if (activeTab === "quests") renderQuestsTab();
+		}
+	}
+}
+
+function doPrestigeReset() {
+	const completedCount = state.quests.completed.filter(Boolean).length;
+	if (completedCount === 0) return;
+	const incomplete = 5 - completedCount;
+	const msg = incomplete > 0 ? `Reset with ${completedCount}/5 quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"}. You can always keep playing to finish them.` : "All 5 quests complete! Reset and claim your rewards?";
+	if (!confirm(msg)) return;
+	for (const [bk, bst] of Object.entries(state.buildings)) {
+		if (bst.unlocked && !prestige.seenBuildings.includes(bk)) prestige.seenBuildings.push(bk);
+	}
+	for (let i = 0; i < state.quests.active.length; i++) {
+		if (!state.quests.completed[i]) continue;
+		const qid = state.quests.active[i];
+		const def = QUEST_POOL.find(q => q.id === qid);
+		if (def) {
+			prestige.rewards.push(def.reward);
+			if (!prestige.completedQuestIds.includes(qid)) prestige.completedQuestIds.push(qid);
+		}
+	}
+	prestige.runs++;
+	savePrestige();
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		document.getElementById(`tab-${bk}`)?.remove();
+		document.getElementById(`panel-${bk}`)?.remove();
+	}
+	state = deepClone(DEFAULT_STATE);
+	state.gold = getPrestigeBonus("starting_gold");
+	state.lastTick = Date.now();
+	runtime.nextSlotId = 0;
+	runtime.stallAnnounced = {};
+	tutRuntime.firstSellDone = false;
+	tutRuntime.lastRenderedIdx = null;
+	drawQuests();
+	save();
+	activeTab = "build";
+	document.querySelectorAll("#tab-bar button").forEach(b => b.classList.remove("active"));
+	document.getElementById("tab-build")?.classList.add("active");
+	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
+	document.getElementById("panel-build").hidden = false;
+	renderAll();
+	announce(`Run ${prestige.runs + 1} started! ${completedCount} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
+}
+
+function computePrestigeSummary() {
+	const defs = [
+		{ type: "starting_gold",  fmt: n => `+${n.toLocaleString()} Starting Gold`       },
+		{ type: "slot_cost_pct",  fmt: n => `Slot Costs -${n}%`                          },
+		{ type: "unlock_cost_pct",fmt: n => `Unlock Costs -${n}%`                        },
+		{ type: "build_cost_pct", fmt: n => `Build Costs -${n}%`                         },
+		{ type: "sell_price_pct", fmt: n => `Sell Prices +${n}%`                         },
+		{ type: "storage_tier",   fmt: n => `+${n} Starting Storage Tier${n > 1 ? "s" : ""}` },
+		{ type: "cycle_speed_pct",fmt: n => `Production Speed +${n}%`                    },
+	];
+	return defs.map(d => {
+		const total = getPrestigeBonus(d.type);
+		return total > 0 ? d.fmt(total) : null;
+	}).filter(Boolean);
+}
+
+function renderQuestsTab() {
+	const panel = document.getElementById("panel-quests");
+	if (!panel) return;
+	// Only rebuild the full DOM when the quest set or completion status changes. On every tick we do a cheaper targeted update of just the progress values.
+	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + prestige.runs;
+	if (structKey === _questsRenderKey && panel.firstChild) {
+		_updateQuestBars(panel);
+		return;
+	}
+	_questsRenderKey = structKey;
+	const completedCount = state.quests.completed.filter(Boolean).length;
+	const canReset = completedCount >= 1;
+	const buildCard = (id, i) => {
+		const def = QUEST_POOL.find(q => q.id === id);
+		if (!def) return "";
+		const { current, target } = getQuestProgress(def);
+		const done = state.quests.completed[i];
+		const isBoolean = def.type === "build" || def.type === "unlock";
+		const pct = isBoolean ? (done ? 100 : 0) : Math.min(100, Math.floor(current / target * 100));
+		const progressRow = done ? "" : isBoolean
+			? `<div class="quest-progress-row"><span class="quest-prog-text">Not yet</span></div>`
+			: `<div class="quest-progress-row">
+				<div class="quest-bar-wrap" role="progressbar"
+					data-quest-bar="${id}"
+					aria-label="quest progress"
+					aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+					<div class="quest-bar-fill" style="width:${pct}%"></div>
+				</div>
+				<span class="quest-prog-text" data-quest-text="${id}">${formatNum(current)} / ${formatNum(target)}</span>
+			</div>`;
+		return `<div class="quest-card${done ? " quest-done" : ""}">
+			<h3 class="quest-title">${def.label}</h3>
+			<p class="quest-reward-label">Reward: ${def.rewardLabel}</p>
+			${progressRow}
+		</div>`;
+	};
+	const inProgressHtml = state.quests.active.map((id, i) => state.quests.completed[i] ? "" : buildCard(id, i)).join("");
+	const completedHtml = state.quests.active.map((id, i) => state.quests.completed[i] ? buildCard(id, i) : "").join("");
+	const bonuses = computePrestigeSummary();
+	const bonusesHtml = bonuses.length === 0 ? `<p class="quest-no-bonuses">No bonuses yet — complete quests and reset to earn permanent upgrades.</p>` : `<ul class="prestige-bonus-list">${bonuses.map(b => `<li>${b}</li>`).join("")}</ul>`;
+	const resetLabel = completedCount === state.quests.active.length ? "Reset & Collect All Rewards" : `Reset & Collect Rewards (${completedCount} / ${state.quests.active.length} complete)`;
+	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete — you'll miss those rewards.</p>` : "";
+	panel.innerHTML = `
+		<h1>Quests &#x2014; Run ${prestige.runs + 1}</h1>
+		${inProgressHtml ? `<h2>In Progress</h2><div class="quest-grid">${inProgressHtml}</div>` : ""}
+		${completedHtml  ? `<h2>Completed</h2><div class="quest-grid">${completedHtml}</div>`   : ""}
+		<section class="prestige-section">
+			<h2>Permanent Bonuses</h2>
+			${bonusesHtml}
+		</section>
+		<div class="prestige-reset-row">
+			${warningHtml}
+			<button class="prestige-reset-btn" data-action="prestige-reset" ${canReset ? "" : "disabled"}>
+				${resetLabel}
+			</button>
+		</div>`;
+}
+
+function _updateQuestBars(panel) {
+	for (let i = 0; i < state.quests.active.length; i++) {
+		if (state.quests.completed[i]) continue;
+		const def = QUEST_POOL.find(q => q.id === state.quests.active[i]);
+		if (!def || def.type === "build" || def.type === "unlock") continue;
+		const { current, target } = getQuestProgress(def);
+		const pct = Math.min(100, Math.floor(current / target * 100));
+		const barEl = panel.querySelector(`[data-quest-bar="${def.id}"]`);
+		const txtEl = panel.querySelector(`[data-quest-text="${def.id}"]`);
+		if (barEl) {
+			barEl.setAttribute("aria-valuenow", pct);
+			const fill = barEl.querySelector(".quest-bar-fill");
+			if (fill) fill.style.width = `${pct}%`;
+		}
+		if (txtEl) txtEl.textContent = `${formatNum(current)} / ${formatNum(target)}`;
 	}
 }
 
@@ -1374,7 +1830,11 @@ function tutorialDismiss() {
 
 function init() {
 	load();
+	loadPrestige();
 	loadTutorial();
+	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
+	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
+	if (state.quests.active.length === 0 || hasStaleIds) drawQuests();
 	state.lastTick = Date.now();
 	for (const bldKey of Object.keys(BUILDING_CONFIG)) {
 		if (state.buildings[bldKey].unlocked) addBuildingTab(bldKey);

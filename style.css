@@ -541,6 +541,145 @@ body {
 }
 
 
+#panel-quests {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-lg);
+	padding-top: var(--space-sm);
+}
+
+.quest-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+	gap: var(--space-md);
+}
+
+.quest-card {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: var(--space-md);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-sm);
+}
+
+.quest-done {
+	border-color: var(--color-progress);
+	opacity: 0.85;
+}
+
+.quest-title {
+	font-size: var(--font-base);
+	color: var(--color-gold);
+}
+
+.quest-desc {
+	font-size: var(--font-sm);
+	color: var(--color-text-muted);
+	flex: 1;
+}
+
+.quest-progress-row {
+	display: flex;
+	align-items: center;
+	gap: var(--space-sm);
+}
+
+.quest-bar-wrap {
+	flex: 1;
+	background: var(--color-progress-bg);
+	border-radius: 6px;
+	height: 10px;
+	overflow: hidden;
+}
+
+.quest-bar-fill {
+	height: 100%;
+	background: var(--color-progress);
+	border-radius: 6px;
+	transition: width 0.4s ease;
+}
+
+.quest-done .quest-bar-fill { background: var(--color-progress); }
+
+.quest-prog-text {
+	font-size: var(--font-sm);
+	color: var(--color-text-muted);
+	white-space: nowrap;
+}
+
+.quest-done .quest-prog-text { color: var(--color-progress); }
+
+.quest-reward-label {
+	font-size: var(--font-sm);
+	color: var(--color-gold-dim);
+	margin-top: auto;
+}
+
+.quest-done .quest-reward-label { color: var(--color-gold); }
+
+.prestige-section {
+	background: var(--color-surface);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	padding: var(--space-md);
+}
+
+.prestige-section h3 {
+	font-size: var(--font-base);
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--space-sm);
+	padding-bottom: var(--space-xs);
+	border-bottom: 1px solid var(--color-border);
+}
+
+.prestige-bonus-list {
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs) var(--space-lg);
+}
+
+.prestige-bonus-list li {
+	font-size: var(--font-sm);
+	color: var(--color-gold);
+}
+
+.quest-no-bonuses {
+	font-size: var(--font-sm);
+	color: var(--color-text-muted);
+	font-style: italic;
+}
+
+.prestige-reset-row {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-sm);
+	align-items: flex-start;
+}
+
+.prestige-reset-btn {
+	padding: var(--space-sm) var(--space-lg);
+	border: 1px solid var(--color-accent);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: #f08090;
+	font-size: var(--font-base);
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s, opacity 0.15s;
+}
+.prestige-reset-btn:hover:not(:disabled) { background: var(--color-border); }
+.prestige-reset-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.reset-warning {
+	font-size: var(--font-sm);
+	color: #f5a623;
+}
+
 #panel-tutorial {
 	display: flex;
 	align-items: flex-start;
