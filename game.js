@@ -1125,7 +1125,6 @@ function renderAll() {
 	renderBuildSection();
 	renderMarketSection();
 	renderQuestsSection();
-	renderSettingsSection();
 }
 
 function renderHUD() {
@@ -1474,6 +1473,15 @@ function handleClick(e) {
 		case "copy-save": copySaveToClipboard(); break;
 		case "import-save": importSaveFromClipboard(); break;
 		case "clear-save": clearSaveData(); break;
+		case "settings-open":
+			document.getElementById("app").classList.add("settings-open");
+			renderSettingsSection();
+			document.querySelector("#settings-back-row button")?.focus();
+			break;
+		case "settings-back":
+			document.getElementById("app").classList.remove("settings-open");
+			document.getElementById("settings-btn")?.focus();
+			break;
 		case "toggle-rate-mode":
 			runtime.rateDisplayMode = runtime.rateDisplayMode === "minute" ? "cycle" : "minute";
 			renderAll();

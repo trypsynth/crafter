@@ -90,6 +90,20 @@ body {
 }
 
 
+#settings-btn {
+	padding: var(--space-xs) var(--space-md);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: var(--color-text);
+	font-size: var(--font-sm);
+	cursor: pointer;
+	white-space: nowrap;
+	transition: background 0.15s;
+	flex-shrink: 0;
+}
+#settings-btn:hover { background: var(--color-border); }
+
 #hud-stats {
 	display: flex;
 	flex-wrap: wrap;
@@ -105,13 +119,37 @@ body {
 .hud-warn { color: #f5a623; }
 
 
-#content {
+#content, #settings-view {
 	overflow-y: auto;
 	padding: var(--space-lg);
 	display: flex;
 	flex-direction: column;
 	gap: var(--space-md);
+	grid-row: 2;
 }
+
+#settings-view { display: none; }
+#app.settings-open #settings-view { display: flex; }
+#app.settings-open #content,
+#app.settings-open #hud-stats,
+#app.settings-open #settings-btn { display: none; }
+
+#settings-back-row {
+	display: flex;
+	align-items: center;
+}
+
+#settings-back-row button {
+	padding: var(--space-xs) var(--space-md);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: var(--color-text);
+	font-size: var(--font-sm);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+#settings-back-row button:hover { background: var(--color-border); }
 
 details {
 	background: var(--color-surface);

@@ -17,6 +17,7 @@
 					<span id="hud-chain"></span>
 					<span id="hud-inventory"></span>
 				</div>
+				<button id="settings-btn" data-action="settings-open">Settings</button>
 			</div>
 		</header>
 		<div id="content">
@@ -48,10 +49,12 @@
 				<div class="section-body" id="panel-quests"></div>
 			</details>
 
-			<details id="section-settings">
-				<summary><h2>Settings</h2></summary>
-				<div class="section-body" id="panel-settings"></div>
-			</details>
+		</div>
+		<div id="settings-view">
+			<div id="settings-back-row">
+				<button data-action="settings-back">Back</button>
+			</div>
+			<div id="panel-settings"></div>
 		</div>
 	</div>
 	<div id="live-polite"    class="sr-only" aria-live="polite"    aria-atomic="true"></div>
