@@ -2,67 +2,71 @@
 
 const { Worker, isMainThread, parentPort, workerData } = require("worker_threads");
 const {
-	RESOURCES, BUILDING_CONFIG,
+	RESOURCES, BUILDING_CONFIG, QUEST_CHAINS,
 	STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT,
 	STORAGE_BASE_COST, STORAGE_COST_GROWTH,
 } = require("./game.js");
 
-// ---------------------------------------------------------------------------
-// Profiles — each represents a different player spending style.
-// sellThreshold:    fraction of storage full before auto-selling
-// saveMultiplier:   how much better a future item must be (ROI ratio) to hold gold
-// storageCritical:  fill fraction that triggers storage upgrade even while saving
-// storageWanted:    fill fraction that triggers storage upgrade when not saving
-// ---------------------------------------------------------------------------
 const PROFILES = [
 	{
-		name:             "Greedy",
-		desc:             "Buys first affordable thing, sells early, never saves",
-		sellThreshold:    0.55,
-		saveMultiplier:   1.0,   // never waits — always buys best affordable
-		storageCritical:  0.92,
-		storageWanted:    0.72,
+		name:            "Greedy",
+		desc:            "Buys first affordable thing, sells early, never saves",
+		sellThreshold:   0.55,
+		saveMultiplier:  1.0,   // never waits — always buys best affordable
+		storageCritical: 0.92,
+		storageWanted:   0.72,
 	},
 	{
-		name:             "Balanced",
-		desc:             "Default behaviour — moderate saving, mid sell threshold",
-		sellThreshold:    0.75,
-		saveMultiplier:   2.0,
-		storageCritical:  0.88,
-		storageWanted:    0.65,
+		name:            "Balanced",
+		desc:            "Default behaviour — moderate saving, mid sell threshold",
+		sellThreshold:   0.75,
+		saveMultiplier:  2.0,
+		storageCritical: 0.88,
+		storageWanted:   0.65,
 	},
 	{
-		name:             "Patient",
-		desc:             "Saves aggressively for high-ROI investments",
-		sellThreshold:    0.75,
-		saveMultiplier:   4.0,
-		storageCritical:  0.88,
-		storageWanted:    0.65,
+		name:            "Patient",
+		desc:            "Saves aggressively for high-ROI investments",
+		sellThreshold:   0.75,
+		saveMultiplier:  4.0,
+		storageCritical: 0.88,
+		storageWanted:   0.65,
 	},
 	{
-		name:             "Miser",
-		desc:             "Sells late, saves hard, upgrades storage heavily",
-		sellThreshold:    0.85,
-		saveMultiplier:   5.0,
-		storageCritical:  0.70,
-		storageWanted:    0.50,
+		name:            "Miser",
+		desc:            "Sells late, saves hard, upgrades storage heavily",
+		sellThreshold:   0.85,
+		saveMultiplier:  5.0,
+		storageCritical: 0.70,
+		storageWanted:   0.50,
 	},
 ];
 
-// ---------------------------------------------------------------------------
-// Simulation constants
-// ---------------------------------------------------------------------------
 const SIM_HOURS = parseFloat(process.argv[2] ?? "2");
 const TICK_SEC  = 0.5;
 const SIM_SECS  = SIM_HOURS * 3600;
 
-// ---------------------------------------------------------------------------
-// Game state helpers (mirror game.js logic)
-// ---------------------------------------------------------------------------
+const ALL_QUESTS = QUEST_CHAINS.flatMap(chain =>
+	chain.tiers.map((tier, i) => ({
+		id:        `${chain.id}_t${i}`,
+		chainId:   chain.id,
+		tierIndex: i,
+		type:      chain.type,
+		resource:  chain.resource,
+		bld:       chain.bld,
+		product:   chain.product,
+		prereq:    chain.prereq,
+		target:    tier.target,
+		label:     tier.label,
+		reward:    tier.reward,
+	}))
+);
+
 function makeState() {
 	return {
 		gold: 0,
-		inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
+		inventory:      Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
+		soldByResource: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
 		storage: { tier: 0 },
 		buildings: Object.fromEntries(
 			Object.keys(BUILDING_CONFIG).map(bk => [bk, {
@@ -70,8 +74,8 @@ function makeState() {
 				products: Object.fromEntries(
 					Object.keys(BUILDING_CONFIG[bk].products).map(pk => [pk, {
 						unlocked: BUILDING_CONFIG[bk].products[pk].startsUnlocked ?? false,
-						enabled: true,
-						slots: [],
+						enabled:  true,
+						slots:    [],
 						manualProgress: 0,
 					}])
 				),
@@ -201,7 +205,9 @@ function doUpgradeStorage(st) {
 function doSellAll(st) {
 	let earned = 0;
 	for (const k of Object.keys(RESOURCES)) {
-		earned += (st.inventory[k] ?? 0) * RESOURCES[k].price;
+		const qty = st.inventory[k] ?? 0;
+		earned += qty * RESOURCES[k].price;
+		st.soldByResource[k] += qty;
 		st.inventory[k] = 0;
 	}
 	st.gold += earned;
@@ -232,22 +238,6 @@ function slotGps(bk, pk) {
 	return outGps - inGps;
 }
 
-function productionRate(st, resourceKey) {
-	let rate = 0;
-	for (const bk of Object.keys(BUILDING_CONFIG)) {
-		if (!st.buildings[bk].unlocked) continue;
-		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
-			if (pcfg.outputKey !== resourceKey) continue;
-			const pst = st.buildings[bk].products[pk];
-			if (!pst.unlocked || pst.slots.length === 0) continue;
-			rate += pst.slots.length * pcfg.outputAmt / (pcfg.baseCycleMs / 1000);
-		}
-	}
-	return rate;
-}
-
-// Snapshot of current production supply/demand (units/sec) across all active slots.
-// Computed once per aiDecide iteration so we don't re-scan buildings per candidate.
 function snapshotChainRates(st) {
 	const supply = {}, demand = {};
 	for (const bk of Object.keys(BUILDING_CONFIG)) {
@@ -265,9 +255,8 @@ function snapshotChainRates(st) {
 	return { supply, demand };
 }
 
-// Continuous ROI multiplier [0.05..1]: penalises a slot when its inputs are already
-// over-demanded. The old binary version (0.05 if zero production, else 1.0) missed
-// partial deficits — e.g. logs at 0.60x got no penalty at all.
+// Uses a continuous ratio (supply/demand) rather than a binary has-any-production check,
+// so partial input deficits get appropriately penalised instead of ignored.
 function inputAvailabilityMultiplier(rates, bk, pk) {
 	const pcfg = BUILDING_CONFIG[bk].products[pk];
 	if (Object.keys(pcfg.inputs).length === 0) return 1;
@@ -277,14 +266,36 @@ function inputAvailabilityMultiplier(rates, bk, pk) {
 		const d = rates.demand[ik] ?? 0;
 		if (s === 0) { multiplier *= 0.05; continue; }  // input chain doesn't exist yet
 		if (d === 0) continue;                           // no competing demand, no penalty
-		multiplier *= Math.min(1.0, s / d);              // scale linearly with deficit
+		multiplier *= Math.min(1.0, s / d);
 	}
 	return multiplier;
 }
 
-// ---------------------------------------------------------------------------
-// AI decision engine — parameterised by profile
-// ---------------------------------------------------------------------------
+function questProgress(st, metrics, quest) {
+	switch (quest.type) {
+		case "sell":
+			return st.soldByResource[quest.resource] ?? 0;
+		case "slots":
+			return st.buildings[quest.bld]?.products[quest.product]?.slots.length ?? 0;
+		case "total_slots": {
+			let n = 0;
+			for (const bst of Object.values(st.buildings))
+				for (const pst of Object.values(bst.products)) n += pst.slots.length;
+			return n;
+		}
+		case "build":
+			return st.buildings[quest.bld]?.unlocked ? 1 : 0;
+		case "unlock":
+			return st.buildings[quest.bld]?.products[quest.product]?.unlocked ? 1 : 0;
+		case "storage":
+			return st.storage.tier;
+		case "gold_earned":
+			return metrics.totalEarned;
+		default:
+			return 0;
+	}
+}
+
 function aiDecide(st, metrics, profile) {
 	let anyAction    = true;
 	let madePurchase = false;
@@ -335,9 +346,8 @@ function aiDecide(st, metrics, profile) {
 		for (const bk of Object.keys(BUILDING_CONFIG)) {
 			if (st.buildings[bk].unlocked) continue;
 			if (!buildingPrereq(st, bk)) continue;
-			const cfg      = BUILDING_CONFIG[bk];
-			const products = Object.keys(cfg.products);
-			const maxGps = products.reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
+			const cfg    = BUILDING_CONFIG[bk];
+			const maxGps = Object.keys(cfg.products).reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
 			const roi    = (maxGps / Math.max(cfg.buildCost, 1)) * 12;
 			candidates.push({ type: "build", bk, cost: cfg.buildCost, roi });
 		}
@@ -364,21 +374,24 @@ function aiDecide(st, metrics, profile) {
 				if (ok) {
 					const key = `${best.bk}/${best.pk}`;
 					metrics.slotsBought[key] = (metrics.slotsBought[key] ?? 0) + 1;
-					metrics.totalSpent += best.cost;
+					metrics.totalSpent   += best.cost;
+					metrics.spentOnSlots += best.cost;
 					checkMilestone(metrics, `${best.bk}/${best.pk} slot 1`,
 						st.buildings[best.bk].products[best.pk].slots.length === 1);
 				}
 			} else if (best.type === "unlock-product") {
 				ok = doUnlockProduct(st, best.bk, best.pk);
 				if (ok) {
-					metrics.totalSpent += best.cost;
+					metrics.totalSpent      += best.cost;
+					metrics.spentOnUnlocks  += best.cost;
 					checkMilestone(metrics,
 						`${RESOURCES[BUILDING_CONFIG[best.bk].products[best.pk].outputKey].label} unlocked`, true);
 				}
 			} else if (best.type === "build") {
 				ok = doUnlockBuilding(st, best.bk);
 				if (ok) {
-					metrics.totalSpent += best.cost;
+					metrics.totalSpent    += best.cost;
+					metrics.spentOnBuilds += best.cost;
 					checkMilestone(metrics, `${BUILDING_CONFIG[best.bk].label} built`, true);
 				}
 			}
@@ -389,7 +402,8 @@ function aiDecide(st, metrics, profile) {
 			if ((storageCritical || storageWanted) && st.gold >= storageCost) {
 				if (doUpgradeStorage(st)) {
 					metrics.storageUpgrades++;
-					metrics.totalSpent += storageCost;
+					metrics.totalSpent      += storageCost;
+					metrics.spentOnStorage  += storageCost;
 					anyAction    = true;
 					madePurchase = true;
 				}
@@ -434,30 +448,32 @@ function checkMilestone(metrics, label, condition) {
 	metrics.milestones.push({ label, timeSec: metrics.currentTimeSec });
 }
 
-function checkGoldMilestones(metrics, totalEarned) {
+function checkGoldMilestones(metrics) {
 	for (const threshold of [1000, 10000, 100000, 1000000]) {
-		if (totalEarned >= threshold)
+		if (metrics.totalEarned >= threshold)
 			checkMilestone(metrics, `${formatGold(threshold)} total earned`, true);
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Run one full simulation for a given profile
-// ---------------------------------------------------------------------------
 function runSim(profile) {
 	const st        = makeState();
 	const stallSecs = {};
 	const metrics   = {
-		currentTimeSec:     0,
-		milestones:         [],
-		goldLog:            [],
-		idleGoldTime:       0,
-		totalEarned:        0,
-		totalSpent:         0,
-		sellEvents:         0,
-		slotsBought:        {},
-		storageUpgrades:    0,
-		peakGoldRate:       0,
+		currentTimeSec:   0,
+		milestones:       [],
+		goldLog:          [],
+		idleGoldTime:     0,
+		totalEarned:      0,
+		totalSpent:       0,
+		spentOnSlots:     0,
+		spentOnUnlocks:   0,
+		spentOnBuilds:    0,
+		spentOnStorage:   0,
+		sellEvents:       0,
+		slotsBought:      {},
+		storageUpgrades:  0,
+		peakGoldRate:     0,
+		questCompletions: {},
 		_lastGoldLogTime:   0,
 		_lastGoldLogAmount: 0,
 	};
@@ -472,9 +488,14 @@ function runSim(profile) {
 		metrics.currentTimeSec = t;
 
 		advance(st, TICK_SEC, stallSecs);
-
 		const madePurchase = aiDecide(st, metrics, profile);
-		checkGoldMilestones(metrics, metrics.totalEarned);
+		checkGoldMilestones(metrics);
+
+		for (const quest of ALL_QUESTS) {
+			if (metrics.questCompletions[quest.id] !== undefined) continue;
+			if (questProgress(st, metrics, quest) >= quest.target)
+				metrics.questCompletions[quest.id] = t;
+		}
 
 		if (!madePurchase) {
 			let cheapest = Infinity;
@@ -504,9 +525,6 @@ function runSim(profile) {
 	return { profile, st, metrics, stallSecs };
 }
 
-// ---------------------------------------------------------------------------
-// Formatting helpers
-// ---------------------------------------------------------------------------
 function fmtTime(sec) {
 	const h = Math.floor(sec / 3600);
 	const m = Math.floor((sec % 3600) / 60);
@@ -523,7 +541,7 @@ function fmtDur(sec) {
 function formatGold(n) {
 	if (n >= 1000000) return `${(n/1000000).toFixed(1)}M`;
 	if (n >= 1000)    return `${(n/1000).toFixed(0)}k`;
-	return `${n}`;
+	return `${String(n)}`;
 }
 
 function pad(str, len, right = false) {
@@ -531,24 +549,47 @@ function pad(str, len, right = false) {
 	return right ? s.padStart(len) : s.padEnd(len);
 }
 
-// ---------------------------------------------------------------------------
-// Comparison table — printed once at the top
-// ---------------------------------------------------------------------------
+function rewardLabel(r) {
+	if (r.type === "starting_gold")  return `+${r.amount.toLocaleString()}g start`;
+	if (r.type === "slot_cost_pct")  return `slot cost -${r.amount}%`;
+	if (r.type === "unlock_cost_pct")return `unlock cost -${r.amount}%`;
+	if (r.type === "build_cost_pct") return `build cost -${r.amount}%`;
+	if (r.type === "sell_price_pct") return `sell price +${r.amount}%`;
+	if (r.type === "storage_tier")   return `+${r.amount} storage tier`;
+	if (r.type === "cycle_speed_pct")return `speed +${r.amount}%`;
+	return r.type;
+}
+
+function chainRates(st) {
+	const supply = {}, demand = {};
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		const bst = st.buildings[bk];
+		if (!bst.unlocked) continue;
+		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+			const pst = bst.products[pk];
+			if (!pst.unlocked || pst.slots.length === 0) continue;
+			const n = pst.slots.length, cycleSec = pcfg.baseCycleMs / 1000;
+			supply[pcfg.outputKey] = (supply[pcfg.outputKey] ?? 0) + n * pcfg.outputAmt / cycleSec * 60;
+			for (const [ik, amt] of Object.entries(pcfg.inputs))
+				demand[ik] = (demand[ik] ?? 0) + n * amt / cycleSec * 60;
+		}
+	}
+	return { supply, demand };
+}
+
 function printComparison(results) {
 	const COL = 12;
 	const LBL = 26;
 	const sep = "─".repeat(LBL + COL * results.length);
 
-	console.log(`\nCRAFTER MULTI-SIM COMPARISON — ${SIM_HOURS}h`);
+	console.log(`\nCRAFTER SIM — ${SIM_HOURS}h`);
 	console.log(sep);
 
-	// Header
 	process.stdout.write(pad("", LBL));
 	for (const r of results) process.stdout.write(pad(r.profile.name, COL));
 	console.log();
 	console.log(sep);
 
-	// Key metrics
 	function row(label, fn) {
 		process.stdout.write(pad(label, LBL));
 		for (const r of results) process.stdout.write(pad(fn(r), COL));
@@ -566,8 +607,11 @@ function printComparison(results) {
 	row("Sell triggers",     r => `${r.metrics.sellEvents}`);
 	row("Storage tier",      r => `${r.st.storage.tier} (${storageMax(r.st)} cap)`);
 	row("Idle gold %",       r => `${(r.metrics.idleGoldTime / SIM_SECS * 100).toFixed(1)}%`);
+	row("Quests completable",r => {
+		const n = Object.keys(r.metrics.questCompletions).length;
+		return `${n}/${ALL_QUESTS.length}`;
+	});
 
-	// Gold income growth: show rate at 25%, 50%, 75% of sim time
 	console.log();
 	for (const frac of [0.25, 0.5, 0.75]) {
 		const label = `g/min at ${Math.round(frac * SIM_HOURS * 60)}m`;
@@ -581,7 +625,6 @@ function printComparison(results) {
 		});
 	}
 
-	// Milestone timing comparison
 	const milestoneLabels = [
 		...Object.values(BUILDING_CONFIG).map(c => `${c.label} built`),
 		"10k total earned",
@@ -601,7 +644,6 @@ function printComparison(results) {
 		console.log();
 	}
 
-	// Bottleneck comparison
 	const allStallKeys = new Set(results.flatMap(r => Object.keys(r.stallSecs)));
 	const significantStalls = [...allStallKeys].filter(key =>
 		results.some(r => (r.stallSecs[key] ?? 0) / SIM_SECS * 100 > 1)
@@ -619,35 +661,28 @@ function printComparison(results) {
 		}
 	}
 
-	// Chain efficiency comparison — resources with deficit in any profile
 	console.log();
-	console.log(pad("CHAIN DEFICITS (supply/demand)", LBL + COL * results.length));
+	console.log(pad("CHAIN DEFICITS (supply/demand per min)", LBL + COL * results.length));
 	let anyDeficit = false;
 	for (const rk of Object.keys(RESOURCES)) {
 		const cols = results.map(r => {
 			const { supply, demand } = chainRates(r.st);
-			const s = supply[rk] ?? 0;
-			const d = demand[rk] ?? 0;
+			const s = supply[rk] ?? 0, d = demand[rk] ?? 0;
 			if (d === 0) return null;
 			return s / d;
 		});
-		const hasDeficit = cols.some(v => v !== null && v < 1.0);
-		const hasData    = cols.some(v => v !== null);
-		if (!hasData || !hasDeficit) continue;
+		if (!cols.some(v => v !== null && v < 1.0)) continue;
 		anyDeficit = true;
 		process.stdout.write(pad(RESOURCES[rk].label, LBL));
 		for (const ratio of cols) {
 			if (ratio === null) { process.stdout.write(pad("-", COL)); continue; }
-			const tag = ratio < 0.9  ? `${ratio.toFixed(2)}x !!`
-			          : ratio < 1.0  ? `${ratio.toFixed(2)}x !`
-			          :                `${ratio.toFixed(2)}x`;
+			const tag = ratio < 0.9 ? `${ratio.toFixed(2)}x !!` : ratio < 1.0 ? `${ratio.toFixed(2)}x !` : `${ratio.toFixed(2)}x`;
 			process.stdout.write(pad(tag, COL));
 		}
 		console.log();
 	}
 	if (!anyDeficit) console.log(pad("  none detected", LBL));
 
-	// Summary verdict per profile (one line each to avoid column overflow)
 	console.log();
 	console.log("VERDICT");
 	for (const r of results) {
@@ -669,32 +704,106 @@ function printComparison(results) {
 	console.log(sep);
 }
 
-function chainRates(st) {
-	const supply = {}, demand = {};
-	for (const bk of Object.keys(BUILDING_CONFIG)) {
-		const bst = st.buildings[bk];
-		if (!bst.unlocked) continue;
-		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
-			const pst = bst.products[pk];
-			if (!pst.unlocked || pst.slots.length === 0) continue;
-			const n          = pst.slots.length;
-			const cycleSec   = pcfg.baseCycleMs / 1000;
-			const ratePerMin = n * pcfg.outputAmt / cycleSec * 60;
-			supply[pcfg.outputKey] = (supply[pcfg.outputKey] ?? 0) + ratePerMin;
-			for (const [ik, amt] of Object.entries(pcfg.inputs))
-				demand[ik] = (demand[ik] ?? 0) + (n * amt / cycleSec * 60);
+function printQuestReport(results) {
+	const QCOL = 11;
+	const QLBL = 32;
+	const RCOL = 22;
+	const sep  = "─".repeat(QLBL + QCOL * results.length + RCOL);
+
+	const completable = ALL_QUESTS
+		.map(q => ({
+			quest: q,
+			times: results.map(r => r.metrics.questCompletions[q.id] ?? Infinity),
+		}))
+		.filter(({ times }) => times.some(t => t < Infinity))
+		.sort((a, b) => Math.min(...a.times) - Math.min(...b.times));
+
+	const unreachable = ALL_QUESTS.filter(q =>
+		results.every(r => r.metrics.questCompletions[q.id] === undefined)
+	);
+
+	console.log(`\nQUEST SPEEDRUN — completable in ${SIM_HOURS}h`);
+	console.log(sep);
+	process.stdout.write(pad("Quest", QLBL));
+	for (const r of results) process.stdout.write(pad(r.profile.name, QCOL));
+	process.stdout.write(pad("Reward", RCOL));
+	console.log();
+	console.log(sep);
+
+	let lastPrereq = null;
+	for (const { quest, times } of completable) {
+		const prereqKey = quest.prereq ?? "none";
+		if (prereqKey !== lastPrereq) {
+			const bldLabel = quest.prereq
+				? `[requires ${BUILDING_CONFIG[quest.prereq]?.label ?? quest.prereq}]`
+				: "[Lumber Yard]";
+			console.log(bldLabel);
+			lastPrereq = prereqKey;
+		}
+		process.stdout.write(pad(quest.label, QLBL));
+		for (const t of times)
+			process.stdout.write(pad(t < Infinity ? fmtTime(t) : "—", QCOL));
+		process.stdout.write(rewardLabel(quest.reward));
+		console.log();
+	}
+
+	if (unreachable.length > 0) {
+		console.log();
+		console.log(`NOT REACHABLE IN ${SIM_HOURS}h (${unreachable.length} quests):`);
+		const byPrereq = {};
+		for (const q of unreachable) {
+			const k = q.prereq ?? "none";
+			(byPrereq[k] = byPrereq[k] ?? []).push(q.label);
+		}
+		for (const [k, labels] of Object.entries(byPrereq)) {
+			const bld = k === "none" ? "Lumber Yard" : BUILDING_CONFIG[k]?.label ?? k;
+			console.log(`  [${bld}] ${labels.join(", ")}`);
 		}
 	}
-	return { supply, demand };
+
+	// Estimate gold-equivalent value per 1 unit of each reward type, using Balanced data.
+	// These are single-run approximations; % rewards compound across runs while starting_gold stays flat.
+	const ref = results.find(r => r.profile.name === "Balanced") ?? results[0];
+	const m   = ref.metrics;
+
+	const rewardValues = [
+		{ type: "sell_price_pct",  unit: "1%",  value: m.totalEarned / 100,   note: "scales with future earnings" },
+		{ type: "cycle_speed_pct", unit: "1%",  value: m.totalEarned / 100,   note: "scales with future earnings" },
+		{ type: "slot_cost_pct",   unit: "1%",  value: m.spentOnSlots / 100,  note: "" },
+		{ type: "unlock_cost_pct", unit: "1%",  value: m.spentOnUnlocks / 100,note: "" },
+		{ type: "build_cost_pct",  unit: "1%",  value: m.spentOnBuilds / 100, note: "" },
+		{ type: "storage_tier",    unit: "+1",   value: m.spentOnStorage / Math.max(1, m.storageUpgrades), note: "avg upgrade cost saved" },
+		{ type: "starting_gold",   unit: "+1g",  value: 1,                    note: "fixed, does not scale" },
+	];
+
+	console.log(`\nREWARD VALUE — gold-equivalent per unit (${ref.profile.name} ${SIM_HOURS}h baseline)`);
+	console.log(sep);
+	for (const rv of rewardValues) {
+		const val = Math.round(rv.value);
+		const bar = "█".repeat(Math.min(30, Math.max(1, Math.round(Math.log10(val + 1) * 8))));
+		const note = rv.note ? `  (${rv.note})` : "";
+		console.log(`  ${pad(`${rv.type}:${rv.unit}`, 24)} ≈ ${pad(formatGold(val) + "g", 9)} ${bar}${note}`);
+	}
+
+	// Flag starting_gold quest rewards that are weak relative to sell_price_pct equivalents.
+	const sellPctPer1 = m.totalEarned / 100;
+	const startGoldQuests = completable.filter(({ quest }) => quest.reward.type === "starting_gold");
+	if (startGoldQuests.length > 0) {
+		console.log(`\nSTARTING GOLD QUESTS  (vs ${ref.profile.name} sell_price_pct:1% ≈ ${formatGold(Math.round(sellPctPer1))}g)`);
+		for (const { quest, times } of startGoldQuests) {
+			const g   = quest.reward.amount;
+			const pct = g / sellPctPer1;
+			const tag = pct < 0.05 ? " !! very weak" : pct < 0.25 ? " !  weak" : pct < 0.75 ? "    ok" : "    good";
+			const minTime = fmtTime(Math.min(...times));
+			console.log(`  ${pad(quest.label, QLBL)} +${pad(g.toLocaleString() + "g", 9)} ≈ ${pad(pct.toFixed(2) + "% sell pct", 18)}${tag}  (done by ${minTime})`);
+		}
+	}
+	console.log(sep);
 }
 
-// ---------------------------------------------------------------------------
-// Individual detailed report (unchanged from original, per-profile)
-// ---------------------------------------------------------------------------
 function printReport(result) {
 	const { profile, st, metrics, stallSecs } = result;
-	const totalSec = SIM_SECS;
-	const sep      = "-".repeat(56);
+	const sep = "-".repeat(56);
 
 	console.log(`\n${"=".repeat(56)}`);
 	console.log(`PROFILE: ${profile.name.toUpperCase()} — ${profile.desc}`);
@@ -718,15 +827,14 @@ function printReport(result) {
 			const ratePerMin = n === 0 ? 0 : (n * pcfg.outputAmt / cycleSec * 60);
 			const inputDesc  = Object.entries(pcfg.inputs)
 				.map(([ik, amt]) => `${amt * n} ${RESOURCES[ik].label}/min`).join(", ");
-			const slotStr = `${n} slot${n === 1 ? "" : "s"}`;
-			const outStr  = n === 0 ? "(no slots)" : `${ratePerMin.toFixed(1)}/min`;
-			const inStr   = inputDesc ? `  <- needs ${inputDesc}` : "";
-			console.log(`    ${pad(RESOURCES[pcfg.outputKey].label, 12)} ${pad(slotStr, 9)} ${pad(outStr, 14)}${inStr}`);
+			const outStr = n === 0 ? "(no slots)" : `${ratePerMin.toFixed(1)}/min`;
+			const inStr  = inputDesc ? `  <- needs ${inputDesc}` : "";
+			console.log(`    ${pad(RESOURCES[pcfg.outputKey].label, 12)} ${pad(`${n} slot${n===1?"":"s"}`, 9)} ${pad(outStr, 14)}${inStr}`);
 		}
 	}
 
 	const bottlenecks = Object.entries(stallSecs)
-		.map(([key, secs]) => ({ key, pct: secs / totalSec * 100 }))
+		.map(([key, secs]) => ({ key, pct: secs / SIM_SECS * 100 }))
 		.filter(b => b.pct > 1)
 		.sort((a, b) => b.pct - a.pct);
 
@@ -743,8 +851,7 @@ function printReport(result) {
 	const allResources = new Set([...Object.keys(supply), ...Object.keys(demand)]);
 	for (const rk of Object.keys(RESOURCES)) {
 		if (!allResources.has(rk)) continue;
-		const s = supply[rk] ?? 0;
-		const d = demand[rk] ?? 0;
+		const s = supply[rk] ?? 0, d = demand[rk] ?? 0;
 		if (d === 0) {
 			console.log(`  ${pad(RESOURCES[rk].label, 12)} ${s.toFixed(1)}/min  (no downstream demand)`);
 		} else {
@@ -754,24 +861,29 @@ function printReport(result) {
 		}
 	}
 
-	const endRate  = metrics.goldLog.length >= 1 ? metrics.goldLog[metrics.goldLog.length - 1].rate : 0;
-	const idlePct  = (metrics.idleGoldTime / totalSec * 100).toFixed(1);
+	const endRate = metrics.goldLog.length ? metrics.goldLog[metrics.goldLog.length - 1].rate : 0;
+	const idlePct = (metrics.idleGoldTime / SIM_SECS * 100).toFixed(1);
 	console.log("\nGOLD ECONOMY");
 	console.log(`  Earned: ${Math.round(metrics.totalEarned).toLocaleString()}g  Spent: ${Math.round(metrics.totalSpent).toLocaleString()}g  Final: ${Math.floor(st.gold).toLocaleString()}g`);
+	console.log(`  Spent breakdown — slots: ${formatGold(metrics.spentOnSlots)}g  unlocks: ${formatGold(metrics.spentOnUnlocks)}g  buildings: ${formatGold(metrics.spentOnBuilds)}g  storage: ${formatGold(metrics.spentOnStorage)}g`);
 	console.log(`  Peak rate: ${Math.round(metrics.peakGoldRate).toLocaleString()} g/min  End rate: ${Math.round(endRate).toLocaleString()} g/min`);
 	console.log(`  Idle gold time: ${fmtDur(metrics.idleGoldTime)} (${idlePct}%)`);
-	console.log(`  Sell triggers: ${metrics.sellEvents}  Storage tier: ${st.storage.tier} (${storageMax(st)} cap, upgraded ${metrics.storageUpgrades}x)`);
+	console.log(`  Sell triggers: ${metrics.sellEvents}  Storage tier: ${st.storage.tier} (${storageMax(st)} cap, upgraded ${metrics.storageUpgrades}×)`);
 
 	console.log("\nSLOTS BOUGHT");
 	for (const [key, count] of Object.entries(metrics.slotsBought).sort((a, b) => b[1] - a[1]))
 		console.log(`  ${pad(key, 28)} ${count}`);
 
+	const questsDone = ALL_QUESTS.filter(q => metrics.questCompletions[q.id] !== undefined);
+	console.log(`\nQUESTS COMPLETED  (${questsDone.length}/${ALL_QUESTS.length})`);
+	for (const q of questsDone.sort((a, b) => metrics.questCompletions[a.id] - metrics.questCompletions[b.id]))
+		console.log(`  ${fmtTime(metrics.questCompletions[q.id])}  ${pad(q.label, 30)} ${rewardLabel(q.reward)}`);
+
 	const notes = [];
 	for (const b of bottlenecks)
 		if (b.pct > 5) notes.push(`! ${b.key} stalls ${b.pct.toFixed(1)}% — check input supply`);
 	for (const rk of Object.keys(RESOURCES)) {
-		const s = supply[rk] ?? 0;
-		const d = demand[rk] ?? 0;
+		const s = supply[rk] ?? 0, d = demand[rk] ?? 0;
 		if (d > 0 && s / d < 0.9) notes.push(`! ${RESOURCES[rk].label} deficit (${(s/d).toFixed(2)}x)`);
 	}
 	if (parseFloat(idlePct) > 10) notes.push(`! Idle gold ${idlePct}% — not enough to spend on`);
@@ -785,22 +897,14 @@ function printReport(result) {
 	for (const n of notes) console.log(`  ${n}`);
 }
 
-// ---------------------------------------------------------------------------
-// Entry point — worker mode vs main thread
-// ---------------------------------------------------------------------------
 if (!isMainThread) {
-	// Running as a worker: execute one profile and post result back.
 	const result = runSim(workerData.profile);
-	// Strip non-serializable slot progress objects from state to keep message small.
-	for (const bk of Object.keys(result.st.buildings)) {
-		for (const pk of Object.keys(result.st.buildings[bk].products)) {
-			result.st.buildings[bk].products[pk].slots =
-				result.st.buildings[bk].products[pk].slots.map(() => ({}));
-		}
-	}
+	// Strip slot progress objects before postMessage to keep the payload small.
+	for (const bk of Object.keys(result.st.buildings))
+		for (const pk of Object.keys(result.st.buildings[bk].products))
+			result.st.buildings[bk].products[pk].slots = result.st.buildings[bk].products[pk].slots.map(() => ({}));
 	parentPort.postMessage(result);
 } else {
-	// Main thread: spawn one worker per profile, collect results, then report.
 	const pending = PROFILES.map(profile => new Promise((resolve, reject) => {
 		const w = new Worker(__filename, { workerData: { profile } });
 		w.on("message", resolve);
@@ -809,6 +913,7 @@ if (!isMainThread) {
 
 	Promise.all(pending).then(results => {
 		printComparison(results);
+		printQuestReport(results);
 		console.log("\n\nDETAILED REPORTS");
 		for (const r of results) printReport(r);
 		console.log();
