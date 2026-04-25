@@ -19,18 +19,39 @@
 				</div>
 			</div>
 		</header>
-		<div id="tab-bar" role="navigation" aria-label="Game areas">
-			<button id="tab-build" class="active">Manage</button>
-			<button id="tab-market">Market</button>
-			<button id="tab-quests">Quests</button>
-			<button id="tab-settings">Settings</button>
-		</div>
 		<div id="content">
 			<div id="panel-tutorial" hidden></div>
-			<div id="panel-build" class="tab-panel"></div>
-			<div id="panel-market" class="tab-panel" hidden></div>
-			<div id="panel-quests" class="tab-panel" hidden></div>
-			<div id="panel-settings" class="tab-panel" hidden></div>
+
+			<details id="section-production" open>
+				<summary><h2>Production</h2></summary>
+				<div class="section-body">
+					<div id="building-row">
+						<label for="building-select">Building</label>
+						<select id="building-select" aria-label="Select building to manage"></select>
+					</div>
+					<div id="panel-production"></div>
+				</div>
+			</details>
+
+			<details id="section-build">
+				<summary><h2>Build</h2></summary>
+				<div class="section-body" id="panel-build"></div>
+			</details>
+
+			<details id="section-market">
+				<summary><h2>Market</h2></summary>
+				<div class="section-body" id="panel-market"></div>
+			</details>
+
+			<details id="section-quests">
+				<summary><h2>Quests</h2></summary>
+				<div class="section-body" id="panel-quests"></div>
+			</details>
+
+			<details id="section-settings">
+				<summary><h2>Settings</h2></summary>
+				<div class="section-body" id="panel-settings"></div>
+			</details>
 		</div>
 	</div>
 	<div id="live-polite"    class="sr-only" aria-live="polite"    aria-atomic="true"></div>

@@ -19,7 +19,7 @@ const TUTORIAL_STEPS = [
 	{
 		id: "sell",
 		heading: "You're ready to Sell.",
-		body: "You've got a decent supply of logs in storage now. Open the Market tab and sell them for gold. Gold is used to buy production slots for automatic crafting and unlock new buildings.",
+		body: "You've got a decent supply of logs in storage now. Open the Market section below and sell them for gold. Gold is used to buy production slots for automatic crafting and unlock new buildings.",
 		shouldShow: () => (state.inventory.logs ?? 0) > 25,
 	},
 	{
@@ -631,13 +631,13 @@ const DEFAULT_STATE = (() => ({
 }))();
 
 let state = deepClone(DEFAULT_STATE);
-let activeTab = "build";
 
 const runtime = {
 	nextSlotId: 0,
 	stallAnnounced: {},
 	announceTimers: { polite: null, assertive: null },
 	rateDisplayMode: "minute",
+	selectedBuilding: null,
 };
 
 function deepClone(obj) {
@@ -825,7 +825,7 @@ function tryProduceSlot(bldKey, productKey, slot) {
 			runtime.stallAnnounced[stallKey] = "pending";
 		} else if (runtime.stallAnnounced[stallKey] === "pending") {
 			runtime.stallAnnounced[stallKey] = true;
-			if (activeTab === bldKey)
+			if (runtime.selectedBuilding === bldKey)
 				announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`, "assertive");
 		}
 		return false;
@@ -837,7 +837,7 @@ function tryProduceSlot(bldKey, productKey, slot) {
 				runtime.stallAnnounced[stallKey] = "pending";
 			} else if (runtime.stallAnnounced[stallKey] === "pending") {
 				runtime.stallAnnounced[stallKey] = true;
-				if (activeTab === bldKey)
+				if (runtime.selectedBuilding === bldKey)
 					announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`, "assertive");
 			}
 			return false;
@@ -906,10 +906,14 @@ function unlockBuilding(bldKey) {
 			bst.products[pk].unlocked = true;
 		}
 	}
-	addBuildingTab(bldKey);
+	addBuildingOption(bldKey);
+	runtime.selectedBuilding = bldKey;
+	const sel = document.getElementById("building-select");
+	if (sel) sel.value = bldKey;
 	announce(`${cfg.label} built!`, "polite");
-	switchTab(bldKey);
-	document.getElementById(`tab-${bldKey}`)?.focus();
+	document.getElementById("section-production")?.setAttribute("open", "");
+	renderAll();
+	document.getElementById("building-select")?.focus();
 	checkAndRenderTutorial();
 }
 
@@ -929,7 +933,7 @@ function unlockProduct(bldKey, productKey) {
 	renderAll();
 	const addBtn = document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`);
 	if (addBtn && !addBtn.disabled) addBtn.focus();
-	else document.getElementById(`tab-${bldKey}`)?.focus();
+	else document.getElementById("building-select")?.focus();
 }
 
 function addSlot(bldKey, productKey) {
@@ -1106,36 +1110,22 @@ function announce(msg, level = "polite") {
 	runtime.announceTimers[level] = setTimeout(() => { el.textContent = ""; }, 2000);
 }
 
-function addBuildingTab(bldKey) {
-	const btn = document.createElement("button");
-	btn.id = `tab-${bldKey}`;
-	btn.textContent = BUILDING_CONFIG[bldKey].label;
-	document.getElementById("tab-bar").insertBefore(btn, document.getElementById("tab-settings"));
-	const panel = document.createElement("div");
-	panel.id = `panel-${bldKey}`;
-	panel.className = "tab-panel building-panel";
-	panel.hidden = true;
-	document.getElementById("content").insertBefore(panel, document.getElementById("panel-settings"));
-}
-
-function switchTab(tabId) {
-	activeTab = tabId;
-	document.querySelectorAll("#tab-bar button").forEach(b => b.classList.remove("active"));
-	document.getElementById(`tab-${tabId}`)?.classList.add("active");
-	if (currentTutorialStep() !== -1) return;
-	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
-	const panel = document.getElementById(`panel-${tabId}`);
-	if (panel) panel.hidden = false;
-	renderAll();
+function addBuildingOption(bldKey) {
+	const sel = document.getElementById("building-select");
+	if (!sel || sel.querySelector(`option[value="${bldKey}"]`)) return;
+	const opt = document.createElement("option");
+	opt.value = bldKey;
+	opt.textContent = BUILDING_CONFIG[bldKey].label;
+	sel.appendChild(opt);
 }
 
 function renderAll() {
 	renderHUD();
-	if (activeTab === "build") renderBuildTab();
-	else if (activeTab === "market") renderMarketTab();
-	else if (activeTab === "quests") renderQuestsTab();
-	else if (activeTab === "settings") renderSettingsTab();
-	else if (activeTab in BUILDING_CONFIG) renderBuildingTab(activeTab);
+	renderBuildingSection();
+	renderBuildSection();
+	renderMarketSection();
+	renderQuestsSection();
+	renderSettingsSection();
 }
 
 function renderHUD() {
@@ -1234,122 +1224,110 @@ function getProductionOverview() {
 	return { productRows, hasChain, deficits, surpluses, efficiencyPct };
 }
 
-function formatBalanceEntries(entries, sign, limit = 3) {
-	return entries
-		.slice(0, limit)
-		.map(entry => {
-			const amt = (Math.round(Math.abs(entry.net) * 10) / 10).toFixed(1);
-			return `${RESOURCES[entry.resourceKey].label} ${sign}${amt} per minute`;
-		})
-		.join(", ");
-}
 
-function renderProductionPanel() {
-	const { productRows, hasChain, deficits, surpluses, efficiencyPct } = getProductionOverview();
-	if (productRows.length === 0) return "";
-	const productItems = productRows
-		.map(row => {
-			const res = RESOURCES[row.resourceKey];
-			const slotWord = row.slots === 1 ? "slot" : "slots";
-			const rateText = !row.enabled
-				? "paused"
-				: row.slots === 0
-				? "no slots"
-				: `${row.slots} ${slotWord}, ${formatProductOutput(row.slots, row.outputAmt, row.baseCycleMs)}`;
-			return `<li><strong>${res.label}:</strong> ${rateText}</li>`;
-		})
-		.join("");
-	const chainRow = (() => {
-		if (!hasChain || efficiencyPct === null) {
-			return `<li><strong>Chain:</strong> n/a | <strong>Efficiency:</strong> n/a</li>`;
-		}
-		const chainLabel = deficits.length > 0
-			? `Input bottleneck (${formatBalanceEntries(deficits, "-")})`
-			: surpluses.length > 0
-				? "Output surplus"
-				: "OK";
-		const stateClass = deficits.length === 0 ? "health-ok" : "health-warn";
-		return `<li class="${stateClass}"><strong>Chain:</strong> ${chainLabel} | <strong>Efficiency:</strong> ${efficiencyPct}%</li>`;
-	})();
-	const surplusRow = !hasChain || surpluses.length === 0 || deficits.length > 0
-		? ""
-		: `<li class="health-warn"><strong>Surplus:</strong> ${formatBalanceEntries(surpluses, "+")}</li>`;
-	return `<section class="prod-summary production-panel">
-		<h3>Overview</h3>
-		<ul>${productItems}<li class="health-sep" aria-hidden="true"></li>${chainRow}${surplusRow}</ul>
-	</section>`;
-}
-
-function renderBuildTab() {
-	const panel = document.getElementById("panel-build");
-	const overviewHtml = renderProductionPanel() || "";
-	const unlockedProducts = [];
-	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
-		const bst = state.buildings[bldKey];
-		if (!bst?.unlocked) continue;
-		for (const [productKey, pcfg] of Object.entries(cfg.products)) {
-			const pst = bst.products[productKey];
-			if (!pst?.unlocked) continue;
-			unlockedProducts.push({ bldKey, productKey, cfg, pcfg, pst });
-		}
+function renderBuildingSection() {
+	const panel = document.getElementById("panel-production");
+	if (!panel) return;
+	const bldKey = runtime.selectedBuilding;
+	if (!bldKey || !state.buildings[bldKey]?.unlocked) {
+		panel.innerHTML = `<p class="market-empty">No building selected.</p>`;
+		return;
 	}
-	const cardsHtml = unlockedProducts.length === 0
-		? ""
-		: `<div class="production-toggle-grid">${unlockedProducts.map(({ bldKey, productKey, cfg, pcfg, pst }) => {
-			const res = RESOURCES[pcfg.outputKey];
-			const slots = pst.slots.length;
-			const statusClass = pst.enabled ? "health-ok" : "health-warn";
-			const statusLabel = pst.enabled ? "Active" : "Paused";
-			const slotSummary = slots === 0
-				? "0 slots"
-				: `${slots} ${slots === 1 ? "slot" : "slots"}, ${formatProductOutput(slots, pcfg.outputAmt, pcfg.baseCycleMs)}`;
-			return `<section class="product-section production-toggle-card">
-				<div class="product-header">
-					<h3>${res.label}</h3>
-					<span class="production-building">${cfg.label}</span>
-				</div>
-				<p class="production-status ${statusClass}"><strong>Status:</strong> ${statusLabel}</p>
-				<p class="slot-summary">${slotSummary}</p>
-				${Object.keys(pcfg.inputs).length === 0 || slots === 0 ? "" : `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * slots])))} per cycle</p>`}
+	const cfg = BUILDING_CONFIG[bldKey];
+	const bst = state.buildings[bldKey];
+	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
+	const unlockedHtml = unlockedProducts.map(([productKey, pcfg]) => {
+		const pst = bst.products[productKey];
+		const res = RESOURCES[pcfg.outputKey];
+		const slotCost = nextSlotCost(bldKey, productKey);
+		const n = pst.slots.length;
+		const slotWord = n === 1 ? "slot" : "slots";
+		const cycleSecs = Math.round(pcfg.baseCycleMs / 1000);
+		const cycleItem = pcfg.outputAmt === 1 ? res.singular : res.label;
+		const cycleFmt = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
+		const totalAmt = n * pcfg.outputAmt;
+		const totalItem = totalAmt === 1 ? res.singular : res.label;
+		const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${totalAmt} ${totalItem} every ${formatDuration(cycleSecs)}`;
+		const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
+			? ""
+			: `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * n])))} per cycle</p>`;
+		const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
+		const statusClass = pst.enabled ? "health-ok" : "health-warn";
+		return `<div class="product-section">
+			<div class="product-header">
+				<h3>${res.label}</h3>
+				<span class="${statusClass}" style="font-size:var(--font-sm)">${pst.enabled ? "Active" : "Paused"}</span>
+			</div>
+			${inputDesc}
+			<div class="manual-produce-row">
+				<button class="manual-produce-btn" data-action="manual-produce"
+				 data-bld="${bldKey}" data-product="${productKey}"
+				 ${pst.enabled ? "" : "disabled"}>
+					${pst.enabled ? `Produce ${res.singular}` : `${res.label} Paused`}
+				</button>
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
 				 data-action="toggle-product"
 				 data-bld="${bldKey}" data-product="${productKey}">
-					${pst.enabled ? "Pause" : "Resume"} ${res.label}
+					${pst.enabled ? "Pause" : "Resume"}
 				</button>
-			</section>`;
-		}).join("")}</div>`;
-	const unbuildKeys = Object.keys(BUILDING_CONFIG).filter(k => !state.buildings[k].unlocked);
-	const constructHtml = unbuildKeys.length === 0
-		? ""
-		: unbuildKeys.map(bldKey => {
-			const cfg = BUILDING_CONFIG[bldKey];
-			const prereqMet = cfg.prereq();
-			const canAfford = state.gold >= cfg.buildCost;
-			const disabled = !prereqMet || !canAfford ? "disabled" : "";
-			const costLabel = cfg.buildCost === 0 ? "Free" : `${cfg.buildCost} gold`;
-			return `<div class="build-card">
-				<h3>${cfg.label}</h3>
-				<p>${cfg.desc}</p>
-				<button data-action="build" data-bld="${bldKey}" ${disabled}>
-					Build for ${costLabel}
-				</button>
-			</div>`;
-		}).join("");
+			</div>
+			<p class="slot-summary">${summary}</p>
+			<button class="add-slot-btn" data-action="add-slot"
+			 data-bld="${bldKey}" data-product="${productKey}"
+			 ${state.gold >= slotCost ? "" : "disabled"}>
+				Add Slot for ${slotCost} gold (+${cycleFmt})
+			</button>
+			<button class="sell-slot-btn" data-action="sell-slot"
+			 data-bld="${bldKey}" data-product="${productKey}"
+			 ${n > 0 ? "" : "disabled"}>
+				Sell Slot for ${refund} gold (-${cycleFmt})
+			</button>
+		</div>`;
+	}).join("");
+	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) =>
+		!bst.products[pk].unlocked &&
+		(!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked)
+	);
+	const unlockHtml = unlockables.length === 0 ? "" : `<div class="unlock-section">
+		${unlockables.map(([pk, pcfg]) => {
+			const res = RESOURCES[pcfg.outputKey];
+			const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
+			return `<button class="unlock-product-btn" data-action="unlock-product"
+			 data-bld="${bldKey}" data-product="${pk}"
+			 ${state.gold >= unlockCost ? "" : "disabled"}>
+				Unlock ${res.label} for ${unlockCost} gold
+			</button>`;
+		}).join("")}
+	</div>`;
 	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
-	const toggleHtml = overviewHtml || cardsHtml
+	const toggleHtml = unlockedProducts.length > 0
 		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
 		: "";
-	const productionSection = overviewHtml || cardsHtml
-		? `<section aria-label="Production"><h2>Production</h2>${toggleHtml}${overviewHtml}${cardsHtml}</section>`
-		: "";
-	const constructSection = constructHtml
-		? `<section aria-label="Construction"><h2>Build</h2>${constructHtml}</section>`
-		: "";
-	if (!productionSection && !constructSection) {
-		panel.innerHTML = `<p class="market-empty">Nothing to manage yet. Build something first.</p>`;
+	panel.innerHTML = `${toggleHtml}${unlockedHtml}${unlockHtml}`;
+}
+
+function renderBuildSection() {
+	const panel = document.getElementById("panel-build");
+	const section = document.getElementById("section-build");
+	if (!panel) return;
+	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k =>
+		!state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq()
+	);
+	if (!nextBldKey) {
+		if (section) section.hidden = true;
 		return;
 	}
-	panel.innerHTML = `${productionSection}${constructSection}`;
+	if (section) section.hidden = false;
+	const cfg = BUILDING_CONFIG[nextBldKey];
+	const buildCost = Math.round(cfg.buildCost * prestigeBuildCostMult());
+	const costLabel = buildCost === 0 ? "Free" : `${buildCost} gold`;
+	panel.innerHTML = `<div class="build-card">
+		<h3>${cfg.label}</h3>
+		<p>${cfg.desc}</p>
+		<button data-action="build" data-bld="${nextBldKey}" ${state.gold >= buildCost ? "" : "disabled"}>
+			Build for ${costLabel}
+		</button>
+	</div>`;
 }
 
 function updateMarketProducts() {
@@ -1401,71 +1379,10 @@ function updateMarketProducts() {
 	}
 }
 
-function renderBuildingTab(bldKey) {
-	const panel = document.getElementById(`panel-${bldKey}`);
-	if (!panel) return;
-	const cfg = BUILDING_CONFIG[bldKey];
-	const bst = state.buildings[bldKey];
-	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
-	const unlockedHtml = unlockedProducts
-		.map(([productKey, pcfg]) => {
-			const pst = bst.products[productKey];
-			const res = RESOURCES[pcfg.outputKey];
-			const slotCost = nextSlotCost(bldKey, productKey);
-			const n = pst.slots.length;
-			const slotWord = n === 1 ? "slot" : "slots";
-			const cycleSecs = Math.round(pcfg.baseCycleMs / 1000);
-			const cycleItem = pcfg.outputAmt === 1 ? res.singular : res.label;
-			const cycleFmt = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
-			const totalAmt = n * pcfg.outputAmt;
-			const totalItem = totalAmt === 1 ? res.singular : res.label;
-			const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${totalAmt} ${totalItem} every ${formatDuration(cycleSecs)}`;
-			const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
-				? ""
-				: `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * n])))} per cycle</p>`;
-			const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
-			return `<div class="product-section">
-				<div class="product-header"><h3>${res.label}</h3></div>
-				${inputDesc}
-				<div class="manual-produce-row">
-					<button class="manual-produce-btn" data-action="manual-produce"
-					 data-bld="${bldKey}" data-product="${productKey}"
-					 ${pst.enabled ? "" : "disabled"}>
-						${pst.enabled ? `Produce ${res.singular}` : `${res.label} Paused`}
-					</button>
-				</div>
-				<p class="slot-summary">${summary}</p>
-				<button class="add-slot-btn" data-action="add-slot"
-				 data-bld="${bldKey}" data-product="${productKey}"
-				 ${state.gold >= slotCost ? "" : "disabled"}>
-					Add Slot for ${slotCost} gold (+${cycleFmt})
-				</button>
-				<button class="sell-slot-btn" data-action="sell-slot"
-				 data-bld="${bldKey}" data-product="${productKey}"
-				 ${n > 0 ? "" : "disabled"}>
-					Sell Slot for ${refund} gold (-${cycleFmt})
-				</button>
-			</div>`;
-		}).join("");
-	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) =>
-		!bst.products[pk].unlocked &&
-		(!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked)
-	);
-	const unlockHtml = unlockables.length === 0 ? "" : `<div class="unlock-section">
-		${unlockables.map(([pk, pcfg]) => {
-			const res = RESOURCES[pcfg.outputKey];
-			return `<button class="unlock-product-btn" data-action="unlock-product"
-			 data-bld="${bldKey}" data-product="${pk}"
-			 ${state.gold >= pcfg.unlockCost ? "" : "disabled"}>
-				Unlock ${res.label} for ${pcfg.unlockCost} gold
-			</button>`;
-		}).join("")}
-	</div>`;
-	panel.innerHTML = `<h2>${cfg.label}</h2>${unlockedHtml}${unlockHtml}`;
-}
 
-function renderMarketTab() {
+function renderMarketSection() {
 	const panel = document.getElementById("panel-market");
+	if (!panel) return;
 	const used = totalItems();
 	const max = storageMax();
 	const pct = Math.min(100, Math.floor(used / max * 100));
@@ -1493,58 +1410,48 @@ function renderMarketTab() {
 			</button>
 		</div>`;
 	}).join("");
-	panel.innerHTML = `<h2>Market</h2>
-		<div class="storage-info">
-			<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
-			 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
-				<div class="storage-bar-fill" style="width:${pct}%"></div>
-			</div>
-			<p class="storage-used-label">${storageLabel}</p>
-			${upgHtml}
+	panel.innerHTML = `<div class="storage-info">
+		<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
+		 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+			<div class="storage-bar-fill" style="width:${pct}%"></div>
 		</div>
-		<div class="market-divider"></div>
-		<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
-		<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
-		<div id="market-products">${productCards}</div>`;
+		<p class="storage-used-label">${storageLabel}</p>
+		${upgHtml}
+	</div>
+	<div class="market-divider"></div>
+	<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
+	<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
+	<div id="market-products">${productCards}</div>`;
 }
 
-function renderSettingsTab() {
+function renderSettingsSection() {
 	const panel = document.getElementById("panel-settings");
 	if (!panel) return;
-	panel.innerHTML = `<h2>Settings</h2>
-		<section class="settings-section">
-			<h3>Save</h3>
-			<div class="settings-row">
-				<button data-action="save-now">Save Now</button>
-				<button data-action="copy-save">Copy Save</button>
-				<button data-action="import-save">Import Save</button>
-				<button data-action="clear-save">Clear Save</button>
-			</div>
-		</section>`;
+	if (panel.firstChild) return;
+	panel.innerHTML = `<section class="settings-section">
+		<h3>Save</h3>
+		<div class="settings-row">
+			<button data-action="save-now">Save Now</button>
+			<button data-action="copy-save">Copy Save</button>
+			<button data-action="import-save">Import Save</button>
+			<button data-action="clear-save">Clear Save</button>
+		</div>
+	</section>`;
 }
 
 function tick() {
 	const now = Date.now();
 	const delta = (now - state.lastTick) / 1000;
 	state.lastTick = now;
-	try {
-		advanceBuildings(delta);
-	} catch (e) {
-		console.error("advanceBuildings:", e);
-	}
+	try { advanceBuildings(delta); } catch (e) { console.error("advanceBuildings:", e); }
 	checkQuestCompletion();
 	renderHUD();
-	if (activeTab === "market") updateMarketProducts();
-	if (activeTab === "quests") renderQuestsTab();
+	updateMarketProducts();
+	renderQuestsSection();
 	checkAndRenderTutorial();
 }
 
 function handleClick(e) {
-	const tab = e.target.closest("#tab-bar button");
-	if (tab) {
-		switchTab(tab.id.replace("tab-", ""));
-		return;
-	}
 	const btn = e.target.closest("button[data-action]");
 	if (!btn) return;
 	const { action } = btn.dataset;
@@ -1618,7 +1525,6 @@ function checkQuestCompletion() {
 		if (current >= target) {
 			state.quests.completed[i] = true;
 			announce(`Quest complete: ${def.label}!`, "polite");
-			if (activeTab === "quests") renderQuestsTab();
 		}
 	}
 }
@@ -1643,24 +1549,21 @@ function doPrestigeReset() {
 	}
 	prestige.runs++;
 	savePrestige();
-	for (const bk of Object.keys(BUILDING_CONFIG)) {
-		document.getElementById(`tab-${bk}`)?.remove();
-		document.getElementById(`panel-${bk}`)?.remove();
-	}
 	state = deepClone(DEFAULT_STATE);
 	state.gold = getPrestigeBonus("starting_gold");
 	state.lastTick = Date.now();
 	runtime.nextSlotId = 0;
 	runtime.stallAnnounced = {};
+	runtime.selectedBuilding = null;
+	const sel = document.getElementById("building-select");
+	if (sel) sel.innerHTML = "";
+	const prodPanel = document.getElementById("panel-production");
+	if (prodPanel) prodPanel.innerHTML = "";
 	tutRuntime.firstSellDone = false;
 	tutRuntime.lastRenderedIdx = null;
+	_questsRenderKey = "";
 	drawQuests();
 	save();
-	activeTab = "build";
-	document.querySelectorAll("#tab-bar button").forEach(b => b.classList.remove("active"));
-	document.getElementById("tab-build")?.classList.add("active");
-	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
-	document.getElementById("panel-build").hidden = false;
 	renderAll();
 	announce(`Run ${prestige.runs + 1} started! ${completedCount} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
 }
@@ -1681,10 +1584,11 @@ function computePrestigeSummary() {
 	}).filter(Boolean);
 }
 
-function renderQuestsTab() {
+function renderQuestsSection() {
 	const panel = document.getElementById("panel-quests");
 	if (!panel) return;
-	// Only rebuild the full DOM when the quest set or completion status changes. On every tick we do a cheaper targeted update of just the progress values.
+	const summaryH2 = document.querySelector("#section-quests > summary h2");
+	if (summaryH2) summaryH2.textContent = `Quests — Run ${prestige.runs + 1}`;
 	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + prestige.runs;
 	if (structKey === _questsRenderKey && panel.firstChild) {
 		_updateQuestBars(panel);
@@ -1724,7 +1628,6 @@ function renderQuestsTab() {
 	const resetLabel = completedCount === state.quests.active.length ? "Reset & Collect All Rewards" : `Reset & Collect Rewards (${completedCount} / ${state.quests.active.length} complete)`;
 	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete — you'll miss those rewards.</p>` : "";
 	panel.innerHTML = `
-		<h1>Quests &#x2014; Run ${prestige.runs + 1}</h1>
 		${inProgressHtml ? `<h2>In Progress</h2><div class="quest-grid">${inProgressHtml}</div>` : ""}
 		${completedHtml  ? `<h2>Completed</h2><div class="quest-grid">${completedHtml}</div>`   : ""}
 		<section class="prestige-section">
@@ -1781,9 +1684,7 @@ function showTutorialPanel(idx) {
 	const step = TUTORIAL_STEPS[idx];
 	const tPanel = document.getElementById("panel-tutorial");
 	if (!tPanel) return;
-	document.querySelector("header").hidden = true;
-	document.getElementById("tab-bar").hidden = true;
-	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
+	document.querySelectorAll("#content > details").forEach(d => { d.hidden = true; });
 	tPanel.hidden = false;
 	tPanel.innerHTML = `<section class="tutorial-step" role="region" aria-labelledby="tut-heading">
 		<h2 id="tut-heading">${step.heading}</h2>
@@ -1798,11 +1699,8 @@ function showTutorialPanel(idx) {
 function hideTutorialPanel() {
 	const tPanel = document.getElementById("panel-tutorial");
 	if (tPanel) tPanel.hidden = true;
-	document.querySelector("header").hidden = false;
-	document.getElementById("tab-bar").hidden = false;
-	document.querySelectorAll(".tab-panel").forEach(p => { p.hidden = true; });
-	const activePanel = document.getElementById(`panel-${activeTab}`);
-	if (activePanel) activePanel.hidden = false;
+	document.querySelectorAll("#content > details").forEach(d => { d.hidden = false; });
+	renderBuildSection();
 	renderAll();
 }
 
@@ -1837,8 +1735,16 @@ function init() {
 	if (state.quests.active.length === 0 || hasStaleIds) drawQuests();
 	state.lastTick = Date.now();
 	for (const bldKey of Object.keys(BUILDING_CONFIG)) {
-		if (state.buildings[bldKey].unlocked) addBuildingTab(bldKey);
+		if (state.buildings[bldKey].unlocked) addBuildingOption(bldKey);
 	}
+	const firstBuilt = Object.keys(BUILDING_CONFIG).find(k => state.buildings[k].unlocked);
+	runtime.selectedBuilding = firstBuilt ?? null;
+	const sel = document.getElementById("building-select");
+	if (sel && firstBuilt) sel.value = firstBuilt;
+	sel?.addEventListener("change", e => {
+		runtime.selectedBuilding = e.target.value || null;
+		renderBuildingSection();
+	});
 	renderAll();
 	checkAndRenderTutorial();
 	document.getElementById("app").addEventListener("click", handleClick);
