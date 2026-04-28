@@ -23,170 +23,170 @@ function rewardLabel(r) {
 // prereq: building key that must appear in prestige.seenBuildings before this chain is offered.
 const QUEST_CHAINS = [
 	{ id: "sell_logs", type: "sell", resource: "logs", tiers: [
-		{ target: 20, label: "Sell 20 Logs", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 50, label: "Sell 50 Logs", reward: { type: "sell_price_pct", amount: 1 } },
-		{ target: 150, label: "Sell 150 Logs", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 400, label: "Sell 400 Logs", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 400, label: "Sell 400 Logs", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 1000, label: "Sell 1,000 Logs", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 3000, label: "Sell 3,000 Logs", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 8000, label: "Sell 8,000 Logs", reward: { type: "slot_cost_pct", amount: 10 } },
 	]},
 	{ id: "sell_timber", type: "sell", resource: "timber", tiers: [
-		{ target: 10, label: "Sell 10 Timber", reward: { type: "sell_price_pct", amount: 2 } },
-		{ target: 30, label: "Sell 30 Timber", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 100, label: "Sell 100 Timber", reward: { type: "unlock_cost_pct", amount: 3 } },
+		{ target: 200, label: "Sell 200 Timber", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 600, label: "Sell 600 Timber", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 2000, label: "Sell 2,000 Timber", reward: { type: "unlock_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_dowels", type: "sell", resource: "dowels", tiers: [
-		{ target: 10, label: "Sell 10 Dowels", reward: { type: "unlock_cost_pct", amount: 2 } },
-		{ target: 30, label: "Sell 30 Dowels", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 200, label: "Sell 200 Dowels", reward: { type: "unlock_cost_pct", amount: 10 } },
+		{ target: 600, label: "Sell 600 Dowels", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_handles", type: "sell", resource: "handles", tiers: [
-		{ target: 10, label: "Sell 10 Handles", reward: { type: "unlock_cost_pct", amount: 2 } },
-		{ target: 30, label: "Sell 30 Handles", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 200, label: "Sell 200 Handles", reward: { type: "unlock_cost_pct", amount: 10 } },
+		{ target: 600, label: "Sell 600 Handles", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_shafts", type: "sell", resource: "shafts", tiers: [
-		{ target: 5, label: "Sell 5 Shafts", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 15, label: "Sell 15 Shafts", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 100, label: "Sell 100 Shafts", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 300, label: "Sell 300 Shafts", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_planks", type: "sell", resource: "planks", prereq: "sawmill", tiers: [
-		{ target: 10, label: "Sell 10 Planks", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 40, label: "Sell 40 Planks", reward: { type: "unlock_cost_pct", amount: 2 } },
-		{ target: 100, label: "Sell 100 Planks", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 200, label: "Sell 200 Planks", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 800, label: "Sell 800 Planks", reward: { type: "unlock_cost_pct", amount: 10 } },
+		{ target: 2000, label: "Sell 2,000 Planks", reward: { type: "slot_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_boards", type: "sell", resource: "boards", prereq: "sawmill", tiers: [
-		{ target: 5, label: "Sell 5 Boards", reward: { type: "sell_price_pct", amount: 2 } },
-		{ target: 20, label: "Sell 20 Boards", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 60, label: "Sell 60 Boards", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 100, label: "Sell 100 Boards", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 400, label: "Sell 400 Boards", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 1200, label: "Sell 1,200 Boards", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_beams", type: "sell", resource: "beams", prereq: "sawmill", tiers: [
-		{ target: 5, label: "Sell 5 Beams", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 15, label: "Sell 15 Beams", reward: { type: "unlock_cost_pct", amount: 3 } },
-		{ target: 40, label: "Sell 40 Beams", reward: { type: "slot_cost_pct", amount: 5 } },
+		{ target: 100, label: "Sell 100 Beams", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 300, label: "Sell 300 Beams", reward: { type: "unlock_cost_pct", amount: 15 } },
+		{ target: 800, label: "Sell 800 Beams", reward: { type: "slot_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_crates", type: "sell", resource: "crates", prereq: "workshop", tiers: [
-		{ target: 5, label: "Sell 5 Crates", reward: { type: "storage_tier", amount: 1 } },
-		{ target: 20, label: "Sell 20 Crates", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 50, label: "Sell 50 Crates", reward: { type: "slot_cost_pct", amount: 5 } },
+		{ target: 100, label: "Sell 100 Crates", reward: { type: "storage_tier", amount: 10 } },
+		{ target: 400, label: "Sell 400 Crates", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 1000, label: "Sell 1,000 Crates", reward: { type: "slot_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_furniture", type: "sell", resource: "furniture", prereq: "workshop", tiers: [
-		{ target: 3, label: "Sell 3 Furniture", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Furniture", reward: { type: "sell_price_pct", amount: 1 } },
-		{ target: 25, label: "Sell 25 Furniture", reward: { type: "sell_price_pct", amount: 5 } },
+		{ target: 60, label: "Sell 60 Furniture", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 200, label: "Sell 200 Furniture", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 500, label: "Sell 500 Furniture", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_coaches", type: "sell", resource: "coaches", prereq: "workshop", tiers: [
-		{ target: 2, label: "Sell 2 Coaches", reward: { type: "build_cost_pct", amount: 3 } },
-		{ target: 8, label: "Sell 8 Coaches", reward: { type: "build_cost_pct", amount: 5 } },
+		{ target: 40, label: "Sell 40 Coaches", reward: { type: "build_cost_pct", amount: 15 } },
+		{ target: 160, label: "Sell 160 Coaches", reward: { type: "build_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_manors", type: "sell", resource: "manors", prereq: "workshop", tiers: [
-		{ target: 1, label: "Sell 1 Manor", reward: { type: "cycle_speed_pct", amount: 3 } },
-		{ target: 4, label: "Sell 4 Manors", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 20, label: "Sell 20 Manors", reward: { type: "cycle_speed_pct", amount: 15 } },
+		{ target: 80, label: "Sell 80 Manors", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_iron_ore", type: "sell", resource: "iron_ore", prereq: "forge", tiers: [
-		{ target: 25, label: "Sell 25 Iron Ore", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 80, label: "Sell 80 Iron Ore", reward: { type: "sell_price_pct", amount: 2 } },
-		{ target: 200, label: "Sell 200 Iron Ore", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 500, label: "Sell 500 Iron Ore", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 1600, label: "Sell 1,600 Iron Ore", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 4000, label: "Sell 4,000 Iron Ore", reward: { type: "slot_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_iron_bars", type: "sell", resource: "iron_bars", prereq: "forge", tiers: [
-		{ target: 5, label: "Sell 5 Iron Bars", reward: { type: "sell_price_pct", amount: 2 } },
-		{ target: 25, label: "Sell 25 Iron Bars", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 60, label: "Sell 60 Iron Bars", reward: { type: "unlock_cost_pct", amount: 5 } },
+		{ target: 100, label: "Sell 100 Iron Bars", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 500, label: "Sell 500 Iron Bars", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 1200, label: "Sell 1,200 Iron Bars", reward: { type: "unlock_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_nails", type: "sell", resource: "nails", prereq: "forge", tiers: [
-		{ target: 10, label: "Sell 10 Nails", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 30, label: "Sell 30 Nails", reward: { type: "slot_cost_pct", amount: 2 } },
+		{ target: 200, label: "Sell 200 Nails", reward: { type: "slot_cost_pct", amount: 10 } },
+		{ target: 600, label: "Sell 600 Nails", reward: { type: "slot_cost_pct", amount: 10 } },
 	]},
 	{ id: "sell_fittings", type: "sell", resource: "iron_fittings", prereq: "forge", tiers: [
-		{ target: 5, label: "Sell 5 Iron Fittings", reward: { type: "unlock_cost_pct", amount: 3 } },
-		{ target: 15, label: "Sell 15 Iron Fittings", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 100, label: "Sell 100 Iron Fittings", reward: { type: "unlock_cost_pct", amount: 15 } },
+		{ target: 300, label: "Sell 300 Iron Fittings", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_gears", type: "sell", resource: "gears", prereq: "foundry", tiers: [
-		{ target: 3, label: "Sell 3 Gears", reward: { type: "build_cost_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Gears", reward: { type: "sell_price_pct", amount: 1 } },
+		{ target: 60, label: "Sell 60 Gears", reward: { type: "build_cost_pct", amount: 15 } },
+		{ target: 200, label: "Sell 200 Gears", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_springs", type: "sell", resource: "springs", prereq: "foundry", tiers: [
-		{ target: 3, label: "Sell 3 Springs", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 8, label: "Sell 8 Springs", reward: { type: "sell_price_pct", amount: 5 } },
+		{ target: 60, label: "Sell 60 Springs", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 160, label: "Sell 160 Springs", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_mechanisms", type: "sell", resource: "mechanisms", prereq: "foundry", tiers: [
-		{ target: 2, label: "Sell 2 Mechanisms", reward: { type: "build_cost_pct", amount: 4 } },
-		{ target: 6, label: "Sell 6 Mechanisms", reward: { type: "build_cost_pct", amount: 5 } },
+		{ target: 40, label: "Sell 40 Mechanisms", reward: { type: "build_cost_pct", amount: 15 } },
+		{ target: 120, label: "Sell 120 Mechanisms", reward: { type: "build_cost_pct", amount: 15 } },
 	]},
 	{ id: "sell_clockwork", type: "sell", resource: "clockwork", prereq: "foundry", tiers: [
-		{ target: 1, label: "Sell 1 Clockwork", reward: { type: "slot_cost_pct", amount: 5 } },
-		{ target: 3, label: "Sell 3 Clockwork", reward: { type: "slot_cost_pct", amount: 8 } },
+		{ target: 20, label: "Sell 20 Clockwork", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 60, label: "Sell 60 Clockwork", reward: { type: "slot_cost_pct", amount: 25 } },
 	]},
 	{ id: "sell_blades", type: "sell", resource: "blades", prereq: "armoury", tiers: [
-		{ target: 3, label: "Sell 3 Blades", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Blades", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 60, label: "Sell 60 Blades", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 200, label: "Sell 200 Blades", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_crossbows", type: "sell", resource: "crossbows", prereq: "armoury", tiers: [
-		{ target: 2, label: "Sell 2 Crossbows", reward: { type: "cycle_speed_pct", amount: 3 } },
-		{ target: 5, label: "Sell 5 Crossbows", reward: { type: "sell_price_pct", amount: 5 } },
+		{ target: 40, label: "Sell 40 Crossbows", reward: { type: "cycle_speed_pct", amount: 15 } },
+		{ target: 100, label: "Sell 100 Crossbows", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_cannons", type: "sell", resource: "cannons", prereq: "armoury", tiers: [
-		{ target: 1, label: "Sell 1 Cannon", reward: { type: "build_cost_pct", amount: 5 } },
-		{ target: 3, label: "Sell 3 Cannons", reward: { type: "build_cost_pct", amount: 8 } },
+		{ target: 20, label: "Sell 20 Cannon", reward: { type: "build_cost_pct", amount: 15 } },
+		{ target: 60, label: "Sell 60 Cannons", reward: { type: "build_cost_pct", amount: 25 } },
 	]},
 	{ id: "sell_artillery", type: "sell", resource: "artillery", prereq: "armoury", tiers: [
-		{ target: 1, label: "Sell 1 Artillery", reward: { type: "cycle_speed_pct", amount: 2 } },
-		{ target: 2, label: "Sell 2 Artillery", reward: { type: "cycle_speed_pct", amount: 5 } },
+		{ target: 20, label: "Sell 20 Artillery", reward: { type: "cycle_speed_pct", amount: 10 } },
+		{ target: 40, label: "Sell 40 Artillery", reward: { type: "cycle_speed_pct", amount: 15 } },
 	]},
 	{ id: "sell_hulls", type: "sell", resource: "hulls", prereq: "shipyard", tiers: [
-		{ target: 2, label: "Sell 2 Hulls", reward: { type: "sell_price_pct", amount: 4 } },
-		{ target: 5, label: "Sell 5 Hulls", reward: { type: "sell_price_pct", amount: 5 } },
+		{ target: 40, label: "Sell 40 Hulls", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 100, label: "Sell 100 Hulls", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "sell_rigging", type: "sell", resource: "rigging", prereq: "shipyard", tiers: [
-		{ target: 2, label: "Sell 2 Rigging", reward: { type: "cycle_speed_pct", amount: 3 } },
-		{ target: 5, label: "Sell 5 Rigging", reward: { type: "sell_price_pct", amount: 2 } },
+		{ target: 40, label: "Sell 40 Rigging", reward: { type: "cycle_speed_pct", amount: 15 } },
+		{ target: 100, label: "Sell 100 Rigging", reward: { type: "sell_price_pct", amount: 10 } },
 	]},
 	{ id: "sell_galleons", type: "sell", resource: "galleons", prereq: "shipyard", tiers: [
-		{ target: 1, label: "Sell 1 Galleon", reward: { type: "cycle_speed_pct", amount: 2 } },
-		{ target: 2, label: "Sell 2 Galleons", reward: { type: "sell_price_pct", amount: 8 } },
+		{ target: 20, label: "Sell 20 Galleons", reward: { type: "cycle_speed_pct", amount: 10 } },
+		{ target: 40, label: "Sell 40 Galleons", reward: { type: "sell_price_pct", amount: 25 } },
 	]},
 	{ id: "sell_dreadnoughts", type: "sell", resource: "dreadnoughts", prereq: "shipyard", tiers: [
-		{ target: 1, label: "Sell 1 Dreadnought", reward: { type: "cycle_speed_pct", amount: 10 } },
+		{ target: 20, label: "Sell 20 Dreadnoughts", reward: { type: "cycle_speed_pct", amount: 25 } },
 	]},
 	{ id: "slots_logs", type: "slots", bld: "lumber_yard", product: "logs", tiers: [
-		{ target: 3, label: "Own 3 Log Slots", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 5, label: "Own 5 Log Slots", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 8, label: "Own 8 Log Slots", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 60, label: "Own 60 Log Slots", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 100, label: "Own 100 Log Slots", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 160, label: "Own 160 Log Slots", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "slots_iron_ore", type: "slots", bld: "forge", product: "iron_ore", prereq: "forge", tiers: [
-		{ target: 3, label: "Own 3 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 5, label: "Own 5 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 8, label: "Own 8 Iron Ore Slots", reward: { type: "sell_price_pct", amount: 3 } },
+		{ target: 60, label: "Own 60 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 100, label: "Own 100 Iron Ore Slots", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 160, label: "Own 160 Iron Ore Slots", reward: { type: "sell_price_pct", amount: 15 } },
 	]},
 	{ id: "slots_timber", type: "slots", bld: "lumber_yard", product: "timber", tiers: [
-		{ target: 3, label: "Own 3 Timber Slots", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 5, label: "Own 5 Timber Slots", reward: { type: "slot_cost_pct", amount: 3 } },
+		{ target: 60, label: "Own 60 Timber Slots", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 100, label: "Own 100 Timber Slots", reward: { type: "slot_cost_pct", amount: 15 } },
 	]},
 	{ id: "total_slots", type: "total_slots", tiers: [
-		{ target: 10, label: "Own 10 Slots Total", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 20, label: "Own 20 Slots Total", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 35, label: "Own 35 Slots Total", reward: { type: "slot_cost_pct", amount: 5 } },
-		{ target: 50, label: "Own 50 Slots Total", reward: { type: "cycle_speed_pct", amount: 5 } },
+		{ target: 200, label: "Own 200 Slots Total", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 400, label: "Own 400 Slots Total", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 700, label: "Own 700 Slots Total", reward: { type: "slot_cost_pct", amount: 15 } },
+		{ target: 1000, label: "Own 1,000 Slots Total", reward: { type: "cycle_speed_pct", amount: 15 } },
 	]},
-	{ id: "build_sawmill", type: "build", bld: "sawmill", tiers: [{ target: 1, label: "Build the Sawmill", reward: { type: "build_cost_pct", amount: 3 } }]},
-	{ id: "build_workshop", type: "build", bld: "workshop", tiers: [{ target: 1, label: "Build the Workshop", reward: { type: "storage_tier", amount: 1 } }]},
-	{ id: "build_forge", type: "build", bld: "forge", tiers: [{ target: 1, label: "Build the Forge", reward: { type: "storage_tier", amount: 1 } }]},
-	{ id: "build_foundry", type: "build", bld: "foundry", prereq: "forge", tiers: [{ target: 1, label: "Build the Foundry", reward: { type: "build_cost_pct", amount: 5 } }]},
-	{ id: "build_armoury", type: "build", bld: "armoury", prereq: "foundry", tiers: [{ target: 1, label: "Build the Armoury", reward: { type: "sell_price_pct", amount: 5 } }]},
-	{ id: "build_shipyard", type: "build", bld: "shipyard", prereq: "armoury", tiers: [{ target: 1, label: "Build the Shipyard", reward: { type: "cycle_speed_pct", amount: 5 } }]},
-	{ id: "unlock_boards", type: "unlock", bld: "sawmill", product: "boards", prereq: "sawmill", tiers: [{ target: 1, label: "Unlock Boards", reward: { type: "unlock_cost_pct", amount: 2 } }]},
-	{ id: "unlock_shafts", type: "unlock", bld: "lumber_yard", product: "shafts", tiers: [{ target: 1, label: "Unlock Shafts", reward: { type: "unlock_cost_pct", amount: 3 } }]},
-	{ id: "unlock_furniture", type: "unlock", bld: "workshop", product: "furniture", prereq: "workshop", tiers: [{ target: 1, label: "Unlock Furniture", reward: { type: "sell_price_pct", amount: 3 } }]},
-	{ id: "unlock_fittings", type: "unlock", bld: "forge", product: "iron_fittings", prereq: "forge", tiers: [{ target: 1, label: "Unlock Iron Fittings", reward: { type: "unlock_cost_pct", amount: 4 } }]},
-	{ id: "unlock_clockwork", type: "unlock", bld: "foundry", product: "clockwork", prereq: "foundry", tiers: [{ target: 1, label: "Unlock Clockwork", reward: { type: "build_cost_pct", amount: 8 } }]},
-	{ id: "unlock_artillery", type: "unlock", bld: "armoury", product: "artillery", prereq: "armoury", tiers: [{ target: 1, label: "Unlock Artillery", reward: { type: "sell_price_pct", amount: 8 } }]},
-	{ id: "unlock_dreadnoughts", type: "unlock", bld: "shipyard", product: "dreadnoughts", prereq: "shipyard", tiers: [{ target: 1, label: "Unlock Dreadnoughts", reward: { type: "cycle_speed_pct", amount: 8 } }]},
+	{ id: "build_sawmill", type: "build", bld: "sawmill", tiers: [{ target: 1, label: "Build the Sawmill", reward: { type: "build_cost_pct", amount: 15 } }]},
+	{ id: "build_workshop", type: "build", bld: "workshop", tiers: [{ target: 1, label: "Build the Workshop", reward: { type: "storage_tier", amount: 10 } }]},
+	{ id: "build_forge", type: "build", bld: "forge", tiers: [{ target: 1, label: "Build the Forge", reward: { type: "storage_tier", amount: 10 } }]},
+	{ id: "build_foundry", type: "build", bld: "foundry", prereq: "forge", tiers: [{ target: 1, label: "Build the Foundry", reward: { type: "build_cost_pct", amount: 15 } }]},
+	{ id: "build_armoury", type: "build", bld: "armoury", prereq: "foundry", tiers: [{ target: 1, label: "Build the Armoury", reward: { type: "sell_price_pct", amount: 15 } }]},
+	{ id: "build_shipyard", type: "build", bld: "shipyard", prereq: "armoury", tiers: [{ target: 1, label: "Build the Shipyard", reward: { type: "cycle_speed_pct", amount: 15 } }]},
+	{ id: "unlock_boards", type: "unlock", bld: "sawmill", product: "boards", prereq: "sawmill", tiers: [{ target: 1, label: "Unlock Boards", reward: { type: "unlock_cost_pct", amount: 10 } }]},
+	{ id: "unlock_shafts", type: "unlock", bld: "lumber_yard", product: "shafts", tiers: [{ target: 1, label: "Unlock Shafts", reward: { type: "unlock_cost_pct", amount: 15 } }]},
+	{ id: "unlock_furniture", type: "unlock", bld: "workshop", product: "furniture", prereq: "workshop", tiers: [{ target: 1, label: "Unlock Furniture", reward: { type: "sell_price_pct", amount: 15 } }]},
+	{ id: "unlock_fittings", type: "unlock", bld: "forge", product: "iron_fittings", prereq: "forge", tiers: [{ target: 1, label: "Unlock Iron Fittings", reward: { type: "unlock_cost_pct", amount: 15 } }]},
+	{ id: "unlock_clockwork", type: "unlock", bld: "foundry", product: "clockwork", prereq: "foundry", tiers: [{ target: 1, label: "Unlock Clockwork", reward: { type: "build_cost_pct", amount: 25 } }]},
+	{ id: "unlock_artillery", type: "unlock", bld: "armoury", product: "artillery", prereq: "armoury", tiers: [{ target: 1, label: "Unlock Artillery", reward: { type: "sell_price_pct", amount: 25 } }]},
+	{ id: "unlock_dreadnoughts", type: "unlock", bld: "shipyard", product: "dreadnoughts", prereq: "shipyard", tiers: [{ target: 1, label: "Unlock Dreadnoughts", reward: { type: "cycle_speed_pct", amount: 25 } }]},
 	{ id: "storage_upgrades", type: "storage", tiers: [
-		{ target: 3, label: "Upgrade Storage 3 Times", reward: { type: "storage_tier", amount: 1 } },
-		{ target: 6, label: "Upgrade Storage 6 Times", reward: { type: "storage_tier", amount: 1 } },
-		{ target: 10, label: "Upgrade Storage 10 Times", reward: { type: "storage_tier", amount: 2 } },
+		{ target: 60, label: "Upgrade Storage 60 Times", reward: { type: "storage_tier", amount: 10 } },
+		{ target: 120, label: "Upgrade Storage 120 Times", reward: { type: "storage_tier", amount: 10 } },
+		{ target: 200, label: "Upgrade Storage 200 Times", reward: { type: "storage_tier", amount: 10 } },
 	]},
 	{ id: "earn_gold", type: "gold_earned", tiers: [
-		{ target: 1000, label: "Earn 1,000 Gold", reward: { type: "sell_price_pct", amount: 2 } },
-		{ target: 5000, label: "Earn 5,000 Gold", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 25000, label: "Earn 25,000 Gold", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 100000, label: "Earn 100,000 Gold", reward: { type: "unlock_cost_pct", amount: 8 } },
-		{ target: 500000, label: "Earn 500,000 Gold", reward: { type: "cycle_speed_pct", amount: 8 } },
+		{ target: 100000, label: "Earn 100,000 Gold", reward: { type: "sell_price_pct", amount: 10 } },
+		{ target: 1000000, label: "Earn 1,000,000 Gold", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 10000000, label: "Earn 10,000,000 Gold", reward: { type: "sell_price_pct", amount: 15 } },
+		{ target: 100000000, label: "Earn 100,000,000 Gold", reward: { type: "unlock_cost_pct", amount: 25 } },
+		{ target: 1000000000, label: "Earn 1,000,000,000 Gold", reward: { type: "cycle_speed_pct", amount: 25 } },
 	]},
 ];
 
@@ -207,38 +207,38 @@ const QUEST_POOL = QUEST_CHAINS.flatMap(chain => chain.tiers.map((tier, i) => ({
 
 const RESOURCES = {
 	// Wood chain
-	logs:          { label: "Logs",          singular: "Log",          price: 2 },
-	timber:        { label: "Timber",        singular: "Timber",       price: 9 },
-	dowels:        { label: "Dowels",        singular: "Dowel",        price: 16 },
-	handles:       { label: "Handles",       singular: "Handle",       price: 26 },
-	shafts:        { label: "Shafts",        singular: "Shaft",        price: 90 },
-	planks:        { label: "Planks",        singular: "Plank",        price: 10 },
-	boards:        { label: "Boards",        singular: "Board",        price: 22 },
-	beams:         { label: "Beams",         singular: "Beam",         price: 40 },
-	crates:        { label: "Crates",        singular: "Crate",        price: 130 },
-	furniture:     { label: "Furniture",     singular: "Furniture",    price: 225 },
-	coaches:       { label: "Coaches",       singular: "Coach",        price: 550 },
-	manors:        { label: "Manors",        singular: "Manor",        price: 1200 },
+	logs:          { label: "Logs",          singular: "Log",          price: 5 },
+	timber:        { label: "Timber",        singular: "Timber",       price: 25 },
+	dowels:        { label: "Dowels",        singular: "Dowel",        price: 75 },
+	handles:       { label: "Handles",       singular: "Handle",       price: 120 },
+	shafts:        { label: "Shafts",        singular: "Shaft",        price: 500 },
+	planks:        { label: "Planks",        singular: "Plank",        price: 50 },
+	boards:        { label: "Boards",        singular: "Board",        price: 200 },
+	beams:         { label: "Beams",         singular: "Beam",         price: 750 },
+	crates:        { label: "Crates",        singular: "Crate",        price: 2000 },
+	furniture:     { label: "Furniture",     singular: "Furniture",    price: 10000 },
+	coaches:       { label: "Coaches",       singular: "Coach",        price: 50000 },
+	manors:        { label: "Manors",        singular: "Manor",        price: 500000 },
 	// Iron chain
-	iron_ore:      { label: "Iron Ore",      singular: "Iron Ore",     price: 6 },
-	iron_bars:     { label: "Iron Bars",     singular: "Iron Bar",     price: 25 },
-	nails:         { label: "Nails",         singular: "Nail",         price: 35 },
-	iron_fittings: { label: "Iron Fittings", singular: "Iron Fitting", price: 65 },
+	iron_ore:      { label: "Iron Ore",      singular: "Iron Ore",     price: 250 },
+	iron_bars:     { label: "Iron Bars",     singular: "Iron Bar",     price: 2500 },
+	nails:         { label: "Nails",         singular: "Nail",         price: 5000 },
+	iron_fittings: { label: "Iron Fittings", singular: "Iron Fitting", price: 15000 },
 	// Foundry chain
-	gears:         { label: "Gears",         singular: "Gear",         price: 120 },
-	springs:       { label: "Springs",       singular: "Spring",       price: 180 },
-	mechanisms:    { label: "Mechanisms",    singular: "Mechanism",    price: 400 },
-	clockwork:     { label: "Clockwork",     singular: "Clockwork",    price: 1100 },
+	gears:         { label: "Gears",         singular: "Gear",         price: 100000 },
+	springs:       { label: "Springs",       singular: "Spring",       price: 250000 },
+	mechanisms:    { label: "Mechanisms",    singular: "Mechanism",    price: 1250000 },
+	clockwork:     { label: "Clockwork",     singular: "Clockwork",    price: 7500000 },
 	// Armoury chain
-	blades:        { label: "Blades",        singular: "Blade",        price: 100 },
-	crossbows:     { label: "Crossbows",     singular: "Crossbow",     price: 420 },
-	cannons:       { label: "Cannons",       singular: "Cannon",       price: 1800 },
-	artillery:     { label: "Artillery",     singular: "Artillery",    price: 7500 },
+	blades:        { label: "Blades",        singular: "Blade",        price: 100000 },
+	crossbows:     { label: "Crossbows",     singular: "Crossbow",     price: 750000 },
+	cannons:       { label: "Cannons",       singular: "Cannon",       price: 7500000 },
+	artillery:     { label: "Artillery",     singular: "Artillery",    price: 150000000 },
 	// Shipyard chain
-	hulls:         { label: "Hulls",         singular: "Hull",         price: 650 },
-	rigging:       { label: "Rigging",       singular: "Rigging",      price: 450 },
-	galleons:      { label: "Galleons",      singular: "Galleon",      price: 7000 },
-	dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 35000 },
+	hulls:         { label: "Hulls",         singular: "Hull",         price: 2500000 },
+	rigging:       { label: "Rigging",       singular: "Rigging",      price: 1500000 },
+	galleons:      { label: "Galleons",      singular: "Galleon",      price: 100000000 },
+	dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 1000000000 },
 };
 
 const BUILDING_CONFIG = {
@@ -300,7 +300,7 @@ const BUILDING_CONFIG = {
 	sawmill: {
 		label: "Sawmill",
 		desc: "Cuts raw logs into structural lumber for construction and trade.",
-		buildCost: 600,
+		buildCost: 25000,
 		slotCostExponent: 1.35,
 		prereq: () => state.buildings.lumber_yard?.unlocked,
 		products: {
@@ -337,7 +337,7 @@ const BUILDING_CONFIG = {
 	workshop: {
 		label: "Workshop",
 		desc: "Combines lumber and precision parts into finished goods for the empire.",
-		buildCost: 3000,
+		buildCost: 500000,
 		slotCostExponent: 1.25,
 		prereq: () => state.buildings.sawmill?.unlocked && state.buildings.sawmill.products.boards.unlocked,
 		products: {
@@ -383,7 +383,7 @@ const BUILDING_CONFIG = {
 	forge: {
 		label: "Forge",
 		desc: "Smelts raw iron ore into bars and precision metalwork.",
-		buildCost: 7500,
+		buildCost: 10000000,
 		slotCostExponent: 1.30,
 		prereq: () => state.buildings.workshop?.unlocked,
 		products: {
@@ -429,7 +429,7 @@ const BUILDING_CONFIG = {
 	foundry: {
 		label: "Foundry",
 		desc: "Casts complex mechanisms and precision components from refined iron.",
-		buildCost: 28000,
+		buildCost: 250000000,
 		slotCostExponent: 1.35,
 		prereq: () => state.buildings.forge?.unlocked && state.buildings.forge.products.iron_fittings.unlocked,
 		products: {
@@ -475,7 +475,7 @@ const BUILDING_CONFIG = {
 	armoury: {
 		label: "Armoury",
 		desc: "Forges weapons of war from iron, timber, and precision components.",
-		buildCost: 100000,
+		buildCost: 5000000000,
 		slotCostExponent: 1.30,
 		prereq: () => state.buildings.foundry?.unlocked && state.buildings.foundry.products.mechanisms.unlocked,
 		products: {
@@ -521,7 +521,7 @@ const BUILDING_CONFIG = {
 	shipyard: {
 		label: "Shipyard",
 		desc: "Builds mighty vessels from timber, iron, and the finest components.",
-		buildCost: 200000,
+		buildCost: 100000000000,
 		slotCostExponent: 1.25,
 		prereq: () => state.buildings.armoury?.unlocked && state.buildings.armoury.products.cannons.unlocked,
 		products: {
@@ -1506,15 +1506,15 @@ function getQuestProgress(def) {
 			return { current: n, target: def.target };
 		}
 		case "build":
-			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: 1 };
+			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: 20 };
 		case "unlock":
-			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: 1 };
+			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: 20 };
 		case "storage":
 			return { current: state.storage.tier, target: def.target };
 		case "gold_earned":
 			return { current: state.stats.goldEarned, target: def.target };
 		default:
-			return { current: 0, target: 1 };
+			return { current: 0, target: 20 };
 	}
 }
 

@@ -130,8 +130,11 @@ function advance(st, delta, stallSecs) {
 			for (const slot of pst.slots) {
 				slot.progress += delta / cycleSec;
 				while (slot.progress >= 1.0) {
+					if (!tryProduce(st, bk, pk, slot, stallSecs)) {
+						slot.progress = 0.999;
+						break;
+					}
 					slot.progress -= 1.0;
-					if (!tryProduce(st, bk, pk, slot, stallSecs)) break;
 				}
 			}
 			if (pst.manualActive) {
