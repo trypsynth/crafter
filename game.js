@@ -606,7 +606,6 @@ const runtime = {
 	nextSlotId: 0,
 	stallAnnounced: {},
 	announceTimers: { polite: null, assertive: null },
-	rateDisplayMode: "minute",
 	selectedBuilding: null,
 };
 
@@ -682,16 +681,18 @@ function formatRate(slots, outputAmt, baseCycleMs, label = "") {
 	return label ? `${num} ${label} per minute` : `${num} per minute`;
 }
 
-function formatProductOutput(slots, outputAmt, baseCycleMs, label = "") {
+function formatProductOutput(slots, outputAmt, baseCycleMs, label = "", brief = false) {
 	const total = slots * outputAmt;
 	const cycleSpeedMult = prestigeSpeedMult();
 	const actualCycleMs = baseCycleMs / cycleSpeedMult;
-	if (runtime.rateDisplayMode === "cycle") {
-		const duration = formatDuration(Math.round(actualCycleMs / 1000));
-		const name = label ? (total === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "";
-		return `${total}${name ? " " + name : ""} every ${duration}`;
-	}
-	return formatRate(slots, outputAmt, actualCycleMs, label ? (slots * outputAmt === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "");
+	const actualSecs = actualCycleMs / 1000;
+	const perMin = total * 60 / actualSecs;
+	const perMinFmt = perMin.toFixed(1).replace(/\.0$/, "");
+	const durationNum = actualSecs.toFixed(1).replace(/\.0$/, "");
+	const duration = `${durationNum} ${actualSecs === 1 ? "second" : "seconds"}`;
+	const name = label ? (total === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "";
+	if (brief) return `${total}${name ? " " + name : ""} every ${duration}`;
+	return `${total}${name ? " " + name : ""} every ${duration} (${perMinFmt} per minute)`;
 }
 
 function formatDuration(seconds) {
@@ -1243,7 +1244,7 @@ function renderBuildingSection() {
 		const slotCost = nextSlotCost(bldKey, productKey);
 		const n = pst.slots.length;
 		const slotWord = n === 1 ? "slot" : "slots";
-		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey);
+		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
 		const summaryText = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
 		const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
 			? ""
@@ -1299,13 +1300,9 @@ function renderBuildingSection() {
 			}).join("")}
 		</div>
 	</section>`;
-	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
-	const toggleHtml = unlockedProducts.length > 0
-		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
-		: "";
 
 	const chainHtml = renderChainOverview();
-	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${toggleHtml}${unlockedHtml}</section>` : "";
+	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
 	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
 }
 
@@ -1462,10 +1459,6 @@ function handleClick(e) {
 		case "settings-back":
 			document.getElementById("app").classList.remove("settings-open");
 			document.getElementById("settings-btn")?.focus();
-			break;
-		case "toggle-rate-mode":
-			runtime.rateDisplayMode = runtime.rateDisplayMode === "minute" ? "cycle" : "minute";
-			renderAll();
 			break;
 	}
 }
