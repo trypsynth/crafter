@@ -767,6 +767,7 @@ function load() {
 		const parsed = JSON.parse(raw);
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
+		const lastTime = fresh.lastTick;
 		state = fresh;
 		let maxId = 0;
 		for (const bst of Object.values(state.buildings)) {
@@ -784,7 +785,54 @@ function load() {
 				if (pst.enabled === undefined) pst.enabled = true;
 			}
 		}
+
+		// Offline Catch-up
+		if (lastTime) {
+			const now = Date.now();
+			const diffMs = now - lastTime;
+			const catchupMs = Math.min(diffMs, 24 * 60 * 60 * 1000); // 24h max
+			if (catchupMs > 10000) {
+				const catchupSec = catchupMs / 1000;
+				const speedMult = prestigeSpeedMult();
+				let currentTotal = Object.values(state.inventory).reduce((a, b) => a + b, 0);
+				const max = storageMax();
+				const producers = [];
+				for (const [bk, bst] of Object.entries(state.buildings)) {
+					if (!bst.unlocked) continue;
+					for (const [pk, pst] of Object.entries(bst.products)) {
+						if (pst.unlocked && pst.enabled && pst.slots.length > 0) {
+							producers.push({ bk, pk, pst, pcfg: BUILDING_CONFIG[bk].products[pk] });
+						}
+					}
+				}
+				producers.sort((a, b) => a.pcfg.baseCycleMs - b.pcfg.baseCycleMs);
+				let gained = 0;
+				for (const p of producers) {
+					const cycleSec = (p.pcfg.baseCycleMs / 1000) / speedMult;
+					const potential = Math.floor(catchupSec / cycleSec) * p.pst.slots.length * p.pcfg.outputAmt;
+					let actual = potential;
+					for (const [inK, inA] of Object.entries(p.pcfg.inputs)) {
+						const available = state.inventory[inK] || 0;
+						actual = Math.min(actual, Math.floor(available / inA) * p.pcfg.outputAmt);
+					}
+					const space = max - currentTotal;
+					const gain = Math.min(actual, space);
+					if (gain > 0) {
+						state.inventory[p.pk] += gain;
+						for (const [inK, inA] of Object.entries(p.pcfg.inputs)) {
+							state.inventory[inK] -= Math.ceil(gain / p.pcfg.outputAmt) * inA;
+						}
+						currentTotal += gain;
+						gained += gain;
+					}
+				}
+				if (gained > 0) {
+					setTimeout(() => announce(`Welcome back! Your workers produced ${gained.toLocaleString()} items while you were away.`, "polite"), 500);
+				}
+			}
+		}
 	} catch (e) {
+		console.error("Load failed:", e);
 		state = deepClone(DEFAULT_STATE);
 	}
 }
