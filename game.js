@@ -1300,7 +1300,7 @@ function renderBuildingSection() {
 		const statusClass = pst.enabled ? "health-ok" : "health-warn";
 		return `<div class="product-section">
 			<div class="product-header">
-				<h3>${res.label}</h3>
+				<h4 class="product-title">${res.label}</h4>
 				<span class="${statusClass}" style="font-size:var(--font-sm)">${pst.enabled ? "Active" : "Paused"}</span>
 			</div>
 			${inputDesc}
@@ -1333,25 +1333,30 @@ function renderBuildingSection() {
 		!bst.products[pk].unlocked &&
 		(!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked)
 	);
-	const unlockHtml = unlockables.length === 0 ? "" : `<div class="unlock-section">
-		${unlockables.map(([pk, pcfg]) => {
-			const res = RESOURCES[pcfg.outputKey];
-			const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
-			return `<button class="unlock-product-btn" data-action="unlock-product"
-			 data-bld="${bldKey}" data-product="${pk}"
-			 ${state.gold >= unlockCost ? "" : "disabled"}>
-				Unlock ${res.label} for ${unlockCost} gold
-			</button>`;
-		}).join("")}
-	</div>`;
+	const unlockHtml = unlockables.length === 0 ? "" : `<section class="unlock-group">
+		<h3>Unlockable Products</h3>
+		<div class="unlock-section">
+			${unlockables.map(([pk, pcfg]) => {
+				const res = RESOURCES[pcfg.outputKey];
+				const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
+				return `<button class="unlock-product-btn" data-action="unlock-product"
+				 data-bld="${bldKey}" data-product="${pk}"
+				 ${state.gold >= unlockCost ? "" : "disabled"}>
+					Unlock ${res.label} for ${unlockCost} gold
+				</button>`;
+			}).join("")}
+		</div>
+	</section>`;
 	const modeLabel = runtime.rateDisplayMode === "minute" ? "Per Minute" : "Per Cycle";
 	const toggleHtml = unlockedProducts.length > 0
 		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
 		: "";
 
 	const chainHtml = renderChainOverview();
-	panel.innerHTML = `${nextHtml}${toggleHtml}${unlockedHtml}${unlockHtml}${chainHtml}`;
+	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
+	panel.innerHTML = `${nextHtml}${toggleHtml}${productsSection}${unlockHtml}${chainHtml}`;
 }
+
 
 function updateMarketProducts() {
 	const panel = document.getElementById("panel-market");
@@ -1425,7 +1430,7 @@ function renderMarketSection() {
 		const earned = inv * price;
 		return `<div class="market-product" data-market-resource="${resourceKey}"${hasItem ? "" : " hidden"}>
 			<div class="market-product-header">
-				<span class="market-product-name">${res.label}</span>
+				<h4 class="market-product-name">${res.label}</h4>
 				<span class="market-product-stock">${inv} in stock, ${price} gold each</span>
 			</div>
 			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>
@@ -1444,7 +1449,10 @@ function renderMarketSection() {
 	<div class="market-divider"></div>
 	<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
 	<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
-	<div id="market-products">${productCards}</div>`;
+	<section class="market-inventory-section">
+		<h3>Inventory</h3>
+		<div id="market-products">${productCards}</div>
+	</section>`;
 }
 
 function renderSettingsSection() {
@@ -1669,7 +1677,7 @@ function renderQuestsSection() {
 				<span class="quest-prog-text" data-quest-text="${id}">${formatNum(current)} / ${formatNum(target)}</span>
 			</div>`;
 		return `<div class="quest-card${done ? " quest-done" : ""}">
-			<h3 class="quest-title">${def.label}</h3>
+			<h4 class="quest-title">${def.label}</h4>
 			<p class="quest-reward-label">Reward: ${def.rewardLabel}</p>
 			${progressRow}
 		</div>`;
@@ -1681,10 +1689,10 @@ function renderQuestsSection() {
 	const resetLabel = completedCount === state.quests.active.length ? "Reset & Collect All Rewards" : `Reset & Collect Rewards (${completedCount} / ${state.quests.active.length} complete)`;
 	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete — you'll miss those rewards.</p>` : "";
 	panel.innerHTML = `
-		${inProgressHtml ? `<section aria-label="In Progress Quests"><div class="quest-grid">${inProgressHtml}</div></section>` : ""}
-		${completedHtml  ? `<section aria-label="Completed Quests"><div class="quest-grid">${completedHtml}</div></section>`   : ""}
+		${inProgressHtml ? `<section class="quest-group"><h3>In Progress</h3><div class="quest-grid">${inProgressHtml}</div></section>` : ""}
+		${completedHtml  ? `<section class="quest-group"><h3>Completed</h3><div class="quest-grid">${completedHtml}</div></section>`   : ""}
 		<section class="prestige-section">
-			<h2>Permanent Bonuses</h2>
+			<h3>Permanent Rewards</h3>
 			${bonusesHtml}
 		</section>
 		<div class="prestige-reset-row">
