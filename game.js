@@ -401,7 +401,7 @@ const BUILDING_CONFIG = {
 				outputKey: "iron_bars",
 				outputAmt: 2,
 				inputs: { iron_ore: 2 },
-				baseCycleMs: 12000,
+				baseCycleMs: 9000,
 				unlockCost: 500,
 				baseSlotCost: 600,
 				prereqProduct: "iron_ore",
@@ -419,7 +419,7 @@ const BUILDING_CONFIG = {
 				outputKey: "iron_fittings",
 				outputAmt: 1,
 				inputs: { iron_bars: 2 },
-				baseCycleMs: 10000,
+				baseCycleMs: 8000,
 				unlockCost: 4000,
 				baseSlotCost: 2500,
 				prereqProduct: "nails",
@@ -456,7 +456,7 @@ const BUILDING_CONFIG = {
 				outputKey: "mechanisms",
 				outputAmt: 1,
 				inputs: { gears: 1, springs: 1 },
-				baseCycleMs: 28000,
+				baseCycleMs: 22000,
 				unlockCost: 15000,
 				baseSlotCost: 8000,
 				prereqProduct: "springs",
@@ -475,7 +475,7 @@ const BUILDING_CONFIG = {
 	armoury: {
 		label: "Armoury",
 		desc: "Forges weapons of war from iron, timber, and precision components.",
-		buildCost: 150000,
+		buildCost: 100000,
 		slotCostExponent: 1.30,
 		prereq: () => state.buildings.foundry?.unlocked && state.buildings.foundry.products.mechanisms.unlocked,
 		products: {
@@ -521,7 +521,7 @@ const BUILDING_CONFIG = {
 	shipyard: {
 		label: "Shipyard",
 		desc: "Builds mighty vessels from timber, iron, and the finest components.",
-		buildCost: 300000,
+		buildCost: 200000,
 		slotCostExponent: 1.25,
 		prereq: () => state.buildings.armoury?.unlocked && state.buildings.armoury.products.cannons.unlocked,
 		products: {
@@ -570,7 +570,7 @@ const STORAGE_BASE = 50;
 const STORAGE_FIRST_UPGRADE = 100;
 const STORAGE_INCREMENT = 100;
 const STORAGE_BASE_COST = 150;
-const STORAGE_COST_GROWTH = 1.75;
+const STORAGE_COST_GROWTH = 1.5;
 
 const DEFAULT_STATE = (() => ({
 	gold: 0,

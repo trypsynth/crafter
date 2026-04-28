@@ -289,9 +289,50 @@ function questProgress(st, metrics, quest) {
 	}
 }
 
-function aiDecide(st, metrics, profile) {
+function getCandidates(st, rates, profile) {
+	const candidates = [];
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		if (!st.buildings[bk].unlocked) continue;
+		for (const pk of Object.keys(BUILDING_CONFIG[bk].products)) {
+			if (!st.buildings[bk].products[pk].unlocked) continue;
+			const cost = nextSlotCost(st, bk, pk);
+			const gps  = slotGps(bk, pk);
+			if (gps <= 0) continue;
+			const roi = (gps / cost) * inputAvailabilityMultiplier(rates, bk, pk);
+			candidates.push({ type: "slot", bk, pk, cost, roi });
+		}
+	}
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		if (!st.buildings[bk].unlocked) continue;
+		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+			const pst = st.buildings[bk].products[pk];
+			if (pst.unlocked) continue;
+			if (pcfg.prereqProduct && !st.buildings[bk].products[pcfg.prereqProduct].unlocked) continue;
+			if (pcfg.unlockCost === 0) continue;
+			const gps = slotGps(bk, pk);
+			if (gps <= 0) continue;
+			const combinedCost = pcfg.unlockCost + pcfg.baseSlotCost;
+			const roi = (gps / combinedCost) * 3 * inputAvailabilityMultiplier(rates, bk, pk);
+			candidates.push({ type: "unlock-product", bk, pk, cost: pcfg.unlockCost, roi });
+		}
+	}
+	for (const bk of Object.keys(BUILDING_CONFIG)) {
+		if (st.buildings[bk].unlocked) continue;
+		if (!buildingPrereq(st, bk)) continue;
+		const cfg    = BUILDING_CONFIG[bk];
+		const maxGps = Object.keys(cfg.products).reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
+		const roi    = (maxGps / Math.max(cfg.buildCost, 1)) * 12;
+		candidates.push({ type: "build", bk, cost: cfg.buildCost, roi });
+	}
+	candidates.sort((a, b) => b.roi - a.roi);
+	return candidates;
+}
+
+function aiDecide(st, metrics, profile, candidates, bestAffordable, saving) {
 	let anyAction    = true;
 	let madePurchase = false;
+	
+	// We run multiple actions per tick if gold allows
 	while (anyAction) {
 		anyAction = false;
 		if (totalItems(st) / storageMax(st) >= profile.sellThreshold) {
@@ -303,49 +344,7 @@ function aiDecide(st, metrics, profile) {
 				continue;
 			}
 		}
-		const candidates = [];
-		const rates = snapshotChainRates(st);
-		for (const bk of Object.keys(BUILDING_CONFIG)) {
-			if (!st.buildings[bk].unlocked) continue;
-			for (const pk of Object.keys(BUILDING_CONFIG[bk].products)) {
-				if (!st.buildings[bk].products[pk].unlocked) continue;
-				const cost = nextSlotCost(st, bk, pk);
-				const gps  = slotGps(bk, pk);
-				if (gps <= 0) continue;
-				const roi = (gps / cost) * inputAvailabilityMultiplier(rates, bk, pk);
-				candidates.push({ type: "slot", bk, pk, cost, roi });
-			}
-		}
-		for (const bk of Object.keys(BUILDING_CONFIG)) {
-			if (!st.buildings[bk].unlocked) continue;
-			for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
-				const pst = st.buildings[bk].products[pk];
-				if (pst.unlocked) continue;
-				if (pcfg.prereqProduct && !st.buildings[bk].products[pcfg.prereqProduct].unlocked) continue;
-				if (pcfg.unlockCost === 0) continue;
-				const gps = slotGps(bk, pk);
-				if (gps <= 0) continue;
-				const combinedCost = pcfg.unlockCost + pcfg.baseSlotCost;
-				const roi = (gps / combinedCost) * 3 * inputAvailabilityMultiplier(rates, bk, pk);
-				candidates.push({ type: "unlock-product", bk, pk, cost: pcfg.unlockCost, roi });
-			}
-		}
-		for (const bk of Object.keys(BUILDING_CONFIG)) {
-			if (st.buildings[bk].unlocked) continue;
-			if (!buildingPrereq(st, bk)) continue;
-			const cfg    = BUILDING_CONFIG[bk];
-			const maxGps = Object.keys(cfg.products).reduce((m, pk) => Math.max(m, slotGps(bk, pk)), 0);
-			const roi    = (maxGps / Math.max(cfg.buildCost, 1)) * 12;
-			candidates.push({ type: "build", bk, cost: cfg.buildCost, roi });
-		}
-		candidates.sort((a, b) => b.roi - a.roi);
-		const bestOverall    = candidates[0];
-		const bestAffordable = candidates.find(c => st.gold >= c.cost);
-		const saving = bestOverall && bestAffordable
-			&& bestOverall !== bestAffordable
-			&& (bestOverall.type === "build" || bestOverall.type === "unlock-product")
-			&& profile.saveMultiplier > 1
-			&& bestOverall.roi > bestAffordable.roi * profile.saveMultiplier;
+
 		const best = saving ? null : bestAffordable;
 		const storageFill     = storageMax(st) > 0 ? totalItems(st) / storageMax(st) : 1;
 		const storageCost     = storageUpgradeCost(st);
@@ -379,7 +378,15 @@ function aiDecide(st, metrics, profile) {
 					checkMilestone(metrics, `${BUILDING_CONFIG[best.bk].label} built`, true);
 				}
 			}
-			if (ok) { anyAction = true; madePurchase = true; }
+			if (ok) { 
+				anyAction = true; 
+				madePurchase = true; 
+				// Re-evaluate candidates for next iteration in the same tick if gold allows
+				const rates = snapshotChainRates(st);
+				candidates = getCandidates(st, rates, profile);
+				bestAffordable = candidates.find(c => st.gold >= c.cost);
+				// (saving flag stays as it was for this tick to prevent thrashing)
+			}
 		}
 		if (!anyAction || madePurchase) {
 			if ((storageCritical || storageWanted) && st.gold >= storageCost) {
@@ -455,6 +462,7 @@ function runSim(profile) {
 		storageUpgrades:  0,
 		peakGoldRate:     0,
 		questCompletions: {},
+		waitingFor:       {}, // Track time spent saving for specific targets
 		_lastGoldLogTime:   0,
 		_lastGoldLogAmount: 0,
 	};
@@ -465,7 +473,28 @@ function runSim(profile) {
 		const t = i * TICK_SEC;
 		metrics.currentTimeSec = t;
 		advance(st, TICK_SEC, stallSecs);
-		const madePurchase = aiDecide(st, metrics, profile);
+		
+		// AI Decision
+		const rates = snapshotChainRates(st);
+		const candidates = getCandidates(st, rates, profile);
+		const bestOverall = candidates[0];
+		const bestAffordable = candidates.find(c => st.gold >= c.cost);
+		
+		const saving = bestOverall && bestAffordable
+			&& bestOverall !== bestAffordable
+			&& (bestOverall.type === "build" || bestOverall.type === "unlock-product")
+			&& profile.saveMultiplier > 1
+			&& bestOverall.roi > bestAffordable.roi * profile.saveMultiplier;
+
+		if (saving) {
+			const targetKey = bestOverall.type === "build" 
+				? `Build ${BUILDING_CONFIG[bestOverall.bk].label}`
+				: `Unlock ${RESOURCES[BUILDING_CONFIG[bestOverall.bk].products[bestOverall.pk].outputKey].label}`;
+			metrics.waitingFor[targetKey] = (metrics.waitingFor[targetKey] ?? 0) + TICK_SEC;
+		}
+
+		const madePurchase = aiDecide(st, metrics, profile, candidates, bestAffordable, saving);
+		
 		checkGoldMilestones(metrics);
 		for (const quest of ALL_QUESTS) {
 			if (metrics.questCompletions[quest.id] !== undefined) continue;
@@ -805,6 +834,17 @@ function printReport(result) {
 	console.log(`\nQUESTS COMPLETED  (${questsDone.length}/${ALL_QUESTS.length})`);
 	for (const q of questsDone.sort((a, b) => metrics.questCompletions[a.id] - metrics.questCompletions[b.id]))
 		console.log(`  ${fmtTime(metrics.questCompletions[q.id])}  ${pad(q.label, 30)} ${rewardLabel(q.reward)}`);
+	
+	const waitList = Object.entries(metrics.waitingFor)
+		.map(([key, secs]) => ({ key, pct: secs / SIM_SECS * 100 }))
+		.filter(w => w.pct > 0.5)
+		.sort((a, b) => b.pct - a.pct);
+	if (waitList.length > 0) {
+		console.log("\nWAITING ANALYSIS (saving for better ROI)");
+		for (const w of waitList)
+			console.log(`  ${pad(w.key, 28)} ${w.pct.toFixed(1)}%`);
+	}
+	
 	const notes = [];
 	for (const b of bottlenecks)
 		if (b.pct > 5) notes.push(`! ${b.key} stalls ${b.pct.toFixed(1)}% — check input supply`);
