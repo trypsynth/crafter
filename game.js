@@ -1231,7 +1231,7 @@ function renderChainOverview() {
 	}
 	if (surpluses.length > 0) {
 		const list = surpluses.map(b => `${RESOURCES[b.resourceKey].label} (+${b.net.toFixed(1)} per minute)`).join(", ");
-		sentences.push(`<p class="chain-item-pos">You have a extra supply of ${list}.</p>`);
+		sentences.push(`<p class="chain-item-pos">You have an extra supply of ${list}.</p>`);
 	}
 	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
 	return `
@@ -1342,8 +1342,8 @@ function renderBuildingSection() {
 		: "";
 
 	const chainHtml = renderChainOverview();
-	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
-	panel.innerHTML = `${nextHtml}${toggleHtml}${productsSection}${unlockHtml}${chainHtml}`;
+	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${toggleHtml}${unlockedHtml}</section>` : "";
+	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
 }
 
 
