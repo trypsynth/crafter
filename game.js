@@ -1122,7 +1122,6 @@ function addBuildingOption(bldKey) {
 function renderAll() {
 	renderHUD();
 	renderBuildingSection();
-	renderBuildSection();
 	renderMarketSection();
 	renderQuestsSection();
 }
@@ -1207,9 +1206,6 @@ function getProductionOverview() {
 	const deficits = balances
 		.filter(entry => entry.demand > 0 && entry.net < -0.05)
 		.sort((a, b) => a.net - b.net);
-	const surpluses = balances
-		.filter(entry => entry.net > 0.05)
-		.sort((a, b) => b.net - a.net);
 	const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
 	const fulfillment = totalDemand <= 0
 		? 0
@@ -1220,7 +1216,42 @@ function getProductionOverview() {
 				return sum + (entry.demand * coverage);
 			}, 0);
 	const efficiencyPct = totalDemand <= 0 ? null : Math.round((fulfillment / totalDemand) * 100);
-	return { productRows, hasChain, deficits, surpluses, efficiencyPct };
+	return { productRows, hasChain, deficits, balances, efficiencyPct };
+}
+
+function renderChainOverview() {
+	const { hasChain, balances } = getProductionOverview();
+	if (!hasChain) return "";
+
+	const rows = balances
+		.sort((a, b) => a.net - b.net)
+		.map(b => {
+			const netClass = b.net < -0.05 ? "net-neg" : (b.net > 0.05 ? "net-pos" : "");
+			const netSign = b.net > 0 ? "+" : "";
+			return `<tr>
+				<td>${RESOURCES[b.resourceKey].label}</td>
+				<td>${b.supply.toFixed(1)}</td>
+				<td>${b.demand.toFixed(1)}</td>
+				<td class="${netClass}">${netSign}${b.net.toFixed(1)}</td>
+			</tr>`;
+		}).join("");
+
+	return `
+		<div class="chain-overview">
+			<h3>Production Chain (Units/Min)</h3>
+			<table class="chain-table">
+				<thead>
+					<tr>
+						<th>Resource</th>
+						<th>Supply</th>
+						<th>Demand</th>
+						<th>Net</th>
+					</tr>
+				</thead>
+				<tbody>${rows}</tbody>
+			</table>
+		</div>
+	`;
 }
 
 
@@ -1228,8 +1259,23 @@ function renderBuildingSection() {
 	const panel = document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
+	
+	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k =>
+		!state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq()
+	);
+	let nextHtml = "";
+	if (nextBldKey) {
+		const ncfg = BUILDING_CONFIG[nextBldKey];
+		const ncost = Math.round(ncfg.buildCost * prestigeBuildCostMult());
+		nextHtml = `<div class="unlock-section" style="margin-top:0; margin-bottom:var(--space-md)">
+			<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
+				Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost + " gold"})
+			</button>
+		</div>`;
+	}
+
 	if (!bldKey || !state.buildings[bldKey]?.unlocked) {
-		panel.innerHTML = `<p class="market-empty">No building selected.</p>`;
+		panel.innerHTML = `${nextHtml}<p class="market-empty">No building selected.</p>`;
 		return;
 	}
 	const cfg = BUILDING_CONFIG[bldKey];
@@ -1302,31 +1348,9 @@ function renderBuildingSection() {
 	const toggleHtml = unlockedProducts.length > 0
 		? `<div class="rate-mode-row"><button class="rate-mode-btn" data-action="toggle-rate-mode">${modeLabel}</button></div>`
 		: "";
-	panel.innerHTML = `${toggleHtml}${unlockedHtml}${unlockHtml}`;
-}
 
-function renderBuildSection() {
-	const panel = document.getElementById("panel-build");
-	const section = document.getElementById("section-build");
-	if (!panel) return;
-	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k =>
-		!state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq()
-	);
-	if (!nextBldKey) {
-		if (section) section.hidden = true;
-		return;
-	}
-	if (section) section.hidden = false;
-	const cfg = BUILDING_CONFIG[nextBldKey];
-	const buildCost = Math.round(cfg.buildCost * prestigeBuildCostMult());
-	const costLabel = buildCost === 0 ? "Free" : `${buildCost} gold`;
-	panel.innerHTML = `<div class="build-card">
-		<h3>${cfg.label}</h3>
-		<p>${cfg.desc}</p>
-		<button data-action="build" data-bld="${nextBldKey}" ${state.gold >= buildCost ? "" : "disabled"}>
-			Build for ${costLabel}
-		</button>
-	</div>`;
+	const chainHtml = renderChainOverview();
+	panel.innerHTML = `${nextHtml}${toggleHtml}${unlockedHtml}${unlockHtml}${chainHtml}`;
 }
 
 function updateMarketProducts() {
@@ -1490,10 +1514,31 @@ function handleClick(e) {
 }
 
 function drawQuests() {
-	const pool = eligibleQuestPool().sort(() => Math.random() - 0.5);
-	const picked = pool.slice(0, 5);
-	state.quests.active = picked.map(q => q.id);
-	state.quests.completed = picked.map(() => false);
+	const currentActive = state.quests.active || [];
+	const currentCompleted = state.quests.completed || [];
+	
+	const newActive = [];
+	const newCompleted = [];
+
+	for (let i = 0; i < currentActive.length; i++) {
+		if (!currentCompleted[i]) {
+			newActive.push(currentActive[i]);
+			newCompleted.push(false);
+		}
+	}
+
+	const pool = eligibleQuestPool();
+	const existingIds = new Set(newActive);
+	const available = pool.filter(q => !existingIds.has(q.id)).sort(() => Math.random() - 0.5);
+	
+	while (newActive.length < 5 && available.length > 0) {
+		const q = available.shift();
+		newActive.push(q.id);
+		newCompleted.push(false);
+	}
+
+	state.quests.active = newActive;
+	state.quests.completed = newCompleted;
 }
 
 function getQuestProgress(def) {
@@ -1708,7 +1753,6 @@ function hideTutorialPanel() {
 	const tPanel = document.getElementById("panel-tutorial");
 	if (tPanel) tPanel.hidden = true;
 	document.querySelectorAll("#content > details").forEach(d => { d.hidden = false; });
-	renderBuildSection();
 	renderAll();
 }
 
