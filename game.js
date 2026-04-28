@@ -1023,10 +1023,10 @@ function saveNow() {
 }
 
 function clearSaveData() {
-	if (confirm("Clear your save and start over? This also resets your tutorial and prestige bonuses.")) {
+	if (confirm("Clear all save data and start over? This will reset everything, including prestige rewards.")) {
 		localStorage.removeItem(SAVE_KEY);
-		localStorage.removeItem(TUTORIAL_SAVE_KEY);
 		localStorage.removeItem(PRESTIGE_KEY);
+		state = deepClone(DEFAULT_STATE);
 		location.reload();
 	}
 }
