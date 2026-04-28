@@ -248,7 +248,7 @@ const RESOURCES = {
 	crates:        { label: "Crates",        singular: "Crate",        price: 130 },
 	furniture:     { label: "Furniture",     singular: "Furniture",    price: 225 },
 	coaches:       { label: "Coaches",       singular: "Coach",        price: 550 },
-	manors:        { label: "Manors",        singular: "Manor",        price: 920 },
+	manors:        { label: "Manors",        singular: "Manor",        price: 1200 },
 	// Iron chain
 	iron_ore:      { label: "Iron Ore",      singular: "Iron Ore",     price: 6 },
 	iron_bars:     { label: "Iron Bars",     singular: "Iron Bar",     price: 25 },
@@ -263,12 +263,12 @@ const RESOURCES = {
 	blades:        { label: "Blades",        singular: "Blade",        price: 100 },
 	crossbows:     { label: "Crossbows",     singular: "Crossbow",     price: 420 },
 	cannons:       { label: "Cannons",       singular: "Cannon",       price: 1800 },
-	artillery:     { label: "Artillery",     singular: "Artillery",    price: 5000 },
+	artillery:     { label: "Artillery",     singular: "Artillery",    price: 7500 },
 	// Shipyard chain
 	hulls:         { label: "Hulls",         singular: "Hull",         price: 650 },
 	rigging:       { label: "Rigging",       singular: "Rigging",      price: 450 },
 	galleons:      { label: "Galleons",      singular: "Galleon",      price: 7000 },
-	dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 22000 },
+	dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 35000 },
 };
 
 const BUILDING_CONFIG = {
@@ -449,7 +449,7 @@ const BUILDING_CONFIG = {
 				outputKey: "iron_fittings",
 				outputAmt: 1,
 				inputs: { iron_bars: 2 },
-				baseCycleMs: 12000,
+				baseCycleMs: 10000,
 				unlockCost: 4000,
 				baseSlotCost: 2500,
 				prereqProduct: "nails",
@@ -477,7 +477,7 @@ const BUILDING_CONFIG = {
 				outputKey: "springs",
 				outputAmt: 1,
 				inputs: { iron_fittings: 2 },
-				baseCycleMs: 25000,
+				baseCycleMs: 20000,
 				unlockCost: 8000,
 				baseSlotCost: 5000,
 				prereqProduct: "gears",
@@ -494,7 +494,7 @@ const BUILDING_CONFIG = {
 			clockwork: {
 				outputKey: "clockwork",
 				outputAmt: 1,
-				inputs: { mechanisms: 2, iron_fittings: 1 },
+				inputs: { mechanisms: 1, iron_fittings: 1 },
 				baseCycleMs: 90000,
 				unlockCost: 25000,
 				baseSlotCost: 12000,
