@@ -1243,11 +1243,11 @@ function renderChainOverview() {
 	let sentences = [];
 	if (shortages.length > 0) {
 		const list = shortages.map(b => `${RESOURCES[b.resourceKey].label} (need ${Math.abs(b.net).toFixed(1)} per minute more)`).join(", ");
-		sentences.push(`<p class="chain-item-neg">You are currently running low on ${list}.</p>`);
+		sentences.push(`<p class="chain-item-neg">Bottleneck: ${list}.</p>`);
 	}
 	if (surpluses.length > 0) {
 		const list = surpluses.map(b => `${RESOURCES[b.resourceKey].label} (+${b.net.toFixed(1)} per minute)`).join(", ");
-		sentences.push(`<p class="chain-item-pos">You have an extra supply of ${list}.</p>`);
+		sentences.push(`<p class="chain-item-pos">Surplus: ${list}.</p>`);
 	}
 	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
 	return `
