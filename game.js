@@ -1305,9 +1305,9 @@ function renderBuildingSection() {
 		const slotWord = n === 1 ? "slot" : "slots";
 		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
 		const summaryText = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
-		const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
+		const inputDesc = Object.keys(pcfg.inputs).length === 0
 			? ""
-			: `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * n])))} per cycle</p>`;
+			: `<p class="product-inputs">Requires ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])))} per cycle</p>`;
 		const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 		const statusClass = pst.enabled ? "health-ok" : "health-warn";
 		return `<div class="product-section">
