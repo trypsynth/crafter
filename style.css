@@ -835,29 +835,19 @@ h4.market-product-name {
 	margin-bottom: var(--space-md);
 }
 
-.chain-table {
-	width: 100%;
-	border-collapse: collapse;
+.chain-prose {
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-sm);
+}
+
+.chain-prose p {
 	font-size: var(--font-sm);
+	line-height: 1.4;
 }
 
-.chain-table th, .chain-table td {
-	text-align: left;
-	padding: var(--space-sm);
-	border-bottom: 1px solid var(--color-border);
-}
-
-.chain-table th {
-	color: var(--color-text-muted);
-	font-weight: 600;
-}
-
-.chain-table tr:last-child td {
-	border-bottom: none;
-}
-
-.chain-table .net-pos { color: var(--color-progress); }
-.chain-table .net-neg { color: var(--color-accent); font-weight: 600; }
+.chain-item-pos { color: var(--color-progress); }
+.chain-item-neg { color: var(--color-accent); }
 
 @media (max-width: 700px) {
 	#top-bar { flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }

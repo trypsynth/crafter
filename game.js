@@ -1222,38 +1222,27 @@ function getProductionOverview() {
 function renderChainOverview() {
 	const { hasChain, balances } = getProductionOverview();
 	if (!hasChain) return "";
-
-	const rows = balances
-		.sort((a, b) => a.net - b.net)
-		.map(b => {
-			const netClass = b.net < -0.05 ? "net-neg" : (b.net > 0.05 ? "net-pos" : "");
-			const netSign = b.net > 0 ? "+" : "";
-			return `<tr>
-				<td>${RESOURCES[b.resourceKey].label}</td>
-				<td>${b.supply.toFixed(1)}</td>
-				<td>${b.demand.toFixed(1)}</td>
-				<td class="${netClass}">${netSign}${b.net.toFixed(1)}</td>
-			</tr>`;
-		}).join("");
-
+	const shortages = balances.filter(b => b.net < -0.05).sort((a, b) => a.net - b.net);
+	const surpluses = balances.filter(b => b.net > 0.05).sort((a, b) => b.net - a.net);
+	let sentences = [];
+	if (shortages.length > 0) {
+		const list = shortages.map(b => `${RESOURCES[b.resourceKey].label} (need ${Math.abs(b.net).toFixed(1)} per minute more)`).join(", ");
+		sentences.push(`<p class="chain-item-neg">You are currently running low on ${list}.</p>`);
+	}
+	if (surpluses.length > 0) {
+		const list = surpluses.map(b => `${RESOURCES[b.resourceKey].label} (+${b.net.toFixed(1)} per minute)`).join(", ");
+		sentences.push(`<p class="chain-item-pos">You have a extra supply of ${list}.</p>`);
+	}
+	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
 	return `
 		<div class="chain-overview">
-			<h3>Production Chain (Units/Min)</h3>
-			<table class="chain-table">
-				<thead>
-					<tr>
-						<th>Resource</th>
-						<th>Supply</th>
-						<th>Demand</th>
-						<th>Net</th>
-					</tr>
-				</thead>
-				<tbody>${rows}</tbody>
-			</table>
+			<h3>Production Summary</h3>
+			<div class="chain-prose">
+				${sentences.join("")}
+			</div>
 		</div>
 	`;
 }
-
 
 function renderBuildingSection() {
 	const panel = document.getElementById("panel-production");
