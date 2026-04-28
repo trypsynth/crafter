@@ -580,15 +580,12 @@ function chainRates(st) {
 function printComparison(results) {
 	const COL = 12;
 	const LBL = 26;
-	const sep = "─".repeat(LBL + COL * results.length);
 
 	console.log(`\nCRAFTER SIM — ${SIM_HOURS}h`);
-	console.log(sep);
 
 	process.stdout.write(pad("", LBL));
 	for (const r of results) process.stdout.write(pad(r.profile.name, COL));
 	console.log();
-	console.log(sep);
 
 	function row(label, fn) {
 		process.stdout.write(pad(label, LBL));
@@ -701,14 +698,12 @@ function printComparison(results) {
 		if (worstStall && worstStall.pct > 10) notes.push(`stall: ${worstStall.k} ${worstStall.pct.toFixed(0)}%`);
 		console.log(`  ${pad(r.profile.name + ":", 11)}${notes.length === 0 ? "ok" : notes.join(", ")}`);
 	}
-	console.log(sep);
 }
 
 function printQuestReport(results) {
 	const QCOL = 11;
 	const QLBL = 32;
 	const RCOL = 22;
-	const sep  = "─".repeat(QLBL + QCOL * results.length + RCOL);
 
 	const completable = ALL_QUESTS
 		.map(q => ({
@@ -723,12 +718,10 @@ function printQuestReport(results) {
 	);
 
 	console.log(`\nQUEST SPEEDRUN — completable in ${SIM_HOURS}h`);
-	console.log(sep);
 	process.stdout.write(pad("Quest", QLBL));
 	for (const r of results) process.stdout.write(pad(r.profile.name, QCOL));
 	process.stdout.write(pad("Reward", RCOL));
 	console.log();
-	console.log(sep);
 
 	let lastPrereq = null;
 	for (const { quest, times } of completable) {
@@ -777,12 +770,10 @@ function printQuestReport(results) {
 	];
 
 	console.log(`\nREWARD VALUE — gold-equivalent per unit (${ref.profile.name} ${SIM_HOURS}h baseline)`);
-	console.log(sep);
 	for (const rv of rewardValues) {
 		const val = Math.round(rv.value);
-		const bar = "█".repeat(Math.min(30, Math.max(1, Math.round(Math.log10(val + 1) * 8))));
 		const note = rv.note ? `  (${rv.note})` : "";
-		console.log(`  ${pad(`${rv.type}:${rv.unit}`, 24)} ≈ ${pad(formatGold(val) + "g", 9)} ${bar}${note}`);
+		console.log(`  ${pad(`${rv.type}:${rv.unit}`, 24)} ≈ ${formatGold(val)}g${note}`);
 	}
 
 	// Flag starting_gold quest rewards that are weak relative to sell_price_pct equivalents.
@@ -798,17 +789,13 @@ function printQuestReport(results) {
 			console.log(`  ${pad(quest.label, QLBL)} +${pad(g.toLocaleString() + "g", 9)} ≈ ${pad(pct.toFixed(2) + "% sell pct", 18)}${tag}  (done by ${minTime})`);
 		}
 	}
-	console.log(sep);
 }
 
 function printReport(result) {
 	const { profile, st, metrics, stallSecs } = result;
-	const sep = "-".repeat(56);
 
-	console.log(`\n${"=".repeat(56)}`);
-	console.log(`PROFILE: ${profile.name.toUpperCase()} — ${profile.desc}`);
+	console.log(`\nPROFILE: ${profile.name.toUpperCase()} — ${profile.desc}`);
 	console.log(`  sell@${(profile.sellThreshold*100).toFixed(0)}%  save×${profile.saveMultiplier}  storage-critical@${(profile.storageCritical*100).toFixed(0)}%`);
-	console.log(sep);
 
 	console.log("\nMILESTONES");
 	for (const m of metrics.milestones)

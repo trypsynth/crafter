@@ -56,7 +56,7 @@ const QUEST_CHAINS = [
 		{ target: 20, label: "Sell 20 Logs", reward: { type: "slot_cost_pct", amount: 2 } },
 		{ target: 50, label: "Sell 50 Logs", reward: { type: "sell_price_pct", amount: 1 } },
 		{ target: 150, label: "Sell 150 Logs", reward: { type: "slot_cost_pct", amount: 3 } },
-		{ target: 400, label: "Sell 400 Logs", reward: { type: "starting_gold", amount: 2000 } },
+		{ target: 400, label: "Sell 400 Logs", reward: { type: "slot_cost_pct", amount: 2 } },
 	]},
 	{ id: "sell_timber", type: "sell", resource: "timber", tiers: [
 		{ target: 10, label: "Sell 10 Timber", reward: { type: "sell_price_pct", amount: 2 } },
@@ -87,17 +87,17 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_beams", type: "sell", resource: "beams", prereq: "sawmill", tiers: [
 		{ target: 5, label: "Sell 5 Beams", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 15, label: "Sell 15 Beams", reward: { type: "starting_gold", amount: 1500 } },
+		{ target: 15, label: "Sell 15 Beams", reward: { type: "unlock_cost_pct", amount: 3 } },
 		{ target: 40, label: "Sell 40 Beams", reward: { type: "slot_cost_pct", amount: 5 } },
 	]},
 	{ id: "sell_crates", type: "sell", resource: "crates", prereq: "workshop", tiers: [
 		{ target: 5, label: "Sell 5 Crates", reward: { type: "storage_tier", amount: 1 } },
-		{ target: 20, label: "Sell 20 Crates", reward: { type: "starting_gold", amount: 3000 } },
+		{ target: 20, label: "Sell 20 Crates", reward: { type: "slot_cost_pct", amount: 2 } },
 		{ target: 50, label: "Sell 50 Crates", reward: { type: "slot_cost_pct", amount: 5 } },
 	]},
 	{ id: "sell_furniture", type: "sell", resource: "furniture", prereq: "workshop", tiers: [
 		{ target: 3, label: "Sell 3 Furniture", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Furniture", reward: { type: "starting_gold", amount: 5000 } },
+		{ target: 10, label: "Sell 10 Furniture", reward: { type: "sell_price_pct", amount: 1 } },
 		{ target: 25, label: "Sell 25 Furniture", reward: { type: "sell_price_pct", amount: 5 } },
 	]},
 	{ id: "sell_coaches", type: "sell", resource: "coaches", prereq: "workshop", tiers: [
@@ -106,7 +106,7 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_manors", type: "sell", resource: "manors", prereq: "workshop", tiers: [
 		{ target: 1, label: "Sell 1 Manor", reward: { type: "cycle_speed_pct", amount: 3 } },
-		{ target: 4, label: "Sell 4 Manors", reward: { type: "starting_gold", amount: 6000 } },
+		{ target: 4, label: "Sell 4 Manors", reward: { type: "sell_price_pct", amount: 2 } },
 	]},
 	{ id: "sell_iron_ore", type: "sell", resource: "iron_ore", prereq: "forge", tiers: [
 		{ target: 25, label: "Sell 25 Iron Ore", reward: { type: "slot_cost_pct", amount: 2 } },
@@ -120,7 +120,7 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_nails", type: "sell", resource: "nails", prereq: "forge", tiers: [
 		{ target: 10, label: "Sell 10 Nails", reward: { type: "slot_cost_pct", amount: 2 } },
-		{ target: 30, label: "Sell 30 Nails", reward: { type: "starting_gold", amount: 2500 } },
+		{ target: 30, label: "Sell 30 Nails", reward: { type: "slot_cost_pct", amount: 2 } },
 	]},
 	{ id: "sell_fittings", type: "sell", resource: "iron_fittings", prereq: "forge", tiers: [
 		{ target: 5, label: "Sell 5 Iron Fittings", reward: { type: "unlock_cost_pct", amount: 3 } },
@@ -128,7 +128,7 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_gears", type: "sell", resource: "gears", prereq: "foundry", tiers: [
 		{ target: 3, label: "Sell 3 Gears", reward: { type: "build_cost_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Gears", reward: { type: "starting_gold", amount: 5000 } },
+		{ target: 10, label: "Sell 10 Gears", reward: { type: "sell_price_pct", amount: 1 } },
 	]},
 	{ id: "sell_springs", type: "sell", resource: "springs", prereq: "foundry", tiers: [
 		{ target: 3, label: "Sell 3 Springs", reward: { type: "sell_price_pct", amount: 3 } },
@@ -144,7 +144,7 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_blades", type: "sell", resource: "blades", prereq: "armoury", tiers: [
 		{ target: 3, label: "Sell 3 Blades", reward: { type: "sell_price_pct", amount: 3 } },
-		{ target: 10, label: "Sell 10 Blades", reward: { type: "starting_gold", amount: 7000 } },
+		{ target: 10, label: "Sell 10 Blades", reward: { type: "sell_price_pct", amount: 2 } },
 	]},
 	{ id: "sell_crossbows", type: "sell", resource: "crossbows", prereq: "armoury", tiers: [
 		{ target: 2, label: "Sell 2 Crossbows", reward: { type: "cycle_speed_pct", amount: 3 } },
@@ -155,7 +155,7 @@ const QUEST_CHAINS = [
 		{ target: 3, label: "Sell 3 Cannons", reward: { type: "build_cost_pct", amount: 8 } },
 	]},
 	{ id: "sell_artillery", type: "sell", resource: "artillery", prereq: "armoury", tiers: [
-		{ target: 1, label: "Sell 1 Artillery", reward: { type: "starting_gold", amount: 10000 } },
+		{ target: 1, label: "Sell 1 Artillery", reward: { type: "cycle_speed_pct", amount: 2 } },
 		{ target: 2, label: "Sell 2 Artillery", reward: { type: "cycle_speed_pct", amount: 5 } },
 	]},
 	{ id: "sell_hulls", type: "sell", resource: "hulls", prereq: "shipyard", tiers: [
@@ -164,10 +164,10 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "sell_rigging", type: "sell", resource: "rigging", prereq: "shipyard", tiers: [
 		{ target: 2, label: "Sell 2 Rigging", reward: { type: "cycle_speed_pct", amount: 3 } },
-		{ target: 5, label: "Sell 5 Rigging", reward: { type: "starting_gold", amount: 8000 } },
+		{ target: 5, label: "Sell 5 Rigging", reward: { type: "sell_price_pct", amount: 2 } },
 	]},
 	{ id: "sell_galleons", type: "sell", resource: "galleons", prereq: "shipyard", tiers: [
-		{ target: 1, label: "Sell 1 Galleon", reward: { type: "starting_gold", amount: 15000 } },
+		{ target: 1, label: "Sell 1 Galleon", reward: { type: "cycle_speed_pct", amount: 2 } },
 		{ target: 2, label: "Sell 2 Galleons", reward: { type: "sell_price_pct", amount: 8 } },
 	]},
 	{ id: "sell_dreadnoughts", type: "sell", resource: "dreadnoughts", prereq: "shipyard", tiers: [
@@ -283,7 +283,7 @@ const BUILDING_CONFIG = {
 				outputKey: "logs",
 				outputAmt: 2,
 				inputs: {},
-				baseCycleMs: 3000,
+				baseCycleMs: 2500,
 				unlockCost: 0,
 				baseSlotCost: 75,
 				prereqProduct: null,
@@ -356,7 +356,7 @@ const BUILDING_CONFIG = {
 			beams: {
 				outputKey: "beams",
 				outputAmt: 1,
-				inputs: { logs: 3 },
+				inputs: { logs: 2 },
 				baseCycleMs: 12000,
 				unlockCost: 1200,
 				baseSlotCost: 700,
