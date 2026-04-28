@@ -5,7 +5,13 @@ const SAVE_KEY = "crafter";
 let _questsRenderKey = "";
 
 const PRESTIGE_KEY = "crafter_prestige";
-let prestige = { runs: 0, rewards: [], completedQuestIds: [], seenBuildings: [] };
+let prestige = { 
+	runs: 0, 
+	rewards: [], 
+	completedQuestIds: [], 
+	seenBuildings: [],
+	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0 }
+};
 
 // Generates the reward label string from a reward object.
 function rewardLabel(r) {
@@ -718,6 +724,11 @@ function loadPrestige() {
 			if (Array.isArray(p.rewards)) prestige.rewards = p.rewards;
 			if (Array.isArray(p.completedQuestIds)) prestige.completedQuestIds = p.completedQuestIds;
 			if (Array.isArray(p.seenBuildings)) prestige.seenBuildings = p.seenBuildings;
+			if (p.accumulatedStats) {
+				if (typeof p.accumulatedStats.goldEarned === "number") prestige.accumulatedStats.goldEarned = p.accumulatedStats.goldEarned;
+				if (typeof p.accumulatedStats.storageUpgrades === "number") prestige.accumulatedStats.storageUpgrades = p.accumulatedStats.storageUpgrades;
+				if (p.accumulatedStats.soldByResource) prestige.accumulatedStats.soldByResource = p.accumulatedStats.soldByResource;
+			}
 		}
 	} catch (e) {}
 }
@@ -1541,8 +1552,11 @@ function drawQuests() {
 
 function getQuestProgress(def) {
 	switch (def.type) {
-		case "sell":
-			return { current: state.stats.soldByResource[def.resource] ?? 0, target: def.target };
+		case "sell": {
+			const current = state.stats.soldByResource[def.resource] ?? 0;
+			const total = (prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
+			return { current: total, target: def.target };
+		}
 		case "slots": {
 			const slots = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
 			return { current: slots, target: def.target };
@@ -1557,10 +1571,14 @@ function getQuestProgress(def) {
 			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: def.target };
 		case "unlock":
 			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: def.target };
-		case "storage":
-			return { current: state.storage.tier, target: def.target };
-		case "gold_earned":
-			return { current: state.stats.goldEarned, target: def.target };
+		case "storage": {
+			const total = prestige.accumulatedStats.storageUpgrades + state.storage.tier;
+			return { current: total, target: def.target };
+		}
+		case "gold_earned": {
+			const total = prestige.accumulatedStats.goldEarned + state.stats.goldEarned;
+			return { current: total, target: def.target };
+		}
 		default:
 			return { current: 0, target: def.target };
 	}
@@ -1599,6 +1617,13 @@ function doPrestigeReset() {
 		}
 	}
 	prestige.runs++;
+	// Accumulate stats
+	prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
+	prestige.accumulatedStats.storageUpgrades += state.storage.tier;
+	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
+		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
+	}
+
 	savePrestige();
 	state = deepClone(DEFAULT_STATE);
 	state.gold = getPrestigeBonus("starting_gold");
