@@ -682,12 +682,16 @@ function formatRate(slots, outputAmt, baseCycleMs, label = "") {
 	return label ? `${num} ${label} per minute` : `${num} per minute`;
 }
 
-function formatProductOutput(slots, outputAmt, baseCycleMs) {
+function formatProductOutput(slots, outputAmt, baseCycleMs, label = "") {
 	const total = slots * outputAmt;
+	const cycleSpeedMult = prestigeSpeedMult();
+	const actualCycleMs = baseCycleMs / cycleSpeedMult;
 	if (runtime.rateDisplayMode === "cycle") {
-		return `${total} every ${formatDuration(Math.round(baseCycleMs / 1000))}`;
+		const duration = formatDuration(Math.round(actualCycleMs / 1000));
+		const name = label ? (total === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "";
+		return `${total}${name ? " " + name : ""} every ${duration}`;
 	}
-	return formatRate(slots, outputAmt, baseCycleMs);
+	return formatRate(slots, outputAmt, actualCycleMs, label ? (slots * outputAmt === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "");
 }
 
 function formatDuration(seconds) {
@@ -1239,12 +1243,8 @@ function renderBuildingSection() {
 		const slotCost = nextSlotCost(bldKey, productKey);
 		const n = pst.slots.length;
 		const slotWord = n === 1 ? "slot" : "slots";
-		const cycleSecs = Math.round(pcfg.baseCycleMs / 1000);
-		const cycleItem = pcfg.outputAmt === 1 ? res.singular : res.label;
-		const cycleFmt = `${pcfg.outputAmt} ${cycleItem} every ${formatDuration(cycleSecs)}`;
-		const totalAmt = n * pcfg.outputAmt;
-		const totalItem = totalAmt === 1 ? res.singular : res.label;
-		const summary = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${totalAmt} ${totalItem} every ${formatDuration(cycleSecs)}`;
+		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey);
+		const summaryText = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
 		const inputDesc = Object.keys(pcfg.inputs).length === 0 || n === 0
 			? ""
 			: `<p class="product-inputs">Requires: ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * n])))} per cycle</p>`;
@@ -1268,7 +1268,7 @@ function renderBuildingSection() {
 					${pst.enabled ? "Pause" : "Resume"}
 				</button>
 			</div>
-			<p class="slot-summary">${summary}</p>
+			<p class="slot-summary">${summaryText}</p>
 			<button class="add-slot-btn" data-action="add-slot"
 			 data-bld="${bldKey}" data-product="${productKey}"
 			 ${state.gold >= slotCost ? "" : "disabled"}>
