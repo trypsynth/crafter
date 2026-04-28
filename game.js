@@ -583,7 +583,7 @@ const DEFAULT_STATE = (() => ({
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
 			return [bldKey, {
-				unlocked: false,
+				unlocked: bldKey === "lumber_yard",
 				products: Object.fromEntries(
 					Object.keys(bcfg.products).map(pk => {
 						const pcfg = bcfg.products[pk];
@@ -1596,7 +1596,7 @@ function renderQuestsSection() {
 	const panel = document.getElementById("panel-quests");
 	if (!panel) return;
 	const summaryH2 = document.querySelector("#section-quests > summary h2");
-	if (summaryH2) summaryH2.textContent = `Quests — Run ${prestige.runs + 1}`;
+	if (summaryH2) summaryH2.textContent = `Quests : Run ${prestige.runs + 1}`;
 	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + prestige.runs;
 	if (structKey === _questsRenderKey && panel.firstChild) {
 		_updateQuestBars(panel);
@@ -1632,9 +1632,9 @@ function renderQuestsSection() {
 	const inProgressHtml = state.quests.active.map((id, i) => state.quests.completed[i] ? "" : buildCard(id, i)).join("");
 	const completedHtml = state.quests.active.map((id, i) => state.quests.completed[i] ? buildCard(id, i) : "").join("");
 	const bonuses = computePrestigeSummary();
-	const bonusesHtml = bonuses.length === 0 ? `<p class="quest-no-bonuses">No bonuses yet — complete quests and reset to earn permanent upgrades.</p>` : `<ul class="prestige-bonus-list">${bonuses.map(b => `<li>${b}</li>`).join("")}</ul>`;
+	const bonusesHtml = bonuses.length === 0 ? `<p class="quest-no-bonuses">No bonuses yet. Complete quests and reset to earn permanent upgrades.</p>` : `<ul class="prestige-bonus-list">${bonuses.map(b => `<li>${b}</li>`).join("")}</ul>`;
 	const resetLabel = completedCount === state.quests.active.length ? "Reset & Collect All Rewards" : `Reset & Collect Rewards (${completedCount} / ${state.quests.active.length} complete)`;
-	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete — you'll miss those rewards.</p>` : "";
+	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete. You will miss those rewards.</p>` : "";
 	panel.innerHTML = `
 		${inProgressHtml ? `<section class="quest-group"><h3>In Progress</h3><div class="quest-grid">${inProgressHtml}</div></section>` : ""}
 		${completedHtml  ? `<section class="quest-group"><h3>Completed</h3><div class="quest-grid">${completedHtml}</div></section>`   : ""}
