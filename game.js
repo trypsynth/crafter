@@ -1554,15 +1554,15 @@ function getQuestProgress(def) {
 			return { current: n, target: def.target };
 		}
 		case "build":
-			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: 20 };
+			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: def.target };
 		case "unlock":
-			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: 20 };
+			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: def.target };
 		case "storage":
 			return { current: state.storage.tier, target: def.target };
 		case "gold_earned":
 			return { current: state.stats.goldEarned, target: def.target };
 		default:
-			return { current: 0, target: 20 };
+			return { current: 0, target: def.target };
 	}
 }
 
