@@ -1681,8 +1681,8 @@ function renderQuestsSection() {
 	const resetLabel = completedCount === state.quests.active.length ? "Reset & Collect All Rewards" : `Reset & Collect Rewards (${completedCount} / ${state.quests.active.length} complete)`;
 	const warningHtml = canReset && completedCount < state.quests.active.length ? `<p class="reset-warning">${state.quests.active.length - completedCount} quest${state.quests.active.length - completedCount === 1 ? "" : "s"} still incomplete — you'll miss those rewards.</p>` : "";
 	panel.innerHTML = `
-		${inProgressHtml ? `<h2>In Progress</h2><div class="quest-grid">${inProgressHtml}</div>` : ""}
-		${completedHtml  ? `<h2>Completed</h2><div class="quest-grid">${completedHtml}</div>`   : ""}
+		${inProgressHtml ? `<section aria-label="In Progress Quests"><div class="quest-grid">${inProgressHtml}</div></section>` : ""}
+		${completedHtml  ? `<section aria-label="Completed Quests"><div class="quest-grid">${completedHtml}</div></section>`   : ""}
 		<section class="prestige-section">
 			<h2>Permanent Bonuses</h2>
 			${bonusesHtml}
