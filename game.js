@@ -10,7 +10,7 @@ let prestige = {
 	rewards: [], 
 	completedQuestIds: [], 
 	seenBuildings: [],
-	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {} }
+	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {} }
 };
 
 // Generates the reward label string from a reward object.
@@ -728,7 +728,13 @@ function loadPrestige() {
 				if (typeof p.accumulatedStats.goldEarned === "number") prestige.accumulatedStats.goldEarned = p.accumulatedStats.goldEarned;
 				if (typeof p.accumulatedStats.storageUpgrades === "number") prestige.accumulatedStats.storageUpgrades = p.accumulatedStats.storageUpgrades;
 				if (typeof p.accumulatedStats.totalSlots === "number") prestige.accumulatedStats.totalSlots = p.accumulatedStats.totalSlots;
-				if (p.accumulatedStats.maxSlotsByProduct) prestige.accumulatedStats.maxSlotsByProduct = p.accumulatedStats.maxSlotsByProduct;
+				if (p.accumulatedStats.maxSlotsByProduct) {
+					prestige.accumulatedStats.maxSlotsByProduct = p.accumulatedStats.maxSlotsByProduct;
+					if (!p.accumulatedStats.totalSlotsByProduct) {
+						prestige.accumulatedStats.totalSlotsByProduct = { ...p.accumulatedStats.maxSlotsByProduct };
+					}
+				}
+				if (p.accumulatedStats.totalSlotsByProduct) prestige.accumulatedStats.totalSlotsByProduct = p.accumulatedStats.totalSlotsByProduct;
 				if (p.accumulatedStats.soldByResource) prestige.accumulatedStats.soldByResource = p.accumulatedStats.soldByResource;
 			}
 		}
@@ -1542,7 +1548,7 @@ function flushSatisfiedQuests() {
 	if (changed) savePrestige();
 }
 
-const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage"]);
+const BASELINE_QUEST_TYPES = new Set(["sell", "slots", "total_slots", "gold_earned", "storage"]);
 
 function rerollCost() {
 	return Math.round(250 * Math.pow(2, state.quests.rerolls ?? 0));
@@ -1621,8 +1627,9 @@ function getQuestProgress(def, baseline = 0) {
 		}
 		case "slots": {
 			const current = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
-			const prevMax = prestige.accumulatedStats.maxSlotsByProduct?.[`${def.bld}.${def.product}`] ?? 0;
-			raw = Math.max(current, prevMax);
+			const key = `${def.bld}.${def.product}`;
+			const totalPrev = (prestige.accumulatedStats.totalSlotsByProduct?.[key] ?? prestige.accumulatedStats.maxSlotsByProduct?.[key] ?? 0);
+			raw = totalPrev + current;
 			break;
 		}
 		case "total_slots": {
@@ -1692,6 +1699,7 @@ function doPrestigeReset() {
 			prestige.accumulatedStats.totalSlots += pst.slots.length;
 			const key = `${bk}.${pk}`;
 			prestige.accumulatedStats.maxSlotsByProduct[key] = Math.max(prestige.accumulatedStats.maxSlotsByProduct[key] ?? 0, pst.slots.length);
+			prestige.accumulatedStats.totalSlotsByProduct[key] = (prestige.accumulatedStats.totalSlotsByProduct[key] ?? 0) + pst.slots.length;
 		}
 	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
 		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
