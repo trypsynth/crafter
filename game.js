@@ -584,7 +584,7 @@ const DEFAULT_STATE = (() => ({
 	inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
 	storage: { tier: 0 },
 	stats: { goldEarned: 0, soldByResource: {} },
-	quests: { active: [], completed: [], baselines: {} },
+	quests: { active: [], completed: [], baselines: {}, rerolls: 0 },
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
@@ -1002,10 +1002,6 @@ function sellSlot(bldKey, productKey) {
 function manualProduce(bldKey, productKey) {
 	const pcfg = BUILDING_CONFIG[bldKey].products[productKey];
 	const pst = state.buildings[bldKey].products[productKey];
-	if (!pst.enabled) {
-		announce(`${RESOURCES[pcfg.outputKey].label} production is paused.`, "assertive");
-		return;
-	}
 	if (pst.manual.active) {
 		pst.manual.progress += 0.25;
 		return;
@@ -1316,8 +1312,8 @@ function renderBuildingSection() {
 			<div class="manual-produce-row">
 				<button class="manual-produce-btn" data-action="manual-produce"
 				 data-bld="${bldKey}" data-product="${productKey}"
-				 ${pst.enabled ? "" : "disabled"}>
-					${pst.enabled ? `Produce ${res.singular}` : `${res.label} Paused`}
+				 ${n > 0 ? "" : "disabled"}>
+					Produce ${res.singular}
 				</button>
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
 				 data-action="toggle-product"
@@ -1503,6 +1499,7 @@ function handleClick(e) {
 		case "sell": sellProduct(btn.dataset.resource); break;
 		case "sell-all": sellAll(); break;
 		case "toggle-product": toggleProductEnabled(bld, product); break;
+		case "reroll-quest": rerollQuest(+btn.dataset.index); break;
 		case "prestige-reset": doPrestigeReset(); break;
 		case "save-now": saveNow(); break;
 		case "copy-save": copySaveToClipboard(); break;
@@ -1546,6 +1543,38 @@ function flushSatisfiedQuests() {
 }
 
 const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage"]);
+
+function rerollCost() {
+	return Math.round(250 * Math.pow(2, state.quests.rerolls ?? 0));
+}
+
+function rerollQuest(index) {
+	const cost = rerollCost();
+	if (state.gold < cost) {
+		announce(`Need ${cost} gold to reroll.`, "assertive");
+		return;
+	}
+	const pool = eligibleQuestPool();
+	const keepIds = new Set(state.quests.active.filter((_, i) => i !== index));
+	const available = pool.filter(q => !keepIds.has(q.id) && q.id !== state.quests.active[index]).sort(() => Math.random() - 0.5);
+	if (available.length === 0) {
+		announce("No other quests available to reroll into.", "assertive");
+		return;
+	}
+	state.gold -= cost;
+	const oldId = state.quests.active[index];
+	const newQuest = available[0];
+	const newBaselines = { ...state.quests.baselines };
+	delete newBaselines[oldId];
+	newBaselines[newQuest.id] = BASELINE_QUEST_TYPES.has(newQuest.type) ? getQuestProgress(newQuest).current : 0;
+	state.quests.active[index] = newQuest.id;
+	state.quests.completed[index] = false;
+	state.quests.baselines = newBaselines;
+	state.quests.rerolls = (state.quests.rerolls ?? 0) + 1;
+	_questsRenderKey = "";
+	renderAll();
+	announce(`Quest rerolled for ${cost} gold.`, "polite");
+}
 
 function drawQuests() {
 	flushSatisfiedQuests();
@@ -1731,10 +1760,15 @@ function renderQuestsSection() {
 				</div>
 				<span class="quest-prog-text" data-quest-text="${id}">${formatNum(current)} / ${formatNum(target)}</span>
 			</div>`;
+		const rerollBtn = done ? "" : (() => {
+			const cost = rerollCost();
+			return `<button class="reroll-quest-btn" data-action="reroll-quest" data-index="${i}" ${state.gold >= cost ? "" : "disabled"}>Reroll (${cost} gold)</button>`;
+		})();
 		return `<div class="quest-card${done ? " quest-done" : ""}">
 			<h4 class="quest-title">${def.label}</h4>
 			<p class="quest-reward-label">Reward: ${def.rewardLabel}</p>
 			${progressRow}
+			${rerollBtn}
 		</div>`;
 	};
 	const inProgressHtml = state.quests.active.map((id, i) => state.quests.completed[i] ? "" : buildCard(id, i)).join("");
@@ -1775,6 +1809,11 @@ function _updateQuestBars(panel) {
 			if (fill) fill.style.width = `${pct}%`;
 		}
 		if (txtEl) txtEl.textContent = `${formatNum(current)} / ${formatNum(target)}`;
+	}
+	const cost = rerollCost();
+	const canAfford = state.gold >= cost;
+	for (const btn of panel.querySelectorAll(".reroll-quest-btn")) {
+		btn.disabled = !canAfford;
 	}
 }
 
