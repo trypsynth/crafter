@@ -16,12 +16,12 @@ let prestige = {
 // Generates the reward label string from a reward object.
 function rewardLabel(r) {
 	if (r.type === "starting_gold")  return `+${r.amount.toLocaleString()} Starting Gold`;
-	if (r.type === "slot_cost_pct")  return `Slot Costs -${r.amount}%`;
-	if (r.type === "unlock_cost_pct")return `Unlock Costs -${r.amount}%`;
-	if (r.type === "build_cost_pct") return `Build Costs -${r.amount}%`;
-	if (r.type === "sell_price_pct") return `Sale Prices +${r.amount}%`;
-	if (r.type === "storage_tier")   return `+${r.amount} Starting Storage Tier${r.amount > 1 ? "s" : ""}`;
-	if (r.type === "cycle_speed_pct")return `Production Speed +${r.amount}%`;
+	if (r.type === "slot_cost_pct")  return `Slot Costs -${r.amount.toLocaleString()}%`;
+	if (r.type === "unlock_cost_pct")return `Unlock Costs -${r.amount.toLocaleString()}%`;
+	if (r.type === "build_cost_pct") return `Build Costs -${r.amount.toLocaleString()}%`;
+	if (r.type === "sell_price_pct") return `Sale Prices +${r.amount.toLocaleString()}%`;
+	if (r.type === "storage_tier")   return `+${r.amount.toLocaleString()} Starting Storage Tier${r.amount > 1 ? "s" : ""}`;
+	if (r.type === "cycle_speed_pct")return `Production Speed +${r.amount.toLocaleString()}%`;
 	return "";
 }
 
@@ -633,7 +633,7 @@ function deepMerge(dst, src) {
 
 function formatInputs(inputs) {
 	return Object.entries(inputs)
-		.map(([k, amt]) => `${amt} ${amt === 1 ? RESOURCES[k].singular : RESOURCES[k].label}`)
+		.map(([k, amt]) => `${amt.toLocaleString()} ${amt === 1 ? RESOURCES[k].singular : RESOURCES[k].label}`)
 		.join(", ");
 }
 
@@ -683,7 +683,7 @@ function currentPrice(resourceKey) {
 function formatRate(slots, outputAmt, baseCycleMs, label = "") {
 	const perMin = slots * outputAmt * 60000 / baseCycleMs;
 	const rounded = Math.round(perMin * 10) / 10;
-	const num = rounded % 1 === 0 ? `${rounded}` : rounded.toFixed(1);
+	const num = rounded % 1 === 0 ? `${rounded.toLocaleString()}` : rounded.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 	return label ? `${num} ${label} per minute` : `${num} per minute`;
 }
 
@@ -693,25 +693,23 @@ function formatProductOutput(slots, outputAmt, baseCycleMs, label = "", brief = 
 	const actualCycleMs = baseCycleMs / cycleSpeedMult;
 	const actualSecs = actualCycleMs / 1000;
 	const perMin = total * 60 / actualSecs;
-	const perMinFmt = perMin.toFixed(1).replace(/\.0$/, "");
-	const durationNum = actualSecs.toFixed(1).replace(/\.0$/, "");
+	const perMinFmt = perMin.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/\.0$/, "");
+	const durationNum = actualSecs.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 }).replace(/\.0$/, "");
 	const duration = `${durationNum} ${actualSecs === 1 ? "second" : "seconds"}`;
 	const name = label ? (total === 1 ? RESOURCES[label].singular : RESOURCES[label].label) : "";
-	if (brief) return `${total}${name ? " " + name : ""} every ${duration}`;
-	return `${total}${name ? " " + name : ""} every ${duration} (${perMinFmt} per minute)`;
+	if (brief) return `${total.toLocaleString()}${name ? " " + name : ""} every ${duration}`;
+	return `${total.toLocaleString()}${name ? " " + name : ""} every ${duration} (${perMinFmt} per minute)`;
 }
 
 function formatDuration(seconds) {
-	if (seconds < 60) return `${seconds} ${seconds === 1 ? "second" : "seconds"}`;
+	if (seconds < 60) return `${seconds.toLocaleString()} ${seconds === 1 ? "second" : "seconds"}`;
 	const mins = Math.round(seconds / 60);
-	if (mins < 60) return `${mins} ${mins === 1 ? "minute" : "minutes"}`;
+	if (mins < 60) return `${mins.toLocaleString()} ${mins === 1 ? "minute" : "minutes"}`;
 	const hours = Math.round(mins / 60);
-	return `${hours} ${hours === 1 ? "hour" : "hours"}`;
+	return `${hours.toLocaleString()} ${hours === 1 ? "hour" : "hours"}`;
 }
 
 function formatNum(n) {
-	if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-	if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
 	return n.toLocaleString();
 }
 
@@ -938,7 +936,7 @@ function unlockBuilding(bldKey) {
 	if (!cfg.prereq()) return;
 	const buildCost = Math.round(cfg.buildCost * prestigeBuildCostMult());
 	if (state.gold < buildCost) {
-		announce(`Need ${buildCost} gold to build ${cfg.label}.`, "assertive");
+		announce(`Need ${buildCost.toLocaleString()} gold to build ${cfg.label}.`, "assertive");
 		return;
 	}
 	state.gold -= buildCost;
@@ -965,7 +963,7 @@ function unlockProduct(bldKey, productKey) {
 	if (pcfg.prereqProduct && !state.buildings[bldKey].products[pcfg.prereqProduct].unlocked) return;
 	const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
 	if (state.gold < unlockCost) {
-		announce(`Need ${unlockCost} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`, "assertive");
+		announce(`Need ${unlockCost.toLocaleString()} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`, "assertive");
 		return;
 	}
 	state.gold -= unlockCost;
@@ -982,14 +980,14 @@ function addSlot(bldKey, productKey) {
 	if (!pst.unlocked) return;
 	const cost = nextSlotCost(bldKey, productKey);
 	if (state.gold < cost) {
-		announce(`Need ${cost} gold to add a slot.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to add a slot.`, "assertive");
 		return;
 	}
 	state.gold -= cost;
 	const newSlot = { id: ++runtime.nextSlotId, progress: 0.0 };
 	pst.slots.push(newSlot);
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
-	announce(`Slot added. ${label} now has ${pst.slots.length} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
+	announce(`Slot added. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
 	renderAll();
 	document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`)?.focus();
 }
@@ -1002,7 +1000,7 @@ function sellSlot(bldKey, productKey) {
 	if (pst.slots.length === 0) delete runtime.stallAnnounced[`${bldKey}-${productKey}`];
 	state.gold += refund;
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
-	announce(`Slot sold for ${refund} gold. ${label} now has ${pst.slots.length} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
+	announce(`Slot sold for ${refund.toLocaleString()} gold. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
 	renderAll();
 }
 
@@ -1033,13 +1031,13 @@ function manualProduce(bldKey, productKey) {
 function upgradeStorage() {
 	const cost = storageUpgradeCost();
 	if (state.gold < cost) {
-		announce(`Need ${cost} gold to expand storage.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to expand storage.`, "assertive");
 		return;
 	}
 	state.gold -= cost;
 	state.storage.tier++;
 	const newMax = storageMax();
-	announce(`Storage expanded to ${newMax} items.`, "polite");
+	announce(`Storage expanded to ${newMax.toLocaleString()} items.`, "polite");
 	renderAll();
 }
 
@@ -1056,7 +1054,7 @@ function sellAll() {
 	}
 	state.stats.goldEarned += totalEarned;
 	state.gold += totalEarned;
-	announce(`Sold everything for ${totalEarned} gold.`, "polite");
+	announce(`Sold everything for ${totalEarned.toLocaleString()} gold.`, "polite");
 	renderAll();
 }
 
@@ -1068,7 +1066,7 @@ function sellProduct(resourceKey) {
 	state.stats.soldByResource[resourceKey] = (state.stats.soldByResource[resourceKey] ?? 0) + inv;
 	state.stats.goldEarned += earned;
 	state.gold += earned;
-	announce(`Sold ${inv} ${formatResourceName(resourceKey, inv)} for ${earned} gold.`, "polite");
+	announce(`Sold ${inv.toLocaleString()} ${formatResourceName(resourceKey, inv)} for ${earned.toLocaleString()} gold.`, "polite");
 	renderAll();
 }
 
@@ -1161,8 +1159,8 @@ function renderHUD() {
 	const gold = Math.floor(state.gold);
 	const used = totalItems();
 	const max = storageMax();
-	const goldText = `${gold} gold`;
-	const storageText = `${used}/${max} items`;
+	const goldText = `${gold.toLocaleString()} gold`;
+	const storageText = `${used.toLocaleString()}/${max.toLocaleString()} items`;
 	const goldEl = document.getElementById("hud-gold");
 	const storageEl = document.getElementById("hud-storage");
 	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
@@ -1172,7 +1170,7 @@ function renderHUD() {
 	if (inventoryEl) {
 		const invText = Object.entries(state.inventory)
 			.filter(([, v]) => v > 0)
-			.map(([k, v]) => `${v} ${formatResourceName(k, v)}`)
+			.map(([k, v]) => `${v.toLocaleString()} ${formatResourceName(k, v)}`)
 			.join(", ");
 		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
 	}
@@ -1289,7 +1287,7 @@ function renderBuildingSection() {
 		const ncost = Math.round(ncfg.buildCost * prestigeBuildCostMult());
 		nextHtml = `<div class="unlock-section" style="margin-top:0; margin-bottom:var(--space-md)">
 			<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
-				Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost + " gold"})
+				Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
 			</button>
 		</div>`;
 	}
@@ -1304,7 +1302,7 @@ function renderBuildingSection() {
 		const n = pst.slots.length;
 		const slotWord = n === 1 ? "slot" : "slots";
 		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
-		const summaryText = n === 0 ? "No slots yet." : `${n} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
+		const summaryText = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
 		const inputDesc = Object.keys(pcfg.inputs).length === 0
 			? ""
 			: `<p class="product-inputs">Requires ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])))} per cycle</p>`;
@@ -1332,12 +1330,12 @@ function renderBuildingSection() {
 			<button class="add-slot-btn" data-action="add-slot"
 			 data-bld="${bldKey}" data-product="${productKey}"
 			 ${state.gold >= slotCost ? "" : "disabled"}>
-				Add Slot for ${slotCost} gold (+${cycleFmt})
+				Add Slot for ${slotCost.toLocaleString()} gold (+${cycleFmt})
 			</button>
 			<button class="sell-slot-btn" data-action="sell-slot"
 			 data-bld="${bldKey}" data-product="${productKey}"
 			 ${n > 0 ? "" : "disabled"}>
-				Sell Slot for ${refund} gold (-${cycleFmt})
+				Sell Slot for ${refund.toLocaleString()} gold (-${cycleFmt})
 			</button>
 		</div>`;
 	}).join("");
@@ -1354,7 +1352,7 @@ function renderBuildingSection() {
 				return `<button class="unlock-product-btn" data-action="unlock-product"
 				 data-bld="${bldKey}" data-product="${pk}"
 				 ${state.gold >= unlockCost ? "" : "disabled"}>
-					Unlock ${res.label} for ${unlockCost} gold
+					Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
 				</button>`;
 			}).join("")}
 		</div>
@@ -1381,7 +1379,7 @@ function updateMarketProducts() {
 	if (barFill) barFill.style.width = `${pct}%`;
 	if (barWrap) barWrap.setAttribute("aria-valuenow", pct);
 	if (usedLabel) {
-		const label = `${used} / ${max} items (${pct}% full)`;
+		const label = `${used.toLocaleString()} / ${max.toLocaleString()} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
 	}
 
@@ -1392,7 +1390,7 @@ function updateMarketProducts() {
 	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
 	if (sellAllBtn) {
 		sellAllBtn.hidden = !hasStock;
-		if (hasStock) sellAllBtn.textContent = `Sell Everything for ${totalValue} gold`;
+		if (hasStock) sellAllBtn.textContent = `Sell Everything for ${totalValue.toLocaleString()} gold`;
 	}
 	const emptyMsg = panel.querySelector(".market-empty");
 	if (emptyMsg) emptyMsg.hidden = hasStock;
@@ -1406,11 +1404,11 @@ function updateMarketProducts() {
 		const price = currentPrice(resourceKey);
 		const earned = inv * price;
 		const stockEl = card.querySelector(".market-product-stock");
-		if (stockEl) stockEl.textContent = `${inv} in stock, ${price} gold each`;
+		if (stockEl) stockEl.textContent = `${inv.toLocaleString()} in stock, ${price.toLocaleString()} gold each`;
 		const sellBtn = card.querySelector(".sell-btn");
 		if (sellBtn) {
 			sellBtn.disabled = !hasItem;
-			sellBtn.textContent = `Sell All ${res.label} for ${earned} gold`;
+			sellBtn.textContent = `Sell All ${res.label} for ${earned.toLocaleString()} gold`;
 		}
 	}
 }
@@ -1557,7 +1555,7 @@ function rerollCost() {
 function rerollQuest(index) {
 	const cost = rerollCost();
 	if (state.gold < cost) {
-		announce(`Need ${cost} gold to reroll.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to reroll.`, "assertive");
 		return;
 	}
 	const pool = eligibleQuestPool();
@@ -1579,7 +1577,7 @@ function rerollQuest(index) {
 	state.quests.rerolls = (state.quests.rerolls ?? 0) + 1;
 	_questsRenderKey = "";
 	renderAll();
-	announce(`Quest rerolled for ${cost} gold.`, "polite");
+	announce(`Quest rerolled for ${cost.toLocaleString()} gold.`, "polite");
 }
 
 function drawQuests() {
@@ -1732,18 +1730,18 @@ function doPrestigeReset() {
 	drawQuests();
 	save();
 	renderAll();
-	announce(`Run ${prestige.runs + 1} started! ${completedCount} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
+	announce(`Run ${prestige.runs.toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
 }
 
 function computePrestigeSummary() {
 	const defs = [
 		{ type: "starting_gold",  fmt: n => `+${n.toLocaleString()} Starting Gold`       },
-		{ type: "slot_cost_pct",  fmt: n => `Slot Costs -${n}%`                          },
-		{ type: "unlock_cost_pct",fmt: n => `Unlock Costs -${n}%`                        },
-		{ type: "build_cost_pct", fmt: n => `Build Costs -${n}%`                         },
-		{ type: "sell_price_pct", fmt: n => `Sale Prices +${n}%`                         },
-		{ type: "storage_tier",   fmt: n => `+${n} Starting Storage Tier${n > 1 ? "s" : ""}` },
-		{ type: "cycle_speed_pct",fmt: n => `Production Speed +${n}%`                    },
+		{ type: "slot_cost_pct",  fmt: n => `Slot Costs -${n.toLocaleString()}%`                          },
+		{ type: "unlock_cost_pct",fmt: n => `Unlock Costs -${n.toLocaleString()}%`                        },
+		{ type: "build_cost_pct", fmt: n => `Build Costs -${n.toLocaleString()}%`                         },
+		{ type: "sell_price_pct", fmt: n => `Sale Prices +${n.toLocaleString()}%`                         },
+		{ type: "storage_tier",   fmt: n => `+${n.toLocaleString()} Starting Storage Tier${n > 1 ? "s" : ""}` },
+		{ type: "cycle_speed_pct",fmt: n => `Production Speed +${n.toLocaleString()}%`                    },
 	];
 	return defs.map(d => {
 		const total = getPrestigeBonus(d.type);
@@ -1755,7 +1753,7 @@ function renderQuestsSection() {
 	const panel = document.getElementById("panel-quests");
 	if (!panel) return;
 	const summaryH2 = document.querySelector("#section-quests > summary h2");
-	if (summaryH2) summaryH2.textContent = `Quests : Run ${prestige.runs + 1}`;
+	if (summaryH2) summaryH2.textContent = `Quests : Run ${(prestige.runs + 1).toLocaleString()}`;
 	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + prestige.runs;
 	if (structKey === _questsRenderKey && panel.firstChild) {
 		_updateQuestBars(panel);
@@ -1785,7 +1783,7 @@ function renderQuestsSection() {
 			</div>`;
 		const rerollBtn = done ? "" : (() => {
 			const cost = rerollCost();
-			return `<button class="reroll-quest-btn" data-action="reroll-quest" data-index="${i}" ${state.gold >= cost ? "" : "disabled"}>Reroll (${cost} gold)</button>`;
+			return `<button class="reroll-quest-btn" data-action="reroll-quest" data-index="${i}" ${state.gold >= cost ? "" : "disabled"}>Reroll (${cost.toLocaleString()} gold)</button>`;
 		})();
 		return `<div class="quest-card${done ? " quest-done" : ""}">
 			<h4 class="quest-title">${def.label}</h4>
