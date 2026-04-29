@@ -1320,7 +1320,8 @@ function renderBuildingSection() {
 				</button>
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
 				 data-action="toggle-product"
-				 data-bld="${bldKey}" data-product="${productKey}">
+				 data-bld="${bldKey}" data-product="${productKey}"
+				 ${n === 0 ? "hidden" : ""}>
 					${pst.enabled ? "Pause" : "Resume"}
 				</button>
 			</div>
