@@ -1656,7 +1656,7 @@ function checkQuestCompletion() {
 		const id = state.quests.active[i];
 		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def) continue;
-		const baseline = state.quests.baselines?.[id] ?? 0;
+		const baseline = BASELINE_QUEST_TYPES.has(def.type) ? (state.quests.baselines?.[id] ?? 0) : 0;
 		const { current, target } = getQuestProgress(def, baseline);
 		if (current >= target) {
 			state.quests.completed[i] = true;
@@ -1759,7 +1759,7 @@ function renderQuestsSection() {
 	const buildCard = (id, i) => {
 		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def) return "";
-		const baseline = state.quests.baselines?.[id] ?? 0;
+		const baseline = BASELINE_QUEST_TYPES.has(def.type) ? (state.quests.baselines?.[id] ?? 0) : 0;
 		const { current, target } = getQuestProgress(def, baseline);
 		const done = state.quests.completed[i];
 		const isBoolean = def.type === "build" || def.type === "unlock";
@@ -1813,7 +1813,7 @@ function _updateQuestBars(panel) {
 		const id = state.quests.active[i];
 		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def || def.type === "build" || def.type === "unlock") continue;
-		const baseline = state.quests.baselines?.[id] ?? 0;
+		const baseline = BASELINE_QUEST_TYPES.has(def.type) ? (state.quests.baselines?.[id] ?? 0) : 0;
 		const { current, target } = getQuestProgress(def, baseline);
 		const pct = Math.min(100, Math.floor(current / target * 100));
 		const barEl = panel.querySelector(`[data-quest-bar="${def.id}"]`);
