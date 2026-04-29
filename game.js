@@ -1290,10 +1290,6 @@ function renderBuildingSection() {
 		</div>`;
 	}
 
-	if (!bldKey || !state.buildings[bldKey]?.unlocked) {
-		panel.innerHTML = `${nextHtml}<p class="market-empty">No building selected.</p>`;
-		return;
-	}
 	const cfg = BUILDING_CONFIG[bldKey];
 	const bst = state.buildings[bldKey];
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
@@ -1630,9 +1626,13 @@ function doPrestigeReset() {
 	state.lastTick = Date.now();
 	runtime.nextSlotId = 0;
 	runtime.stallAnnounced = {};
-	runtime.selectedBuilding = null;
+	runtime.selectedBuilding = "lumber_yard";
 	const sel = document.getElementById("building-select");
-	if (sel) sel.innerHTML = "";
+	if (sel) {
+		sel.innerHTML = "";
+		addBuildingOption("lumber_yard");
+		sel.value = "lumber_yard";
+	}
 	const prodPanel = document.getElementById("panel-production");
 	if (prodPanel) prodPanel.innerHTML = "";
 	_questsRenderKey = "";
