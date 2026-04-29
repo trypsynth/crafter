@@ -1311,8 +1311,7 @@ function renderBuildingSection() {
 			${inputDesc}
 			<div class="manual-produce-row">
 				<button class="manual-produce-btn" data-action="manual-produce"
-				 data-bld="${bldKey}" data-product="${productKey}"
-				 ${n > 0 ? "" : "disabled"}>
+				 data-bld="${bldKey}" data-product="${productKey}">
 					Produce ${res.singular}
 				</button>
 				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
