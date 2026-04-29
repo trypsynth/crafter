@@ -10,7 +10,7 @@ let prestige = {
 	rewards: [], 
 	completedQuestIds: [], 
 	seenBuildings: [],
-	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0 }
+	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {} }
 };
 
 // Generates the reward label string from a reward object.
@@ -19,7 +19,7 @@ function rewardLabel(r) {
 	if (r.type === "slot_cost_pct")  return `Slot Costs -${r.amount}%`;
 	if (r.type === "unlock_cost_pct")return `Unlock Costs -${r.amount}%`;
 	if (r.type === "build_cost_pct") return `Build Costs -${r.amount}%`;
-	if (r.type === "sell_price_pct") return `Sell Prices +${r.amount}%`;
+	if (r.type === "sell_price_pct") return `Sale Prices +${r.amount}%`;
 	if (r.type === "storage_tier")   return `+${r.amount} Starting Storage Tier${r.amount > 1 ? "s" : ""}`;
 	if (r.type === "cycle_speed_pct")return `Production Speed +${r.amount}%`;
 	return "";
@@ -728,6 +728,7 @@ function loadPrestige() {
 				if (typeof p.accumulatedStats.goldEarned === "number") prestige.accumulatedStats.goldEarned = p.accumulatedStats.goldEarned;
 				if (typeof p.accumulatedStats.storageUpgrades === "number") prestige.accumulatedStats.storageUpgrades = p.accumulatedStats.storageUpgrades;
 				if (typeof p.accumulatedStats.totalSlots === "number") prestige.accumulatedStats.totalSlots = p.accumulatedStats.totalSlots;
+				if (p.accumulatedStats.maxSlotsByProduct) prestige.accumulatedStats.maxSlotsByProduct = p.accumulatedStats.maxSlotsByProduct;
 				if (p.accumulatedStats.soldByResource) prestige.accumulatedStats.soldByResource = p.accumulatedStats.soldByResource;
 			}
 		}
@@ -1541,7 +1542,7 @@ function flushSatisfiedQuests() {
 	if (changed) savePrestige();
 }
 
-const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage"]);
+const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage", "slots"]);
 
 function rerollCost() {
 	return Math.round(250 * Math.pow(2, state.quests.rerolls ?? 0));
@@ -1618,9 +1619,12 @@ function getQuestProgress(def, baseline = 0) {
 			raw = (prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
 			break;
 		}
-		case "slots":
-			raw = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
+		case "slots": {
+			const current = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
+			const prevMax = prestige.accumulatedStats.maxSlotsByProduct?.[`${def.bld}.${def.product}`] ?? 0;
+			raw = Math.max(current, prevMax);
 			break;
+		}
 		case "total_slots": {
 			raw = prestige.accumulatedStats.totalSlots;
 			for (const bst of Object.values(state.buildings))
@@ -1683,8 +1687,12 @@ function doPrestigeReset() {
 	// Accumulate stats
 	prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
 	prestige.accumulatedStats.storageUpgrades += state.storage.tier;
-	for (const bst of Object.values(state.buildings))
-		for (const pst of Object.values(bst.products)) prestige.accumulatedStats.totalSlots += pst.slots.length;
+	for (const [bk, bst] of Object.entries(state.buildings))
+		for (const [pk, pst] of Object.entries(bst.products)) {
+			prestige.accumulatedStats.totalSlots += pst.slots.length;
+			const key = `${bk}.${pk}`;
+			prestige.accumulatedStats.maxSlotsByProduct[key] = Math.max(prestige.accumulatedStats.maxSlotsByProduct[key] ?? 0, pst.slots.length);
+		}
 	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
 		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	}
@@ -1725,7 +1733,7 @@ function computePrestigeSummary() {
 		{ type: "slot_cost_pct",  fmt: n => `Slot Costs -${n}%`                          },
 		{ type: "unlock_cost_pct",fmt: n => `Unlock Costs -${n}%`                        },
 		{ type: "build_cost_pct", fmt: n => `Build Costs -${n}%`                         },
-		{ type: "sell_price_pct", fmt: n => `Sell Prices +${n}%`                         },
+		{ type: "sell_price_pct", fmt: n => `Sale Prices +${n}%`                         },
 		{ type: "storage_tier",   fmt: n => `+${n} Starting Storage Tier${n > 1 ? "s" : ""}` },
 		{ type: "cycle_speed_pct",fmt: n => `Production Speed +${n}%`                    },
 	];
