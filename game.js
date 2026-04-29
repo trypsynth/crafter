@@ -584,7 +584,7 @@ const DEFAULT_STATE = (() => ({
 	inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
 	storage: { tier: 0 },
 	stats: { goldEarned: 0, soldByResource: {} },
-	quests: { active: [], completed: [] },
+	quests: { active: [], completed: [], baselines: {} },
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
@@ -1545,76 +1545,87 @@ function flushSatisfiedQuests() {
 	if (changed) savePrestige();
 }
 
+const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage"]);
+
 function drawQuests() {
 	flushSatisfiedQuests();
 	const currentActive = state.quests.active || [];
 	const currentCompleted = state.quests.completed || [];
-	
+	const currentBaselines = state.quests.baselines || {};
+
 	const newActive = [];
 	const newCompleted = [];
+	const newBaselines = {};
 
 	for (let i = 0; i < currentActive.length; i++) {
 		if (!currentCompleted[i]) {
-			newActive.push(currentActive[i]);
+			const id = currentActive[i];
+			newActive.push(id);
 			newCompleted.push(false);
+			if (currentBaselines[id] !== undefined) newBaselines[id] = currentBaselines[id];
 		}
 	}
 
 	const pool = eligibleQuestPool();
 	const existingIds = new Set(newActive);
 	const available = pool.filter(q => !existingIds.has(q.id)).sort(() => Math.random() - 0.5);
-	
+
 	while (newActive.length < 5 && available.length > 0) {
 		const q = available.shift();
 		newActive.push(q.id);
 		newCompleted.push(false);
+		newBaselines[q.id] = BASELINE_QUEST_TYPES.has(q.type) ? getQuestProgress(q).current : 0;
 	}
 
 	state.quests.active = newActive;
 	state.quests.completed = newCompleted;
+	state.quests.baselines = newBaselines;
 }
 
-function getQuestProgress(def) {
+function getQuestProgress(def, baseline = 0) {
+	let raw;
 	switch (def.type) {
 		case "sell": {
 			const current = state.stats.soldByResource[def.resource] ?? 0;
-			const total = (prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
-			return { current: total, target: def.target };
+			raw = (prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
+			break;
 		}
-		case "slots": {
-			const slots = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
-			return { current: slots, target: def.target };
-		}
+		case "slots":
+			raw = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
+			break;
 		case "total_slots": {
-			let n = prestige.accumulatedStats.totalSlots;
+			raw = prestige.accumulatedStats.totalSlots;
 			for (const bst of Object.values(state.buildings))
-				for (const pst of Object.values(bst.products)) n += pst.slots.length;
-			return { current: n, target: def.target };
+				for (const pst of Object.values(bst.products)) raw += pst.slots.length;
+			break;
 		}
 		case "build":
-			return { current: state.buildings[def.bld]?.unlocked ? 1 : 0, target: def.target };
+			raw = state.buildings[def.bld]?.unlocked ? 1 : 0;
+			break;
 		case "unlock":
-			return { current: state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0, target: def.target };
-		case "storage": {
-			const total = prestige.accumulatedStats.storageUpgrades + state.storage.tier;
-			return { current: total, target: def.target };
-		}
-		case "gold_earned": {
-			const total = prestige.accumulatedStats.goldEarned + state.stats.goldEarned;
-			return { current: total, target: def.target };
-		}
+			raw = state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0;
+			break;
+		case "storage":
+			raw = prestige.accumulatedStats.storageUpgrades + state.storage.tier;
+			break;
+		case "gold_earned":
+			raw = prestige.accumulatedStats.goldEarned + state.stats.goldEarned;
+			break;
 		default:
-			return { current: 0, target: def.target };
+			raw = 0;
 	}
+	return { current: Math.max(0, raw - baseline), target: def.target };
 }
 
 function checkQuestCompletion() {
 	if (!state.quests.active.length) return;
 	for (let i = 0; i < state.quests.active.length; i++) {
 		if (state.quests.completed[i]) continue;
-		const def = QUEST_POOL.find(q => q.id === state.quests.active[i]);
+		const id = state.quests.active[i];
+		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def) continue;
-		const { current, target } = getQuestProgress(def);
+		const baseline = state.quests.baselines?.[id] ?? 0;
+		const { current, target } = getQuestProgress(def, baseline);
 		if (current >= target) {
 			state.quests.completed[i] = true;
 			announce(`Quest complete: ${def.label}!`, "polite");
@@ -1704,7 +1715,8 @@ function renderQuestsSection() {
 	const buildCard = (id, i) => {
 		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def) return "";
-		const { current, target } = getQuestProgress(def);
+		const baseline = state.quests.baselines?.[id] ?? 0;
+		const { current, target } = getQuestProgress(def, baseline);
 		const done = state.quests.completed[i];
 		const isBoolean = def.type === "build" || def.type === "unlock";
 		const pct = isBoolean ? (done ? 100 : 0) : Math.min(100, Math.floor(current / target * 100));
@@ -1749,9 +1761,11 @@ function renderQuestsSection() {
 function _updateQuestBars(panel) {
 	for (let i = 0; i < state.quests.active.length; i++) {
 		if (state.quests.completed[i]) continue;
-		const def = QUEST_POOL.find(q => q.id === state.quests.active[i]);
+		const id = state.quests.active[i];
+		const def = QUEST_POOL.find(q => q.id === id);
 		if (!def || def.type === "build" || def.type === "unlock") continue;
-		const { current, target } = getQuestProgress(def);
+		const baseline = state.quests.baselines?.[id] ?? 0;
+		const { current, target } = getQuestProgress(def, baseline);
 		const pct = Math.min(100, Math.floor(current / target * 100));
 		const barEl = panel.querySelector(`[data-quest-bar="${def.id}"]`);
 		const txtEl = panel.querySelector(`[data-quest-text="${def.id}"]`);
