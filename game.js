@@ -10,7 +10,7 @@ let prestige = {
 	rewards: [], 
 	completedQuestIds: [], 
 	seenBuildings: [],
-	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0 }
+	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0 }
 };
 
 // Generates the reward label string from a reward object.
@@ -170,8 +170,8 @@ const QUEST_CHAINS = [
 		{ target: 1000, label: "Own 1,000 Slots Total", reward: { type: "cycle_speed_pct", amount: 15 } },
 	]},
 	{ id: "build_sawmill", type: "build", bld: "sawmill", tiers: [{ target: 1, label: "Build the Sawmill", reward: { type: "build_cost_pct", amount: 15 } }]},
-	{ id: "build_workshop", type: "build", bld: "workshop", tiers: [{ target: 1, label: "Build the Workshop", reward: { type: "storage_tier", amount: 10 } }]},
-	{ id: "build_forge", type: "build", bld: "forge", tiers: [{ target: 1, label: "Build the Forge", reward: { type: "storage_tier", amount: 10 } }]},
+	{ id: "build_workshop", type: "build", bld: "workshop", prereq: "sawmill", tiers: [{ target: 1, label: "Build the Workshop", reward: { type: "storage_tier", amount: 10 } }]},
+	{ id: "build_forge", type: "build", bld: "forge", prereq: "workshop", tiers: [{ target: 1, label: "Build the Forge", reward: { type: "storage_tier", amount: 10 } }]},
 	{ id: "build_foundry", type: "build", bld: "foundry", prereq: "forge", tiers: [{ target: 1, label: "Build the Foundry", reward: { type: "build_cost_pct", amount: 15 } }]},
 	{ id: "build_armoury", type: "build", bld: "armoury", prereq: "foundry", tiers: [{ target: 1, label: "Build the Armoury", reward: { type: "sell_price_pct", amount: 15 } }]},
 	{ id: "build_shipyard", type: "build", bld: "shipyard", prereq: "armoury", tiers: [{ target: 1, label: "Build the Shipyard", reward: { type: "cycle_speed_pct", amount: 15 } }]},
@@ -727,6 +727,7 @@ function loadPrestige() {
 			if (p.accumulatedStats) {
 				if (typeof p.accumulatedStats.goldEarned === "number") prestige.accumulatedStats.goldEarned = p.accumulatedStats.goldEarned;
 				if (typeof p.accumulatedStats.storageUpgrades === "number") prestige.accumulatedStats.storageUpgrades = p.accumulatedStats.storageUpgrades;
+				if (typeof p.accumulatedStats.totalSlots === "number") prestige.accumulatedStats.totalSlots = p.accumulatedStats.totalSlots;
 				if (p.accumulatedStats.soldByResource) prestige.accumulatedStats.soldByResource = p.accumulatedStats.soldByResource;
 			}
 		}
@@ -1519,7 +1520,33 @@ function handleClick(e) {
 	}
 }
 
+function flushSatisfiedQuests() {
+	const completed = new Set(prestige.completedQuestIds);
+	const seen = new Set(["lumber_yard", ...prestige.seenBuildings]);
+	let changed = false;
+	for (const chain of QUEST_CHAINS) {
+		if (chain.prereq && !seen.has(chain.prereq)) continue;
+		for (let i = 0; i < chain.tiers.length; i++) {
+			const questId = `${chain.id}_t${i}`;
+			if (completed.has(questId)) continue;
+			const q = QUEST_POOL.find(e => e.id === questId);
+			if (!q) break;
+			const { current, target } = getQuestProgress(q);
+			if (current >= target) {
+				prestige.completedQuestIds.push(questId);
+				prestige.rewards.push(q.reward);
+				completed.add(questId);
+				changed = true;
+			} else {
+				break;
+			}
+		}
+	}
+	if (changed) savePrestige();
+}
+
 function drawQuests() {
+	flushSatisfiedQuests();
 	const currentActive = state.quests.active || [];
 	const currentCompleted = state.quests.completed || [];
 	
@@ -1559,7 +1586,7 @@ function getQuestProgress(def) {
 			return { current: slots, target: def.target };
 		}
 		case "total_slots": {
-			let n = 0;
+			let n = prestige.accumulatedStats.totalSlots;
 			for (const bst of Object.values(state.buildings))
 				for (const pst of Object.values(bst.products)) n += pst.slots.length;
 			return { current: n, target: def.target };
@@ -1617,6 +1644,8 @@ function doPrestigeReset() {
 	// Accumulate stats
 	prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
 	prestige.accumulatedStats.storageUpgrades += state.storage.tier;
+	for (const bst of Object.values(state.buildings))
+		for (const pst of Object.values(bst.products)) prestige.accumulatedStats.totalSlots += pst.slots.length;
 	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
 		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	}
