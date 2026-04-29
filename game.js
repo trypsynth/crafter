@@ -1691,7 +1691,15 @@ function doPrestigeReset() {
 	}
 
 	savePrestige();
+	const incompleteActive = state.quests.active.filter((_, i) => !state.quests.completed[i]);
+	const incompleteBaselines = {};
+	for (const id of incompleteActive) {
+		if (state.quests.baselines?.[id] !== undefined) incompleteBaselines[id] = state.quests.baselines[id];
+	}
 	state = deepClone(DEFAULT_STATE);
+	state.quests.active = incompleteActive;
+	state.quests.completed = new Array(incompleteActive.length).fill(false);
+	state.quests.baselines = incompleteBaselines;
 	state.gold = getPrestigeBonus("starting_gold");
 	state.lastTick = Date.now();
 	runtime.nextSlotId = 0;
