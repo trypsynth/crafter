@@ -1542,7 +1542,7 @@ function flushSatisfiedQuests() {
 	if (changed) savePrestige();
 }
 
-const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage", "slots"]);
+const BASELINE_QUEST_TYPES = new Set(["sell", "total_slots", "gold_earned", "storage"]);
 
 function rerollCost() {
 	return Math.round(250 * Math.pow(2, state.quests.rerolls ?? 0));
