@@ -826,18 +826,26 @@ function load() {
 				let gained = 0;
 				for (const p of producers) {
 					const cycleSec = (p.pcfg.baseCycleMs / 1000) / speedMult;
-					const potential = Math.floor(catchupSec / cycleSec) * p.pst.slots.length * p.pcfg.outputAmt;
-					let actual = potential;
+					let cycles = Math.floor(catchupSec / cycleSec) * p.pst.slots.length;
 					for (const [inK, inA] of Object.entries(p.pcfg.inputs)) {
 						const available = state.inventory[inK] || 0;
-						actual = Math.min(actual, Math.floor(available / inA) * p.pcfg.outputAmt);
+						cycles = Math.min(cycles, Math.floor(available / inA));
 					}
-					const space = max - currentTotal;
-					const gain = Math.min(actual, space);
+					// Only cap by storage for net-positive producers; net-neutral/negative producers
+					// consume more inputs than they output, so they free up (or preserve) space.
+					const inputSum = Object.values(p.pcfg.inputs).reduce((s, n) => s + n, 0);
+					const netPerCycle = p.pcfg.outputAmt - inputSum;
+					if (netPerCycle > 0) {
+						const space = max - currentTotal;
+						cycles = Math.min(cycles, Math.floor(space / netPerCycle));
+					}
+					const gain = cycles * p.pcfg.outputAmt;
 					if (gain > 0) {
 						state.inventory[p.pk] += gain;
 						for (const [inK, inA] of Object.entries(p.pcfg.inputs)) {
-							state.inventory[inK] -= Math.ceil(gain / p.pcfg.outputAmt) * inA;
+							const consumed = cycles * inA;
+							state.inventory[inK] -= consumed;
+							currentTotal -= consumed;
 						}
 						currentTotal += gain;
 						gained += gain;
@@ -1839,8 +1847,8 @@ function _updateQuestBars(panel) {
 }
 
 function init() {
-	load();
 	loadPrestige();
+	load();
 	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
 	if (state.quests.active.length === 0 || hasStaleIds) drawQuests();
