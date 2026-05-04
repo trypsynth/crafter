@@ -4,14 +4,7 @@ const SAVE_KEY = "crafter";
 
 let _questsRenderKey = "";
 
-const PRESTIGE_KEY = "crafter_prestige";
-let prestige = { 
-	runs: 0, 
-	rewards: [], 
-	completedQuestIds: [], 
-	seenBuildings: [],
-	accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {} }
-};
+const PRESTIGE_KEY = "crafter_prestige"; // Kept only for migration
 
 // Generates the reward label string from a reward object.
 function rewardLabel(r) {
@@ -585,6 +578,13 @@ const DEFAULT_STATE = (() => ({
 	storage: { tier: 0 },
 	stats: { goldEarned: 0, soldByResource: {} },
 	quests: { active: [], completed: [], baselines: {}, rerolls: 0 },
+	prestige: { 
+		runs: 0, 
+		rewards: [], 
+		completedQuestIds: [], 
+		seenBuildings: [],
+		accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {} }
+	},
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
 			const bcfg = BUILDING_CONFIG[bldKey];
@@ -713,35 +713,9 @@ function formatNum(n) {
 	return n.toLocaleString();
 }
 
-function loadPrestige() {
-	try {
-		const raw = localStorage.getItem(PRESTIGE_KEY);
-		if (raw) {
-			const p = JSON.parse(raw);
-			if (typeof p.runs === "number") prestige.runs = p.runs;
-			if (Array.isArray(p.rewards)) prestige.rewards = p.rewards;
-			if (Array.isArray(p.completedQuestIds)) prestige.completedQuestIds = p.completedQuestIds;
-			if (Array.isArray(p.seenBuildings)) prestige.seenBuildings = p.seenBuildings;
-			if (p.accumulatedStats) {
-				if (typeof p.accumulatedStats.goldEarned === "number") prestige.accumulatedStats.goldEarned = p.accumulatedStats.goldEarned;
-				if (typeof p.accumulatedStats.storageUpgrades === "number") prestige.accumulatedStats.storageUpgrades = p.accumulatedStats.storageUpgrades;
-				if (typeof p.accumulatedStats.totalSlots === "number") prestige.accumulatedStats.totalSlots = p.accumulatedStats.totalSlots;
-				if (p.accumulatedStats.maxSlotsByProduct) {
-					prestige.accumulatedStats.maxSlotsByProduct = p.accumulatedStats.maxSlotsByProduct;
-					if (!p.accumulatedStats.totalSlotsByProduct) {
-						prestige.accumulatedStats.totalSlotsByProduct = { ...p.accumulatedStats.maxSlotsByProduct };
-					}
-				}
-				if (p.accumulatedStats.totalSlotsByProduct) prestige.accumulatedStats.totalSlotsByProduct = p.accumulatedStats.totalSlotsByProduct;
-				if (p.accumulatedStats.soldByResource) prestige.accumulatedStats.soldByResource = p.accumulatedStats.soldByResource;
-			}
-		}
-	} catch (e) {}
-}
-
 function eligibleQuestPool() {
-	const completed = new Set(prestige.completedQuestIds);
-	const seen = new Set(["lumber_yard", ...prestige.seenBuildings]);
+	const completed = new Set(state.prestige.completedQuestIds);
+	const seen = new Set(["lumber_yard", ...state.prestige.seenBuildings]);
 	const pool = [];
 	for (const chain of QUEST_CHAINS) {
 		if (chain.prereq && !seen.has(chain.prereq)) continue;
@@ -757,12 +731,8 @@ function eligibleQuestPool() {
 	return pool;
 }
 
-function savePrestige() {
-	try { localStorage.setItem(PRESTIGE_KEY, JSON.stringify(prestige)); } catch (e) {}
-}
-
 function getPrestigeBonus(type) {
-	return prestige.rewards.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
+	return state.prestige.rewards.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
 }
 
 function prestigeSlotCostMult()   { return Math.max(0.1, 1 - getPrestigeBonus("slot_cost_pct")   / 100); }
@@ -780,10 +750,31 @@ function save() {
 function load() {
 	try {
 		const raw = localStorage.getItem(SAVE_KEY);
-		if (!raw) return;
+		if (!raw) {
+			// Check for old prestige data if no main save exists
+			const oldP = localStorage.getItem(PRESTIGE_KEY);
+			if (oldP) {
+				try {
+					const p = JSON.parse(oldP);
+					deepMerge(state.prestige, p);
+				} catch (e) {}
+			}
+			return;
+		}
 		const parsed = JSON.parse(raw);
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
+		
+		// Migration: If the old prestige key exists, merge it in (one-time)
+		const oldP = localStorage.getItem(PRESTIGE_KEY);
+		if (oldP) {
+			try {
+				const p = JSON.parse(oldP);
+				deepMerge(fresh.prestige, p);
+				// We don't remove it yet to be safe, but we'll prefer the merged data
+			} catch (e) {}
+		}
+
 		const lastTime = fresh.lastTick;
 		state = fresh;
 		let maxId = 0;
@@ -1104,7 +1095,7 @@ function clearSaveData() {
 }
 
 function copySaveToClipboard() {
-	const json = localStorage.getItem(SAVE_KEY) ?? JSON.stringify(DEFAULT_STATE);
+	const json = JSON.stringify(state);
 	const base64 = btoa(json);
 	navigator.clipboard.writeText(base64).then(
 		() => announce("Save copied to clipboard.", "polite"),
@@ -1116,11 +1107,21 @@ function importSaveFromClipboard() {
 	function applyText(text) {
 		try {
 			const json = atob(text.trim());
-			JSON.parse(json);
-			localStorage.setItem(SAVE_KEY, json);
+			const parsed = JSON.parse(json);
+			
+			// Support both new unified format and old formats
+			if (parsed && parsed.state && parsed.prestige) {
+				// Migration for the short-lived intermediate format
+				const merged = { ...parsed.state, prestige: parsed.prestige };
+				localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
+			} else {
+				// New simplified unified format OR old state-only format
+				localStorage.setItem(SAVE_KEY, json);
+			}
+			
 			announce("Save imported. Reloading...", "polite");
 			setTimeout(() => location.reload(), 800);
-		} catch {
+		} catch (e) {
 			announce("Invalid save data.", "assertive");
 		}
 	}
@@ -1519,8 +1520,8 @@ function handleClick(e) {
 }
 
 function flushSatisfiedQuests() {
-	const completed = new Set(prestige.completedQuestIds);
-	const seen = new Set(["lumber_yard", ...prestige.seenBuildings]);
+	const completed = new Set(state.prestige.completedQuestIds);
+	const seen = new Set(["lumber_yard", ...state.prestige.seenBuildings]);
 	let changed = false;
 	for (const chain of QUEST_CHAINS) {
 		if (chain.prereq && !seen.has(chain.prereq)) continue;
@@ -1531,8 +1532,8 @@ function flushSatisfiedQuests() {
 			if (!q) break;
 			const { current, target } = getQuestProgress(q);
 			if (current >= target) {
-				prestige.completedQuestIds.push(questId);
-				prestige.rewards.push(q.reward);
+				state.prestige.completedQuestIds.push(questId);
+				state.prestige.rewards.push(q.reward);
 				completed.add(questId);
 				changed = true;
 			} else {
@@ -1540,7 +1541,7 @@ function flushSatisfiedQuests() {
 			}
 		}
 	}
-	if (changed) savePrestige();
+	if (changed) save();
 }
 
 const BASELINE_QUEST_TYPES = new Set(["sell", "slots", "total_slots", "gold_earned", "storage"]);
@@ -1612,18 +1613,18 @@ function getQuestProgress(def, baseline = 0) {
 	switch (def.type) {
 		case "sell": {
 			const current = state.stats.soldByResource[def.resource] ?? 0;
-			raw = (prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
+			raw = (state.prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
 			break;
 		}
 		case "slots": {
 			const current = state.buildings[def.bld]?.products[def.product]?.slots.length ?? 0;
 			const key = `${def.bld}.${def.product}`;
-			const totalPrev = (prestige.accumulatedStats.totalSlotsByProduct?.[key] ?? prestige.accumulatedStats.maxSlotsByProduct?.[key] ?? 0);
+			const totalPrev = (state.prestige.accumulatedStats.totalSlotsByProduct?.[key] ?? state.prestige.accumulatedStats.maxSlotsByProduct?.[key] ?? 0);
 			raw = totalPrev + current;
 			break;
 		}
 		case "total_slots": {
-			raw = prestige.accumulatedStats.totalSlots;
+			raw = state.prestige.accumulatedStats.totalSlots;
 			for (const bst of Object.values(state.buildings))
 				for (const pst of Object.values(bst.products)) raw += pst.slots.length;
 			break;
@@ -1635,10 +1636,10 @@ function getQuestProgress(def, baseline = 0) {
 			raw = state.buildings[def.bld]?.products[def.product]?.unlocked ? 1 : 0;
 			break;
 		case "storage":
-			raw = prestige.accumulatedStats.storageUpgrades + state.storage.tier;
+			raw = state.prestige.accumulatedStats.storageUpgrades + state.storage.tier;
 			break;
 		case "gold_earned":
-			raw = prestige.accumulatedStats.goldEarned + state.stats.goldEarned;
+			raw = state.prestige.accumulatedStats.goldEarned + state.stats.goldEarned;
 			break;
 		default:
 			raw = 0;
@@ -1666,41 +1667,45 @@ function doPrestigeReset() {
 	const completedCount = state.quests.completed.filter(Boolean).length;
 	if (completedCount === 0) return;
 	const incomplete = 5 - completedCount;
-	const msg = incomplete > 0 ? `Reset with ${completedCount}/5 quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"}. You can always keep playing to finish them.` : "All 5 quests complete! Reset and claim your rewards?";
+	const msg = incomplete > 0 ? `Reset with ${completedCount}/5 quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"} . You can always keep playing to finish them.` : "All 5 quests complete! Reset and claim your rewards?";
 	if (!confirm(msg)) return;
 	for (const [bk, bst] of Object.entries(state.buildings)) {
-		if (bst.unlocked && !prestige.seenBuildings.includes(bk)) prestige.seenBuildings.push(bk);
+		if (bst.unlocked && !state.prestige.seenBuildings.includes(bk)) state.prestige.seenBuildings.push(bk);
 	}
 	for (let i = 0; i < state.quests.active.length; i++) {
 		if (!state.quests.completed[i]) continue;
 		const qid = state.quests.active[i];
 		const def = QUEST_POOL.find(q => q.id === qid);
 		if (def) {
-			prestige.rewards.push(def.reward);
-			if (!prestige.completedQuestIds.includes(qid)) prestige.completedQuestIds.push(qid);
+			state.prestige.rewards.push(def.reward);
+			if (!state.prestige.completedQuestIds.includes(qid)) state.prestige.completedQuestIds.push(qid);
 		}
 	}
-	prestige.runs++;
+	state.prestige.runs++;
 	// Accumulate stats
-	prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
-	prestige.accumulatedStats.storageUpgrades += state.storage.tier;
+	state.prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
+	state.prestige.accumulatedStats.storageUpgrades += state.storage.tier;
 	for (const [bk, bst] of Object.entries(state.buildings))
 		for (const [pk, pst] of Object.entries(bst.products)) {
-			prestige.accumulatedStats.totalSlots += pst.slots.length;
+			state.prestige.accumulatedStats.totalSlots += pst.slots.length;
 			const key = `${bk}.${pk}`;
-			prestige.accumulatedStats.maxSlotsByProduct[key] = Math.max(prestige.accumulatedStats.maxSlotsByProduct[key] ?? 0, pst.slots.length);
-			prestige.accumulatedStats.totalSlotsByProduct[key] = (prestige.accumulatedStats.totalSlotsByProduct[key] ?? 0) + pst.slots.length;
+			state.prestige.accumulatedStats.maxSlotsByProduct[key] = Math.max(state.prestige.accumulatedStats.maxSlotsByProduct[key] ?? 0, pst.slots.length);
+			state.prestige.accumulatedStats.totalSlotsByProduct[key] = (state.prestige.accumulatedStats.totalSlotsByProduct[key] ?? 0) + pst.slots.length;
 		}
 	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
-		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
+		state.prestige.accumulatedStats.soldByResource[k] = (state.prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	}
-	savePrestige();
+	
 	const incompleteActive = state.quests.active.filter((_, i) => !state.quests.completed[i]);
 	const incompleteBaselines = {};
 	for (const id of incompleteActive) {
 		if (state.quests.baselines?.[id] !== undefined) incompleteBaselines[id] = state.quests.baselines[id];
 	}
+
+	const preservedPrestige = state.prestige;
 	state = deepClone(DEFAULT_STATE);
+	state.prestige = preservedPrestige;
+	
 	state.quests.active = incompleteActive;
 	state.quests.completed = new Array(incompleteActive.length).fill(false);
 	state.quests.baselines = incompleteBaselines;
@@ -1721,7 +1726,7 @@ function doPrestigeReset() {
 	drawQuests();
 	save();
 	renderAll();
-	announce(`Run ${prestige.runs.toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
+	announce(`Run ${state.prestige.runs.toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
 }
 
 function computePrestigeSummary() {
@@ -1744,8 +1749,8 @@ function renderQuestsSection() {
 	const panel = document.getElementById("panel-quests");
 	if (!panel) return;
 	const summaryH2 = document.querySelector("#section-quests > summary h2");
-	if (summaryH2) summaryH2.textContent = `Quests : Run ${(prestige.runs + 1).toLocaleString()}`;
-	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + prestige.runs;
+	if (summaryH2) summaryH2.textContent = `Quests : Run ${(state.prestige.runs + 1).toLocaleString()}`;
+	const structKey = state.quests.active.join(",") + ":" + state.quests.completed.map(Number).join(",") + ":" + state.prestige.runs;
 	if (structKey === _questsRenderKey && panel.firstChild) {
 		_updateQuestBars(panel);
 		return;
@@ -1830,7 +1835,6 @@ function _updateQuestBars(panel) {
 }
 
 function init() {
-	loadPrestige();
 	load();
 	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));

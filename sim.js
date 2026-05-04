@@ -192,8 +192,8 @@ function buildingPrereq(st, bk) {
 	const p = BUILDING_CONFIG[bk].prereq;
 	if (typeof p === "function") {
 		// Mock prestige functions for sim
-		global.prestige = { seenBuildings: Object.keys(st.buildings).filter(k => st.buildings[k].unlocked) };
 		global.state = st;
+		st.prestige = { seenBuildings: Object.keys(st.buildings).filter(k => st.buildings[k].unlocked) };
 		return p();
 	}
 	return true;
