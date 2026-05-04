@@ -802,8 +802,6 @@ function load() {
 				if (pst.enabled === undefined) pst.enabled = true;
 			}
 		}
-
-		// Offline Catch-up
 		if (lastTime) {
 			const now = Date.now();
 			const diffMs = now - lastTime;
@@ -1126,7 +1124,6 @@ function importSaveFromClipboard() {
 			announce("Invalid save data.", "assertive");
 		}
 	}
-
 	if (navigator.clipboard?.readText) {
 		navigator.clipboard.readText().then(applyText, () => {
 			const text = prompt("Paste your save data:");
@@ -1173,7 +1170,6 @@ function renderHUD() {
 	const storageEl = document.getElementById("hud-storage");
 	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
-
 	const inventoryEl = document.getElementById("hud-inventory");
 	if (inventoryEl) {
 		const invText = Object.entries(state.inventory)
@@ -1182,7 +1178,6 @@ function renderHUD() {
 			.join(", ");
 		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
 	}
-
 	const chainEl = document.getElementById("hud-chain");
 	if (chainEl) {
 		const { hasChain, deficits, efficiencyPct } = getProductionOverview();
@@ -1299,7 +1294,6 @@ function renderBuildingSection() {
 			</button>
 		</div>`;
 	}
-
 	const cfg = BUILDING_CONFIG[bldKey];
 	const bst = state.buildings[bldKey];
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
@@ -1365,7 +1359,6 @@ function renderBuildingSection() {
 			}).join("")}
 		</div>
 	</section>`;
-
 	const chainHtml = renderChainOverview();
 	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
 	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
@@ -1377,7 +1370,6 @@ function updateMarketProducts() {
 	if (!panel) return;
 	const container = panel.querySelector("#market-products");
 	if (!container) return;
-
 	const used = totalItems();
 	const max = storageMax();
 	const pct = Math.min(100, Math.floor(used / max * 100));
@@ -1390,11 +1382,9 @@ function updateMarketProducts() {
 		const label = `${used.toLocaleString()} / ${max.toLocaleString()} items (${pct}% full)`;
 		if (usedLabel.textContent !== label) usedLabel.textContent = label;
 	}
-
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
 	const hasStock = withStock.length > 0;
 	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-
 	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
 	if (sellAllBtn) {
 		sellAllBtn.hidden = !hasStock;
@@ -1402,7 +1392,6 @@ function updateMarketProducts() {
 	}
 	const emptyMsg = panel.querySelector(".market-empty");
 	if (emptyMsg) emptyMsg.hidden = hasStock;
-
 	for (const [resourceKey, res] of Object.entries(RESOURCES)) {
 		const inv = state.inventory[resourceKey] || 0;
 		const hasItem = inv > 0;
@@ -1593,11 +1582,9 @@ function drawQuests() {
 	const currentActive = state.quests.active || [];
 	const currentCompleted = state.quests.completed || [];
 	const currentBaselines = state.quests.baselines || {};
-
 	const newActive = [];
 	const newCompleted = [];
 	const newBaselines = {};
-
 	for (let i = 0; i < currentActive.length; i++) {
 		if (!currentCompleted[i]) {
 			const id = currentActive[i];
@@ -1606,18 +1593,15 @@ function drawQuests() {
 			if (currentBaselines[id] !== undefined) newBaselines[id] = currentBaselines[id];
 		}
 	}
-
 	const pool = eligibleQuestPool();
 	const existingIds = new Set(newActive);
 	const available = pool.filter(q => !existingIds.has(q.id)).sort(() => Math.random() - 0.5);
-
 	while (newActive.length < 5 && available.length > 0) {
 		const q = available.shift();
 		newActive.push(q.id);
 		newCompleted.push(false);
 		newBaselines[q.id] = BASELINE_QUEST_TYPES.has(q.type) ? getQuestProgress(q).current : 0;
 	}
-
 	state.quests.active = newActive;
 	state.quests.completed = newCompleted;
 	state.quests.baselines = newBaselines;
@@ -1710,7 +1694,6 @@ function doPrestigeReset() {
 	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
 		prestige.accumulatedStats.soldByResource[k] = (prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	}
-
 	savePrestige();
 	const incompleteActive = state.quests.active.filter((_, i) => !state.quests.completed[i]);
 	const incompleteBaselines = {};
