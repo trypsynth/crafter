@@ -611,7 +611,6 @@ let state = deepClone(DEFAULT_STATE);
 const runtime = {
 	nextSlotId: 0,
 	stallAnnounced: {},
-	announceTimers: { polite: null, assertive: null },
 	selectedBuilding: null,
 };
 
@@ -1139,10 +1138,12 @@ function importSaveFromClipboard() {
 function announce(msg, level = "polite") {
 	const el = document.getElementById(`live-${level}`);
 	if (!el) return;
-	el.textContent = "";
-	requestAnimationFrame(() => { el.textContent = msg; });
-	if (runtime.announceTimers[level]) clearTimeout(runtime.announceTimers[level]);
-	runtime.announceTimers[level] = setTimeout(() => { el.textContent = ""; }, 2000);
+	// Toggling a zero-width space ensures that even identical consecutive messages 
+	// trigger an ARIA live update without needing to clear the element (which can cause focus loss).
+	const zws = "\u200B";
+	const currentText = el.textContent;
+	const newText = msg + (currentText.endsWith(zws) ? "" : zws);
+	requestAnimationFrame(() => { el.textContent = newText; });
 }
 
 function addBuildingOption(bldKey) {
@@ -1726,7 +1727,7 @@ function doPrestigeReset() {
 	drawQuests();
 	save();
 	renderAll();
-	announce(`Run ${state.prestige.runs.toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
+	announce(`Run ${(state.prestige.runs + 1).toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
 }
 
 function computePrestigeSummary() {
