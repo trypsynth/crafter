@@ -840,7 +840,7 @@ function load() {
 					}
 				}
 				if (gained > 0) {
-					setTimeout(() => announce(`Welcome back! Your workers produced ${gained.toLocaleString()} items while you were away.`, "polite"), 500);
+					setTimeout(() => announce(`Welcome back! Your workers produced ${gained.toLocaleString()} items while you were away.`), 500);
 				}
 			}
 		}
@@ -862,7 +862,7 @@ function tryProduceSlot(bldKey, productKey, slot) {
 		} else if (runtime.stallAnnounced[stallKey] === "pending") {
 			runtime.stallAnnounced[stallKey] = true;
 			if (runtime.selectedBuilding === bldKey)
-				announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`, "assertive");
+				announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`);
 		}
 		return false;
 	}
@@ -874,7 +874,7 @@ function tryProduceSlot(bldKey, productKey, slot) {
 			} else if (runtime.stallAnnounced[stallKey] === "pending") {
 				runtime.stallAnnounced[stallKey] = true;
 				if (runtime.selectedBuilding === bldKey)
-					announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`, "assertive");
+					announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`);
 			}
 			return false;
 		}
@@ -918,7 +918,7 @@ function advanceBuildings(deltaSec) {
 						state.inventory[inputKey] -= inputAmt;
 					}
 					state.inventory[pcfg.outputKey] += pcfg.outputAmt;
-					announce(`${RESOURCES[pcfg.outputKey].singular} produced.`, "polite");
+					announce(`${RESOURCES[pcfg.outputKey].singular} produced.`);
 				}
 			}
 		}
@@ -932,7 +932,7 @@ function unlockBuilding(bldKey) {
 	if (!cfg.prereq()) return;
 	const buildCost = Math.round(cfg.buildCost * prestigeBuildCostMult());
 	if (state.gold < buildCost) {
-		announce(`Need ${buildCost.toLocaleString()} gold to build ${cfg.label}.`, "assertive");
+		announce(`Need ${buildCost.toLocaleString()} gold to build ${cfg.label}.`);
 		return;
 	}
 	state.gold -= buildCost;
@@ -946,7 +946,7 @@ function unlockBuilding(bldKey) {
 	runtime.selectedBuilding = bldKey;
 	const sel = document.getElementById("building-select");
 	if (sel) sel.value = bldKey;
-	announce(`${cfg.label} built!`, "polite");
+	announce(`${cfg.label} built!`);
 	document.getElementById("section-production")?.setAttribute("open", "");
 	renderAll();
 	document.getElementById("building-select")?.focus();
@@ -959,12 +959,12 @@ function unlockProduct(bldKey, productKey) {
 	if (pcfg.prereqProduct && !state.buildings[bldKey].products[pcfg.prereqProduct].unlocked) return;
 	const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
 	if (state.gold < unlockCost) {
-		announce(`Need ${unlockCost.toLocaleString()} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`, "assertive");
+		announce(`Need ${unlockCost.toLocaleString()} gold to unlock ${RESOURCES[pcfg.outputKey].label} production.`);
 		return;
 	}
 	state.gold -= unlockCost;
 	pst.unlocked = true;
-	announce(`${RESOURCES[pcfg.outputKey].label} production unlocked!`, "polite");
+	announce(`${RESOURCES[pcfg.outputKey].label} production unlocked!`);
 	renderAll();
 	const addBtn = document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`);
 	if (addBtn && !addBtn.disabled) addBtn.focus();
@@ -976,14 +976,14 @@ function addSlot(bldKey, productKey) {
 	if (!pst.unlocked) return;
 	const cost = nextSlotCost(bldKey, productKey);
 	if (state.gold < cost) {
-		announce(`Need ${cost.toLocaleString()} gold to add a slot.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to add a slot.`);
 		return;
 	}
 	state.gold -= cost;
 	const newSlot = { id: ++runtime.nextSlotId, progress: 0.0 };
 	pst.slots.push(newSlot);
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
-	announce(`Slot added. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
+	announce(`Slot added. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`);
 	renderAll();
 	document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`)?.focus();
 }
@@ -996,7 +996,7 @@ function sellSlot(bldKey, productKey) {
 	if (pst.slots.length === 0) delete runtime.stallAnnounced[`${bldKey}-${productKey}`];
 	state.gold += refund;
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
-	announce(`Slot sold for ${refund.toLocaleString()} gold. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`, "polite");
+	announce(`Slot sold for ${refund.toLocaleString()} gold. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`);
 	renderAll();
 }
 
@@ -1010,30 +1010,30 @@ function manualProduce(bldKey, productKey) {
 	const inputSum = Object.values(pcfg.inputs).reduce((s, n) => s + n, 0);
 	const netChange = pcfg.outputAmt - inputSum;
 	if (netChange > 0 && totalItems() + netChange > storageMax()) {
-		announce("Storage is full.", "assertive");
+		announce("Storage is full.");
 		return;
 	}
 	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 		if (state.inventory[inputKey] < inputAmt) {
-		announce(`Need ${formatInputs(pcfg.inputs)}.`, "assertive");
+		announce(`Need ${formatInputs(pcfg.inputs)}.`);
 			return;
 		}
 	}
 	pst.manual.active = true;
 	pst.manual.progress = 0;
-	announce("Crafting started.", "polite");
+	announce("Crafting started.");
 }
 
 function upgradeStorage() {
 	const cost = storageUpgradeCost();
 	if (state.gold < cost) {
-		announce(`Need ${cost.toLocaleString()} gold to expand storage.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to expand storage.`);
 		return;
 	}
 	state.gold -= cost;
 	state.storage.tier++;
 	const newMax = storageMax();
-	announce(`Storage expanded to ${newMax.toLocaleString()} items.`, "polite");
+	announce(`Storage expanded to ${newMax.toLocaleString()} items.`);
 	renderAll();
 }
 
@@ -1050,7 +1050,7 @@ function sellAll() {
 	}
 	state.stats.goldEarned += totalEarned;
 	state.gold += totalEarned;
-	announce(`Sold everything for ${totalEarned.toLocaleString()} gold.`, "polite");
+	announce(`Sold everything for ${totalEarned.toLocaleString()} gold.`);
 	renderAll();
 }
 
@@ -1062,7 +1062,7 @@ function sellProduct(resourceKey) {
 	state.stats.soldByResource[resourceKey] = (state.stats.soldByResource[resourceKey] ?? 0) + inv;
 	state.stats.goldEarned += earned;
 	state.gold += earned;
-	announce(`Sold ${inv.toLocaleString()} ${formatResourceName(resourceKey, inv)} for ${earned.toLocaleString()} gold.`, "polite");
+	announce(`Sold ${inv.toLocaleString()} ${formatResourceName(resourceKey, inv)} for ${earned.toLocaleString()} gold.`);
 	renderAll();
 }
 
@@ -1075,13 +1075,13 @@ function toggleProductEnabled(bldKey, productKey) {
 		pst.manual.progress = 0;
 	}
 	const outputKey = BUILDING_CONFIG[bldKey].products[productKey].outputKey;
-	announce(`${RESOURCES[outputKey].label} production ${pst.enabled ? "resumed" : "paused"}.`, "polite");
+	announce(`${RESOURCES[outputKey].label} production ${pst.enabled ? "resumed" : "paused"}.`);
 	renderAll();
 }
 
 function saveNow() {
 	save();
-	announce("Game saved.", "polite");
+	announce("Game saved.");
 }
 
 function clearSaveData() {
@@ -1097,8 +1097,8 @@ function copySaveToClipboard() {
 	const json = JSON.stringify(state);
 	const base64 = btoa(json);
 	navigator.clipboard.writeText(base64).then(
-		() => announce("Save copied to clipboard.", "polite"),
-		() => announce("Clipboard access denied.", "assertive"),
+		() => announce("Save copied to clipboard."),
+		() => announce("Clipboard access denied."),
 	);
 }
 
@@ -1118,10 +1118,10 @@ function importSaveFromClipboard() {
 				localStorage.setItem(SAVE_KEY, json);
 			}
 			
-			announce("Save imported. Reloading...", "polite");
+			announce("Save imported. Reloading...");
 			setTimeout(() => location.reload(), 800);
 		} catch (e) {
-			announce("Invalid save data.", "assertive");
+			announce("Invalid save data.");
 		}
 	}
 	if (navigator.clipboard?.readText) {
@@ -1135,15 +1135,10 @@ function importSaveFromClipboard() {
 	}
 }
 
-function announce(msg, level = "polite") {
-	const el = document.getElementById(`live-${level}`);
+function announce(msg) {
+	const el = document.getElementById("live-announcer");
 	if (!el) return;
-	// Toggling a zero-width space ensures that even identical consecutive messages 
-	// trigger an ARIA live update without needing to clear the element (which can cause focus loss).
-	const zws = "\u200B";
-	const currentText = el.textContent;
-	const newText = msg + (currentText.endsWith(zws) ? "" : zws);
-	requestAnimationFrame(() => { el.textContent = newText; });
+	el.textContent = msg;
 }
 
 function addBuildingOption(bldKey) {
@@ -1554,14 +1549,14 @@ function rerollCost() {
 function rerollQuest(index) {
 	const cost = rerollCost();
 	if (state.gold < cost) {
-		announce(`Need ${cost.toLocaleString()} gold to reroll.`, "assertive");
+		announce(`Need ${cost.toLocaleString()} gold to reroll.`);
 		return;
 	}
 	const pool = eligibleQuestPool();
 	const keepIds = new Set(state.quests.active.filter((_, i) => i !== index));
 	const available = pool.filter(q => !keepIds.has(q.id) && q.id !== state.quests.active[index]).sort(() => Math.random() - 0.5);
 	if (available.length === 0) {
-		announce("No other quests available to reroll into.", "assertive");
+		announce("No other quests available to reroll into.");
 		return;
 	}
 	state.gold -= cost;
@@ -1576,7 +1571,7 @@ function rerollQuest(index) {
 	state.quests.rerolls = (state.quests.rerolls ?? 0) + 1;
 	_questsRenderKey = "";
 	renderAll();
-	announce(`Quest rerolled for ${cost.toLocaleString()} gold.`, "polite");
+	announce(`Quest rerolled for ${cost.toLocaleString()} gold.`);
 }
 
 function drawQuests() {
@@ -1659,7 +1654,7 @@ function checkQuestCompletion() {
 		const { current, target } = getQuestProgress(def, baseline);
 		if (current >= target) {
 			state.quests.completed[i] = true;
-			announce(`Quest complete: ${def.label}!`, "polite");
+			announce(`Quest complete: ${def.label}!`);
 		}
 	}
 }
@@ -1728,7 +1723,7 @@ function doPrestigeReset() {
 	drawQuests();
 	save();
 	renderAll();
-	announce(`Run ${(state.prestige.runs + 1).toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`, "polite");
+	announce(`Run ${(state.prestige.runs + 1).toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`);
 }
 
 function computePrestigeSummary() {
