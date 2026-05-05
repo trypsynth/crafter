@@ -1665,10 +1665,11 @@ function checkQuestCompletion() {
 }
 
 function doPrestigeReset() {
+	const totalActive = state.quests.active.length;
 	const completedCount = state.quests.completed.filter(Boolean).length;
 	if (completedCount === 0) return;
-	const incomplete = 5 - completedCount;
-	const msg = incomplete > 0 ? `Reset with ${completedCount}/5 quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"} . You can always keep playing to finish them.` : "All 5 quests complete! Reset and claim your rewards?";
+	const incomplete = totalActive - completedCount;
+	const msg = incomplete > 0 ? `Reset with ${completedCount}/${totalActive} quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"}. You can always keep playing to finish them.` : "All quests complete! Reset and claim your rewards?";
 	if (!confirm(msg)) return;
 	for (const [bk, bst] of Object.entries(state.buildings)) {
 		if (bst.unlocked && !state.prestige.seenBuildings.includes(bk)) state.prestige.seenBuildings.push(bk);
