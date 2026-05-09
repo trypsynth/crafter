@@ -2017,6 +2017,3 @@ if (typeof document !== "undefined") {
 		init();
 	}
 }
-if (typeof module !== "undefined") {
-	module.exports = { RESOURCES, BUILDING_CONFIG, QUEST_CHAINS, STORAGE_BASE, STORAGE_FIRST_UPGRADE, STORAGE_INCREMENT, STORAGE_BASE_COST, STORAGE_COST_GROWTH };
-}
