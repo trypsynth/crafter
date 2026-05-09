@@ -1261,6 +1261,72 @@ function getProductionOverview() {
 	return { productRows, hasChain, deficits, balances, efficiencyPct };
 }
 
+function bestNextPurchase() {
+	const { deficits } = getProductionOverview();
+	const deficitMap = {};
+	for (const d of deficits) deficitMap[d.resourceKey] = d.net;
+
+	let best = null;
+	let bestScore = -Infinity;
+	for (const [bk, bst] of Object.entries(state.buildings)) {
+		if (!bst.unlocked) continue;
+		for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+			if (!bst.products[pk].unlocked) continue;
+			const cost = nextSlotCost(bk, pk);
+			if (cost <= 0) continue;
+			const outputRate = pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
+			let score = (outputRate * currentPrice(pcfg.outputKey)) / cost;
+			if (deficitMap[pcfg.outputKey] !== undefined)
+				score *= 1 + Math.abs(deficitMap[pcfg.outputKey]);
+			if (score > bestScore) {
+				bestScore = score;
+				best = {
+					bldKey: bk, productKey: pk, cost,
+					label: RESOURCES[pcfg.outputKey].label,
+					isDeficit: deficitMap[pcfg.outputKey] !== undefined,
+				};
+			}
+		}
+	}
+	return best;
+}
+
+function doFixBottleneck() {
+	let totalBought = 0;
+	for (let i = 0; i < 500; i++) {
+		const { deficits } = getProductionOverview();
+		if (deficits.length === 0) break;
+		let bought = false;
+		for (const deficit of deficits) {
+			let foundBld = null, foundProd = null;
+			outer: for (const [bk, bst] of Object.entries(state.buildings)) {
+				if (!bst.unlocked) continue;
+				for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
+					if (bst.products[pk].unlocked && pcfg.outputKey === deficit.resourceKey) {
+						foundBld = bk; foundProd = pk; break outer;
+					}
+				}
+			}
+			if (!foundBld) continue;
+			const cost = nextSlotCost(foundBld, foundProd);
+			if (state.gold < cost) continue;
+			state.gold -= cost;
+			state.buildings[foundBld].products[foundProd].slots.push({ id: ++runtime.nextSlotId, progress: 0.0 });
+			totalBought++;
+			bought = true;
+			break;
+		}
+		if (!bought) break;
+	}
+	if (totalBought > 0) {
+		save();
+		renderAll();
+		announce(`Bought ${totalBought} slot${totalBought === 1 ? "" : "s"} to fix production bottlenecks.`);
+	} else {
+		announce("Not enough gold to fix any bottleneck.");
+	}
+}
+
 function renderChainOverview() {
 	const { hasChain, balances } = getProductionOverview();
 	if (!hasChain) return "";
@@ -1276,12 +1342,21 @@ function renderChainOverview() {
 		sentences.push(`<p class="chain-item-pos">Surplus: ${list}.</p>`);
 	}
 	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
+	const fixBtn = shortages.length > 0
+		? `<button class="chain-fix-btn" data-action="fix-bottleneck">Buy slots to fix bottleneck</button>`
+		: "";
+	const suggestion = bestNextPurchase();
+	const suggestionHtml = suggestion
+		? `<p class="chain-suggestion ${suggestion.isDeficit ? "chain-item-neg" : "chain-item-muted"}">${suggestion.isDeficit ? "Suggested fix" : "Best value"}: add a ${suggestion.label} slot (${suggestion.cost.toLocaleString()} gold)</p>`
+		: "";
 	return `
 		<div class="chain-overview">
 			<h3>Production Summary</h3>
 			<div class="chain-prose">
 				${sentences.join("")}
+				${suggestionHtml}
 			</div>
+			${fixBtn}
 		</div>
 	`;
 }
@@ -1510,6 +1585,7 @@ function handleClick(e) {
 		case "sell": sellProduct(btn.dataset.resource); break;
 		case "sell-all": sellAll(); break;
 		case "toggle-product": toggleProductEnabled(bld, product); break;
+		case "fix-bottleneck": doFixBottleneck(); break;
 		case "reroll-quest": rerollQuest(+btn.dataset.index); break;
 		case "prestige-reset": doPrestigeReset(); break;
 		case "save-now": saveNow(); break;

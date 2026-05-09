@@ -671,6 +671,20 @@ h4.market-product-name {
 
 .chain-item-pos { color: var(--color-progress); }
 .chain-item-neg { color: var(--color-accent); }
+.chain-item-muted { color: var(--color-text-muted); }
+.chain-suggestion { font-style: italic; margin-top: var(--space-xs); }
+.chain-fix-btn {
+	margin-top: var(--space-md);
+	width: 100%;
+	padding: var(--space-sm) var(--space-md);
+	background: var(--color-surface);
+	border: 1px solid var(--color-accent);
+	border-radius: var(--radius);
+	color: var(--color-accent);
+	font-size: var(--font-sm);
+	cursor: pointer;
+}
+.chain-fix-btn:hover { background: var(--color-accent); color: var(--color-bg); }
 
 @media (max-width: 700px) {
 	#top-bar { flex-wrap: wrap; gap: var(--space-sm); padding: var(--space-sm) var(--space-md); }
