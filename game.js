@@ -2004,7 +2004,7 @@ function init() {
 		renderBuildingSection();
 	});
 	renderAll();
-	document.getElementById("app").addEventListener("click", handleClick);
+	document.addEventListener("click", handleClick);
 	setInterval(tick, 100);
 	setInterval(save, 5000);
 	if (isGameComplete() && !state.prestige.victoryShown) showVictoryScreen();
