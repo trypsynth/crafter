@@ -398,7 +398,7 @@ const BUILDING_CONFIG = {
 			},
 			iron_bars: {
 				outputKey: "iron_bars",
-				outputAmt: 2,
+				outputAmt: 3,
 				inputs: { iron_ore: 2 },
 				baseCycleMs: 9000,
 				unlockCost: 500,
