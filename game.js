@@ -1106,45 +1106,22 @@ function clearSaveData() {
 	}
 }
 
-function copySaveToClipboard() {
-	const json = JSON.stringify(state);
-	const base64 = btoa(json);
-	navigator.clipboard.writeText(base64).then(
-		() => announce("Save copied to clipboard."),
-		() => announce("Clipboard access denied."),
-	);
-}
-
-function importSaveFromClipboard() {
-	function applyText(text) {
-		try {
-			const json = atob(text.trim());
-			const parsed = JSON.parse(json);
-			
-			// Support both new unified format and old formats
-			if (parsed && parsed.state && parsed.prestige) {
-				// Migration for the short-lived intermediate format
-				const merged = { ...parsed.state, prestige: parsed.prestige };
-				localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
-			} else {
-				// New simplified unified format OR old state-only format
-				localStorage.setItem(SAVE_KEY, json);
-			}
-			
-			announce("Save imported. Reloading...");
-			setTimeout(() => location.reload(), 800);
-		} catch (e) {
-			announce("Invalid save data.");
+function importSaveFromText() {
+	const text = document.getElementById("save-textarea")?.value?.trim();
+	if (!text) { announce("Nothing to import."); return; }
+	try {
+		const json = atob(text);
+		const parsed = JSON.parse(json);
+		if (parsed && parsed.state && parsed.prestige) {
+			const merged = { ...parsed.state, prestige: parsed.prestige };
+			localStorage.setItem(SAVE_KEY, JSON.stringify(merged));
+		} else {
+			localStorage.setItem(SAVE_KEY, json);
 		}
-	}
-	if (navigator.clipboard?.readText) {
-		navigator.clipboard.readText().then(applyText, () => {
-			const text = prompt("Paste your save data:");
-			if (text) applyText(text);
-		});
-	} else {
-		const text = prompt("Paste your save data:");
-		if (text) applyText(text);
+		announce("Save imported. Reloading...");
+		setTimeout(() => location.reload(), 800);
+	} catch (e) {
+		announce("Invalid save data.");
 	}
 }
 
@@ -1546,13 +1523,18 @@ function renderMarketSection() {
 function renderSettingsSection() {
 	const panel = document.getElementById("panel-settings");
 	if (!panel) return;
-	if (panel.firstChild) return;
+	const saveText = btoa(JSON.stringify(state));
+	if (panel.firstChild) {
+		const ta = panel.querySelector("#save-textarea");
+		if (ta && document.activeElement !== ta) ta.value = saveText;
+		return;
+	}
 	panel.innerHTML = `<section class="settings-section">
 		<h3>Save</h3>
-		<div class="settings-row">
-			<button data-action="save-now">Save Now</button>
-			<button data-action="copy-save">Copy Save</button>
-			<button data-action="import-save">Import Save</button>
+		<button data-action="save-now" style="margin-bottom:var(--space-sm)">Save Now</button>
+		<textarea id="save-textarea" class="save-textarea" rows="5" spellcheck="false" autocomplete="off" aria-label="Save data">${saveText}</textarea>
+		<div class="settings-row" style="margin-top:var(--space-sm)">
+			<button data-action="import-save-text">Import</button>
 			<button data-action="clear-save">Clear Save</button>
 		</div>
 	</section>`;
@@ -1589,8 +1571,7 @@ function handleClick(e) {
 		case "reroll-quest": rerollQuest(+btn.dataset.index); break;
 		case "prestige-reset": doPrestigeReset(); break;
 		case "save-now": saveNow(); break;
-		case "copy-save": copySaveToClipboard(); break;
-		case "import-save": importSaveFromClipboard(); break;
+		case "import-save-text": importSaveFromText(); break;
 		case "clear-save": clearSaveData(); break;
 		case "victory-keep-playing":
 			state.prestige.victoryShown = true;

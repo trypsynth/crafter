@@ -473,6 +473,22 @@ h4.market-product-name {
 }
 .settings-row button:hover { background: var(--color-border); }
 
+.save-textarea {
+	display: block;
+	width: 100%;
+	margin-top: var(--space-md);
+	padding: var(--space-sm);
+	background: var(--color-bg);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	color: var(--color-text-muted);
+	font-family: monospace;
+	font-size: var(--font-sm);
+	resize: vertical;
+	box-sizing: border-box;
+	word-break: break-all;
+}
+
 .unlock-section {
 	display: flex;
 	gap: var(--space-sm);
