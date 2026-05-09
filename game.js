@@ -769,14 +769,22 @@ function load() {
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
 		
-		// Migration: If the old prestige key exists, merge it in (one-time)
+		// Migration: If the old prestige key exists, merge it in once then delete it.
 		const oldP = localStorage.getItem(PRESTIGE_KEY);
 		if (oldP) {
 			try {
 				const p = JSON.parse(oldP);
-				deepMerge(fresh.prestige, p);
-				// We don't remove it yet to be safe, but we'll prefer the merged data
+				// Only migrate fields that the main save doesn't already have
+				// (main save wins for runs/rewards to avoid regressing progress)
+				if ((p.runs ?? 0) > (fresh.prestige.runs ?? 0)) fresh.prestige.runs = p.runs;
+				if (Array.isArray(p.rewards)) {
+					for (const r of p.rewards) if (!fresh.prestige.rewards.includes(r)) fresh.prestige.rewards.push(r);
+				}
+				if (Array.isArray(p.completedQuestIds)) {
+					for (const id of p.completedQuestIds) if (!fresh.prestige.completedQuestIds.includes(id)) fresh.prestige.completedQuestIds.push(id);
+				}
 			} catch (e) {}
+			localStorage.removeItem(PRESTIGE_KEY);
 		}
 
 		const lastTime = fresh.lastTick;
