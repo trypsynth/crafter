@@ -677,3 +677,104 @@ h4.market-product-name {
 	#content { padding: var(--space-md); }
 	.market-product-header { flex-direction: column; gap: var(--space-xs); }
 }
+
+/* Victory overlay */
+#victory-overlay {
+	position: fixed;
+	inset: 0;
+	background: rgba(10, 10, 20, 0.92);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 100;
+	padding: var(--space-lg);
+}
+
+#victory-content {
+	background: var(--color-surface);
+	border: 2px solid var(--color-gold);
+	border-radius: var(--radius);
+	padding: var(--space-xl);
+	max-width: 560px;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-lg);
+	text-align: center;
+}
+
+#victory-content h2 {
+	font-size: var(--font-xxl);
+	color: var(--color-gold);
+	letter-spacing: 0.05em;
+}
+
+.victory-subtitle {
+	color: var(--color-text);
+	line-height: 1.6;
+	font-style: italic;
+}
+
+.victory-stats {
+	background: var(--color-surface2);
+	border-radius: var(--radius);
+	padding: var(--space-md);
+	display: flex;
+	flex-direction: column;
+	gap: var(--space-xs);
+	font-size: var(--font-sm);
+	color: var(--color-text-muted);
+}
+
+.victory-bonuses-title {
+	font-size: var(--font-sm);
+	color: var(--color-text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+	margin-bottom: var(--space-sm);
+}
+
+.victory-bonus-list {
+	list-style: none;
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--space-xs) var(--space-lg);
+	justify-content: center;
+}
+
+.victory-bonus-list li {
+	font-size: var(--font-sm);
+	color: var(--color-gold);
+}
+
+.victory-actions {
+	display: flex;
+	gap: var(--space-md);
+	justify-content: center;
+	flex-wrap: wrap;
+}
+
+.victory-keep-btn {
+	padding: var(--space-sm) var(--space-lg);
+	border: 1px solid var(--color-border);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: var(--color-text);
+	font-size: var(--font-base);
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.victory-keep-btn:hover { background: var(--color-border); }
+
+.victory-new-game-btn {
+	padding: var(--space-sm) var(--space-lg);
+	border: 1px solid var(--color-gold);
+	border-radius: var(--radius);
+	background: var(--color-surface2);
+	color: var(--color-gold);
+	font-size: var(--font-base);
+	font-weight: 600;
+	cursor: pointer;
+	transition: background 0.15s;
+}
+.victory-new-game-btn:hover { background: var(--color-border); }

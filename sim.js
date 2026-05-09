@@ -189,14 +189,18 @@ function slotGps(bk, pk) {
 }
 
 function buildingPrereq(st, bk) {
-	const p = BUILDING_CONFIG[bk].prereq;
-	if (typeof p === "function") {
-		// Mock prestige functions for sim
-		global.state = st;
-		st.prestige = { seenBuildings: Object.keys(st.buildings).filter(k => st.buildings[k].unlocked) };
-		return p();
+	// The prereq functions in game.js close over the module-level `state`, not the sim's `st`.
+	// We evaluate the prereqs directly against the sim state instead.
+	switch (bk) {
+		case "lumber_yard": return true;
+		case "sawmill":     return !!st.buildings.lumber_yard?.unlocked;
+		case "workshop":    return !!st.buildings.sawmill?.unlocked && !!st.buildings.sawmill.products.boards?.unlocked;
+		case "forge":       return !!st.buildings.workshop?.unlocked;
+		case "foundry":     return !!st.buildings.forge?.unlocked && !!st.buildings.forge.products.iron_fittings?.unlocked;
+		case "armoury":     return !!st.buildings.foundry?.unlocked && !!st.buildings.foundry.products.mechanisms?.unlocked;
+		case "shipyard":    return !!st.buildings.armoury?.unlocked && !!st.buildings.armoury.products.cannons?.unlocked;
+		default:            return false;
 	}
-	return true;
 }
 
 function getCandidates(st, rates, profile) {

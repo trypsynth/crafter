@@ -730,6 +730,11 @@ function eligibleQuestPool() {
 	return pool;
 }
 
+function isGameComplete() {
+	const completed = new Set(state.prestige.completedQuestIds);
+	return QUEST_POOL.every(q => completed.has(q.id));
+}
+
 function getPrestigeBonus(type) {
 	return state.prestige.rewards.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
 }
@@ -1503,6 +1508,12 @@ function handleClick(e) {
 		case "copy-save": copySaveToClipboard(); break;
 		case "import-save": importSaveFromClipboard(); break;
 		case "clear-save": clearSaveData(); break;
+		case "victory-keep-playing":
+			state.prestige.victoryShown = true;
+			save();
+			document.getElementById("victory-overlay").hidden = true;
+			break;
+		case "victory-new-game": doVictoryNewGame(); break;
 		case "settings-open":
 			document.getElementById("app").classList.add("settings-open");
 			renderSettingsSection();
@@ -1724,6 +1735,7 @@ function doPrestigeReset() {
 	save();
 	renderAll();
 	announce(`Run ${(state.prestige.runs + 1).toLocaleString()} started! ${completedCount.toLocaleString()} reward${completedCount === 1 ? "" : "s"} earned.`);
+	if (isGameComplete() && !state.prestige.victoryShown) showVictoryScreen();
 }
 
 function computePrestigeSummary() {
@@ -1740,6 +1752,65 @@ function computePrestigeSummary() {
 		const total = getPrestigeBonus(d.type);
 		return total > 0 ? d.fmt(total) : null;
 	}).filter(Boolean);
+}
+
+function showVictoryScreen() {
+	const el = document.getElementById("victory-overlay");
+	if (!el) return;
+	const runs = state.prestige.runs;
+	const totalGold = Math.floor(state.prestige.accumulatedStats.goldEarned + state.stats.goldEarned);
+	const victories = state.prestige.victoryCount ?? 0;
+	const bonuses = computePrestigeSummary();
+	const statsLines = [
+		`Prestige Runs: ${runs.toLocaleString()}`,
+		`Total Gold Earned: ${totalGold.toLocaleString()}`,
+		victories > 0 ? `Times Conquered: ${victories.toLocaleString()}` : null,
+	].filter(Boolean);
+	const bonusesHtml = bonuses.length > 0
+		? `<div>
+			<p class="victory-bonuses-title">Permanent Bonuses Earned</p>
+			<ul class="victory-bonus-list">${bonuses.map(b => `<li>${b}</li>`).join("")}</ul>
+		</div>`
+		: "";
+	el.innerHTML = `
+		<div id="victory-content">
+			<h2 id="victory-title">Empire Complete!</h2>
+			<p class="victory-subtitle">From humble logs to mighty dreadnoughts, you have forged an industrial legacy that spans the ages. The world bows to your craft.</p>
+			<div class="victory-stats">${statsLines.map(s => `<p>${s}</p>`).join("")}</div>
+			${bonusesHtml}
+			<div class="victory-actions">
+				<button class="victory-keep-btn" data-action="victory-keep-playing">Keep Playing</button>
+				<button class="victory-new-game-btn" data-action="victory-new-game">New Legacy</button>
+			</div>
+		</div>
+	`;
+	el.hidden = false;
+	el.querySelector("[data-action='victory-new-game']")?.focus();
+	announce("Victory! You have conquered all challenges and built the mightiest empire!");
+}
+
+function doVictoryNewGame() {
+	if (!confirm("Start a brand new game? All progress and prestige rewards will be reset.")) return;
+	const victoryCount = (state.prestige.victoryCount ?? 0) + 1;
+	state = deepClone(DEFAULT_STATE);
+	state.prestige.victoryCount = victoryCount;
+	localStorage.removeItem(PRESTIGE_KEY);
+	runtime.nextSlotId = 0;
+	runtime.stallAnnounced = {};
+	runtime.selectedBuilding = "lumber_yard";
+	const sel = document.getElementById("building-select");
+	if (sel) {
+		sel.innerHTML = "";
+		addBuildingOption("lumber_yard");
+		sel.value = "lumber_yard";
+	}
+	document.getElementById("victory-overlay").hidden = true;
+	document.getElementById("panel-production").innerHTML = "";
+	_questsRenderKey = "";
+	drawQuests();
+	save();
+	renderAll();
+	announce("New legacy begun!");
 }
 
 function renderQuestsSection() {
@@ -1852,6 +1923,7 @@ function init() {
 	document.getElementById("app").addEventListener("click", handleClick);
 	setInterval(tick, 100);
 	setInterval(save, 5000);
+	if (isGameComplete() && !state.prestige.victoryShown) showVictoryScreen();
 }
 
 if (typeof document !== "undefined") {
