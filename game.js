@@ -1567,7 +1567,7 @@ function renderTreasure() {
 			const btn = document.createElement("button");
 			btn.className = "treasure-btn";
 			btn.dataset.action = "open-treasure";
-			btn.textContent = "🎁 Open Treasure Chest!";
+			btn.textContent = "Open Treasure Chest!";
 			container.appendChild(btn);
 		}
 	} else {
