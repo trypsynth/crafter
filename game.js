@@ -568,7 +568,7 @@ const STORAGE_BASE = 50;
 const STORAGE_FIRST_UPGRADE = 100;
 const STORAGE_INCREMENT = 100;
 const STORAGE_BASE_COST = 150;
-const STORAGE_COST_GROWTH = 1.5;
+const STORAGE_COST_GROWTH = 1.1;
 
 const DEFAULT_STATE = (() => ({
 	gold: 0,
@@ -738,11 +738,19 @@ function getPrestigeBonus(type) {
 	return state.prestige.rewards.filter(r => r.type === type).reduce((s, r) => s + r.amount, 0);
 }
 
-function prestigeSlotCostMult()   { return Math.max(0.1, 1 - getPrestigeBonus("slot_cost_pct")   / 100); }
-function prestigeSellMult()        { return 1 + getPrestigeBonus("sell_price_pct")  / 100; }
-function prestigeBuildCostMult()   { return Math.max(0.1, 1 - getPrestigeBonus("build_cost_pct")  / 100); }
-function prestigeUnlockCostMult()  { return Math.max(0.1, 1 - getPrestigeBonus("unlock_cost_pct") / 100); }
-function prestigeSpeedMult()       { return 1 + getPrestigeBonus("cycle_speed_pct") / 100; }
+function getPrestigeMult(type) {
+	const rewards = state.prestige.rewards.filter(r => r.type === type);
+	if (type === "sell_price_pct" || type === "cycle_speed_pct") {
+		return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
+	}
+	return rewards.reduce((m, r) => m * (1 - r.amount / 100), 1);
+}
+
+function prestigeSlotCostMult()   { return getPrestigeMult("slot_cost_pct"); }
+function prestigeSellMult()        { return getPrestigeMult("sell_price_pct"); }
+function prestigeBuildCostMult()   { return getPrestigeMult("build_cost_pct"); }
+function prestigeUnlockCostMult()  { return getPrestigeMult("unlock_cost_pct"); }
+function prestigeSpeedMult()       { return getPrestigeMult("cycle_speed_pct"); }
 
 function save() {
 	try {
@@ -1778,16 +1786,22 @@ function doPrestigeReset() {
 function computePrestigeSummary() {
 	const defs = [
 		{ type: "starting_gold",  fmt: n => `+${n.toLocaleString()} Starting Gold`       },
-		{ type: "slot_cost_pct",  fmt: n => `Slot Costs -${n.toLocaleString()}%`                          },
-		{ type: "unlock_cost_pct",fmt: n => `Unlock Costs -${n.toLocaleString()}%`                        },
-		{ type: "build_cost_pct", fmt: n => `Build Costs -${n.toLocaleString()}%`                         },
-		{ type: "sell_price_pct", fmt: n => `Sale Prices +${n.toLocaleString()}%`                         },
+		{ type: "slot_cost_pct",  isMult: true, isDiscount: true, fmt: n => `Slot Costs -${n.toLocaleString()}%`                          },
+		{ type: "unlock_cost_pct",isMult: true, isDiscount: true, fmt: n => `Unlock Costs -${n.toLocaleString()}%`                        },
+		{ type: "build_cost_pct", isMult: true, isDiscount: true, fmt: n => `Build Costs -${n.toLocaleString()}%`                         },
+		{ type: "sell_price_pct", isMult: true, isDiscount: false, fmt: n => `Sale Prices +${n.toLocaleString()}%`                         },
 		{ type: "storage_tier",   fmt: n => `+${n.toLocaleString()} Starting Storage Tier${n > 1 ? "s" : ""}` },
-		{ type: "cycle_speed_pct",fmt: n => `Production Speed +${n.toLocaleString()}%`                    },
+		{ type: "cycle_speed_pct",isMult: true, isDiscount: false, fmt: n => `Production Speed +${n.toLocaleString()}%`                    },
 	];
 	return defs.map(d => {
-		const total = getPrestigeBonus(d.type);
-		return total > 0 ? d.fmt(total) : null;
+		if (d.isMult) {
+			const mult = getPrestigeMult(d.type);
+			const val = d.isDiscount ? Math.round((1 - mult) * 100) : Math.round((mult - 1) * 100);
+			return val > 0 ? d.fmt(val) : null;
+		} else {
+			const total = getPrestigeBonus(d.type);
+			return total > 0 ? d.fmt(total) : null;
+		}
 	}).filter(Boolean);
 }
 
