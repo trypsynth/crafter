@@ -14,6 +14,7 @@ function rewardLabel(r) {
 	if (r.type === "sell_price_pct") return `Sale Prices +${r.amount.toLocaleString()}%`;
 	if (r.type === "storage_tier")   return `+${r.amount.toLocaleString()} Starting Storage Tier${r.amount > 1 ? "s" : ""}`;
 	if (r.type === "cycle_speed_pct")return `Production Speed +${r.amount.toLocaleString()}%`;
+	if (r.type === "treasure_gold_pct")return `Treasure Gold +${r.amount.toLocaleString()}%`;
 	return "";
 }
 
@@ -185,6 +186,12 @@ const QUEST_CHAINS = [
 		{ target: 10000000, label: "Earn 10,000,000 Gold", reward: { type: "sell_price_pct", amount: 15 } },
 		{ target: 100000000, label: "Earn 100,000,000 Gold", reward: { type: "unlock_cost_pct", amount: 25 } },
 		{ target: 1000000000, label: "Earn 1,000,000,000 Gold", reward: { type: "cycle_speed_pct", amount: 25 } },
+	]},
+	{ id: "treasure_chests", type: "treasure", tiers: [
+		{ target: 5, label: "Open 5 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 50 } },
+		{ target: 25, label: "Open 25 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 100 } },
+		{ target: 50, label: "Open 50 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 150 } },
+		{ target: 100, label: "Open 100 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 200 } },
 	]},
 ];
 
@@ -575,14 +582,15 @@ const DEFAULT_STATE = (() => ({
 	lastTick: null,
 	inventory: Object.fromEntries(Object.keys(RESOURCES).map(k => [k, 0])),
 	storage: { tier: 0 },
-	stats: { goldEarned: 0, soldByResource: {} },
+	stats: { goldEarned: 0, soldByResource: {}, treasureChestsOpened: 0 },
+	treasure: { nextSpawn: Date.now() + 300000 + Math.random() * 600000, activeUntil: 0 },
 	quests: { active: [], completed: [], baselines: {}, rerolls: 0 },
 	prestige: { 
 		runs: 0, 
 		rewards: [], 
 		completedQuestIds: [], 
 		seenBuildings: [],
-		accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {} }
+		accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {}, treasureChestsOpened: 0 }
 	},
 	buildings: Object.fromEntries(
 		Object.keys(BUILDING_CONFIG).map(bldKey => {
@@ -740,7 +748,7 @@ function getPrestigeBonus(type) {
 
 function getPrestigeMult(type) {
 	const rewards = state.prestige.rewards.filter(r => r.type === type);
-	if (type === "sell_price_pct" || type === "cycle_speed_pct") {
+	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") {
 		return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
 	}
 	return rewards.reduce((m, r) => m * (1 - r.amount / 100), 1);
@@ -751,6 +759,7 @@ function prestigeSellMult()        { return getPrestigeMult("sell_price_pct"); }
 function prestigeBuildCostMult()   { return getPrestigeMult("build_cost_pct"); }
 function prestigeUnlockCostMult()  { return getPrestigeMult("unlock_cost_pct"); }
 function prestigeSpeedMult()       { return getPrestigeMult("cycle_speed_pct"); }
+function prestigeTreasureMult()    { return getPrestigeMult("treasure_gold_pct"); }
 
 function save() {
 	try {
@@ -1119,6 +1128,7 @@ function addBuildingOption(bldKey) {
 }
 
 function renderAll() {
+	renderTreasure();
 	renderHUD();
 	renderBuildingSection();
 	renderMarketSection();
@@ -1520,10 +1530,69 @@ function renderSettingsSection() {
 	</section>`;
 }
 
+function getTreasureBaseValue() {
+	let maxPrice = 5;
+	for (const bldKey in BUILDING_CONFIG) {
+		const bst = state.buildings[bldKey];
+		if (!bst?.unlocked) continue;
+		for (const prodKey in BUILDING_CONFIG[bldKey].products) {
+			const pst = bst.products[prodKey];
+			if (!pst?.unlocked) continue;
+			const price = RESOURCES[BUILDING_CONFIG[bldKey].products[prodKey].outputKey].price;
+			if (price > maxPrice) maxPrice = price;
+		}
+	}
+	return maxPrice * 100;
+}
+
+function handleOpenTreasure() {
+	if (!state.treasure.activeUntil || Date.now() > state.treasure.activeUntil) return;
+	const base = getTreasureBaseValue();
+	const bonus = prestigeTreasureMult();
+	const amount = Math.round(base * bonus);
+	state.gold += amount;
+	state.stats.goldEarned += amount;
+	state.stats.treasureChestsOpened++;
+	state.treasure.activeUntil = 0;
+	announce(`Opened treasure chest for ${amount.toLocaleString()} gold!`);
+	renderAll();
+}
+
+function renderTreasure() {
+	const container = document.getElementById("treasure-container");
+	if (!container) return;
+	const now = Date.now();
+	if (state.treasure.activeUntil > now) {
+		if (!container.querySelector("button")) {
+			const btn = document.createElement("button");
+			btn.className = "treasure-btn";
+			btn.dataset.action = "open-treasure";
+			btn.textContent = "🎁 Open Treasure Chest!";
+			container.appendChild(btn);
+		}
+	} else {
+		container.innerHTML = "";
+	}
+}
+
 function tick() {
 	const now = Date.now();
 	const delta = (now - state.lastTick) / 1000;
 	state.lastTick = now;
+
+	// Treasure spawning
+	if (state.treasure.activeUntil && now > state.treasure.activeUntil) {
+		state.treasure.activeUntil = 0;
+		renderTreasure();
+	}
+	if (!state.treasure.activeUntil && now > state.treasure.nextSpawn) {
+		const duration = 10000 + Math.random() * 20000;
+		state.treasure.activeUntil = now + duration;
+		state.treasure.nextSpawn = now + 300000 + Math.random() * 600000;
+		announce(`Treasure chest spawned, active for ${Math.round(duration/1000)} seconds!`);
+		renderTreasure();
+	}
+
 	try { advanceBuildings(delta); } catch (e) { console.error("advanceBuildings:", e); }
 	checkQuestCompletion();
 	renderHUD();
@@ -1538,6 +1607,7 @@ function handleClick(e) {
 	const bld = btn.dataset.bld;
 	const product = btn.dataset.product;
 	switch (action) {
+		case "open-treasure": handleOpenTreasure(); break;
 		case "build": unlockBuilding(bld); break;
 		case "unlock-product": unlockProduct(bld, product); break;
 		case "add-slot": addSlot(bld, product); break;
@@ -1596,7 +1666,7 @@ function flushSatisfiedQuests() {
 	if (changed) save();
 }
 
-const BASELINE_QUEST_TYPES = new Set(["sell", "slots", "total_slots", "gold_earned", "storage"]);
+const BASELINE_QUEST_TYPES = new Set(["sell", "slots", "total_slots", "gold_earned", "storage", "treasure"]);
 
 function rerollCost() {
 	return Math.round(250 * Math.pow(2, state.quests.rerolls ?? 0));
@@ -1663,6 +1733,9 @@ function drawQuests() {
 function getQuestProgress(def, baseline = 0) {
 	let raw;
 	switch (def.type) {
+		case "treasure":
+			raw = (state.prestige.accumulatedStats.treasureChestsOpened ?? 0) + (state.stats.treasureChestsOpened ?? 0);
+			break;
 		case "sell": {
 			const current = state.stats.soldByResource[def.resource] ?? 0;
 			raw = (state.prestige.accumulatedStats.soldByResource[def.resource] ?? 0) + current;
@@ -1738,6 +1811,7 @@ function doPrestigeReset() {
 	// Accumulate stats
 	state.prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
 	state.prestige.accumulatedStats.storageUpgrades += state.storage.tier;
+	state.prestige.accumulatedStats.treasureChestsOpened += (state.stats.treasureChestsOpened ?? 0);
 	for (const [bk, bst] of Object.entries(state.buildings))
 		for (const [pk, pst] of Object.entries(bst.products)) {
 			state.prestige.accumulatedStats.totalSlots += pst.slots.length;
@@ -1792,6 +1866,7 @@ function computePrestigeSummary() {
 		{ type: "sell_price_pct", isMult: true, isDiscount: false, fmt: n => `Sale Prices +${n.toLocaleString()}%`                         },
 		{ type: "storage_tier",   fmt: n => `+${n.toLocaleString()} Starting Storage Tier${n > 1 ? "s" : ""}` },
 		{ type: "cycle_speed_pct",isMult: true, isDiscount: false, fmt: n => `Production Speed +${n.toLocaleString()}%`                    },
+		{ type: "treasure_gold_pct",isMult: true, isDiscount: false, fmt: n => `Treasure Gold +${n.toLocaleString()}%`                    },
 	];
 	return defs.map(d => {
 		if (d.isMult) {
