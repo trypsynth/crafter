@@ -1189,6 +1189,7 @@ function getProductionOverview() {
 	const productRows = [];
 	const supplyRates = {};
 	const demandRates = {};
+	const cycleSpeedMult = prestigeSpeedMult();
 	for (const [bldKey, cfg] of Object.entries(BUILDING_CONFIG)) {
 		const bst = state.buildings[bldKey];
 		if (!bst?.unlocked) continue;
@@ -1204,9 +1205,10 @@ function getProductionOverview() {
 				baseCycleMs: pcfg.baseCycleMs,
 			});
 			if (!pst.enabled || n === 0) continue;
-			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
+			const actualCycleMs = pcfg.baseCycleMs / cycleSpeedMult;
+			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / actualCycleMs;
 			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
-				demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / pcfg.baseCycleMs;
+				demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / actualCycleMs;
 			}
 		}
 	}
