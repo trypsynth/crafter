@@ -4,7 +4,6 @@ const SAVE_KEY = "crafter";
 
 let _questsRenderKey = "";
 
-const PRESTIGE_KEY = "crafter_prestige"; // Kept only for migration
 
 // Generates the reward label string from a reward object.
 function rewardLabel(r) {
@@ -754,38 +753,10 @@ function save() {
 function load() {
 	try {
 		const raw = localStorage.getItem(SAVE_KEY);
-		if (!raw) {
-			// Check for old prestige data if no main save exists
-			const oldP = localStorage.getItem(PRESTIGE_KEY);
-			if (oldP) {
-				try {
-					const p = JSON.parse(oldP);
-					deepMerge(state.prestige, p);
-				} catch (e) {}
-			}
-			return;
-		}
+		if (!raw) return;
 		const parsed = JSON.parse(raw);
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
-		
-		// Migration: If the old prestige key exists, merge it in once then delete it.
-		const oldP = localStorage.getItem(PRESTIGE_KEY);
-		if (oldP) {
-			try {
-				const p = JSON.parse(oldP);
-				// Only migrate fields that the main save doesn't already have
-				// (main save wins for runs/rewards to avoid regressing progress)
-				if ((p.runs ?? 0) > (fresh.prestige.runs ?? 0)) fresh.prestige.runs = p.runs;
-				if (Array.isArray(p.rewards)) {
-					for (const r of p.rewards) if (!fresh.prestige.rewards.includes(r)) fresh.prestige.rewards.push(r);
-				}
-				if (Array.isArray(p.completedQuestIds)) {
-					for (const id of p.completedQuestIds) if (!fresh.prestige.completedQuestIds.includes(id)) fresh.prestige.completedQuestIds.push(id);
-				}
-			} catch (e) {}
-			localStorage.removeItem(PRESTIGE_KEY);
-		}
 
 		const lastTime = fresh.lastTick;
 		state = fresh;
@@ -1100,7 +1071,6 @@ function saveNow() {
 function clearSaveData() {
 	if (confirm("Clear all save data and start over? This will reset everything, including prestige rewards.")) {
 		localStorage.removeItem(SAVE_KEY);
-		localStorage.removeItem(PRESTIGE_KEY);
 		state = deepClone(DEFAULT_STATE);
 		location.reload();
 	}
@@ -1861,7 +1831,6 @@ function doVictoryNewGame() {
 	const victoryCount = (state.prestige.victoryCount ?? 0) + 1;
 	state = deepClone(DEFAULT_STATE);
 	state.prestige.victoryCount = victoryCount;
-	localStorage.removeItem(PRESTIGE_KEY);
 	runtime.nextSlotId = 0;
 	runtime.stallAnnounced = {};
 	runtime.selectedBuilding = "lumber_yard";
