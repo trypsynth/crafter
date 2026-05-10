@@ -1283,12 +1283,12 @@ function renderChainOverview() {
 	const surpluses = balances.filter(b => b.net > 0.05).sort((a, b) => b.net - a.net);
 	let sentences = [];
 	if (shortages.length > 0) {
-		const list = shortages.map(b => `${RESOURCES[b.resourceKey].label} (need ${Math.abs(b.net).toFixed(1)} per minute more)`).join(", ");
-		sentences.push(`<p class="chain-item-neg">Bottleneck: ${list}.</p>`);
+		const items = shortages.map(b => `<li>${RESOURCES[b.resourceKey].label} (need ${Math.abs(b.net).toFixed(1)}/min more)</li>`).join("");
+		sentences.push(`<p class="chain-item-neg">Bottleneck:</p><ul class="chain-item-neg">${items}</ul>`);
 	}
 	if (surpluses.length > 0) {
-		const list = surpluses.map(b => `${RESOURCES[b.resourceKey].label} (+${b.net.toFixed(1)} per minute)`).join(", ");
-		sentences.push(`<p class="chain-item-pos">Surplus: ${list}.</p>`);
+		const items = surpluses.map(b => `<li>${RESOURCES[b.resourceKey].label} (+${b.net.toFixed(1)}/min)</li>`).join("");
+		sentences.push(`<p class="chain-item-pos">Surplus:</p><ul class="chain-item-pos">${items}</ul>`);
 	}
 	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
 	const fixBtn = shortages.length > 0

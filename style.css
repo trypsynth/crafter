@@ -685,6 +685,13 @@ h4.market-product-name {
 	line-height: 1.4;
 }
 
+.chain-prose ul {
+	font-size: var(--font-sm);
+	margin: 0 0 0 var(--space-md);
+	padding: 0;
+	line-height: 1.6;
+}
+
 .chain-item-pos { color: var(--color-progress); }
 .chain-item-neg { color: var(--color-accent); }
 .chain-item-muted { color: var(--color-text-muted); }
