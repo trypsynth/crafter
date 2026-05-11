@@ -189,9 +189,7 @@ const QUEST_CHAINS = [
 	]},
 	{ id: "treasure_chests", type: "treasure", tiers: [
 		{ target: 5, label: "Open 5 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 50 } },
-		{ target: 25, label: "Open 25 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 100 } },
-		{ target: 50, label: "Open 50 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 150 } },
-		{ target: 100, label: "Open 100 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 200 } },
+		{ target: 10, label: "Open 10 Treasure Chests", reward: { type: "treasure_gold_pct", amount: 50 } },
 	]},
 ];
 
@@ -1542,7 +1540,7 @@ function getTreasureBaseValue() {
 			if (price > maxPrice) maxPrice = price;
 		}
 	}
-	return maxPrice * 100;
+	return maxPrice * 100 * (1 + (state.prestige?.runs ?? 0));
 }
 
 function handleOpenTreasure() {
