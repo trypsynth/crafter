@@ -4,7 +4,6 @@ const SAVE_KEY = "crafter";
 
 let _questsRenderKey = "";
 
-
 // Generates the reward label string from a reward object.
 function rewardLabel(r) {
 	if (r.type === "starting_gold")  return `+${r.amount.toLocaleString()} Starting Gold`;
@@ -590,25 +589,21 @@ const DEFAULT_STATE = (() => ({
 		seenBuildings: [],
 		accumulatedStats: { goldEarned: 0, soldByResource: {}, storageUpgrades: 0, totalSlots: 0, maxSlotsByProduct: {}, totalSlotsByProduct: {}, treasureChestsOpened: 0 }
 	},
-	buildings: Object.fromEntries(
-		Object.keys(BUILDING_CONFIG).map(bldKey => {
-			const bcfg = BUILDING_CONFIG[bldKey];
-			return [bldKey, {
-				unlocked: bldKey === "lumber_yard",
-				products: Object.fromEntries(
-					Object.keys(bcfg.products).map(pk => {
-						const pcfg = bcfg.products[pk];
-						return [pk, {
-							unlocked: pcfg.startsUnlocked ?? false,
-							enabled: true,
-							slots: [],
-							manual: { active: false, progress: 0 },
-						}];
-					})
-				),
-			}];
-		})
-	),
+	buildings: Object.fromEntries(Object.keys(BUILDING_CONFIG).map(bldKey => {
+		const bcfg = BUILDING_CONFIG[bldKey];
+		return [bldKey, {
+			unlocked: bldKey === "lumber_yard",
+			products: Object.fromEntries(Object.keys(bcfg.products).map(pk => {
+				const pcfg = bcfg.products[pk];
+				return [pk, {
+					unlocked: pcfg.startsUnlocked ?? false,
+					enabled: true,
+					slots: [],
+					manual: { active: false, progress: 0 },
+				}];
+			})),
+		}];
+	})),
 }))();
 
 let state = deepClone(DEFAULT_STATE);
@@ -636,9 +631,7 @@ function deepMerge(dst, src) {
 }
 
 function formatInputs(inputs) {
-	return Object.entries(inputs)
-		.map(([k, amt]) => `${amt.toLocaleString()} ${amt === 1 ? RESOURCES[k].singular : RESOURCES[k].label}`)
-		.join(", ");
+	return Object.entries(inputs).map(([k, amt]) => `${amt.toLocaleString()} ${amt === 1 ? RESOURCES[k].singular : RESOURCES[k].label}`).join(", ");
 }
 
 function formatResourceName(resourceKey, amount) {
@@ -746,18 +739,33 @@ function getPrestigeBonus(type) {
 
 function getPrestigeMult(type) {
 	const rewards = state.prestige.rewards.filter(r => r.type === type);
-	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") {
-		return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
-	}
+	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
 	return rewards.reduce((m, r) => m * (1 - r.amount / 100), 1);
 }
 
-function prestigeSlotCostMult()   { return getPrestigeMult("slot_cost_pct"); }
-function prestigeSellMult()        { return getPrestigeMult("sell_price_pct"); }
-function prestigeBuildCostMult()   { return getPrestigeMult("build_cost_pct"); }
-function prestigeUnlockCostMult()  { return getPrestigeMult("unlock_cost_pct"); }
-function prestigeSpeedMult()       { return getPrestigeMult("cycle_speed_pct"); }
-function prestigeTreasureMult()    { return getPrestigeMult("treasure_gold_pct"); }
+function prestigeSlotCostMult()   {
+	return getPrestigeMult("slot_cost_pct");
+}
+
+function prestigeSellMult()        {
+	return getPrestigeMult("sell_price_pct");
+}
+
+function prestigeBuildCostMult()   {
+	return getPrestigeMult("build_cost_pct");
+}
+
+function prestigeUnlockCostMult()  {
+	return getPrestigeMult("unlock_cost_pct");
+}
+
+function prestigeSpeedMult()       {
+	return getPrestigeMult("cycle_speed_pct");
+}
+
+function prestigeTreasureMult()    {
+	return getPrestigeMult("treasure_gold_pct");
+}
 
 function save() {
 	try {
@@ -772,7 +780,6 @@ function load() {
 		const parsed = JSON.parse(raw);
 		const fresh = deepClone(DEFAULT_STATE);
 		deepMerge(fresh, parsed);
-
 		const lastTime = fresh.lastTick;
 		state = fresh;
 		let maxId = 0;
@@ -818,8 +825,7 @@ function load() {
 						const available = state.inventory[inK] || 0;
 						cycles = Math.min(cycles, Math.floor(available / inA));
 					}
-					// Only cap by storage for net-positive producers; net-neutral/negative producers
-					// consume more inputs than they output, so they free up (or preserve) space.
+					// Only cap by storage for net-positive producers; net-neutral/negative producers consume more inputs than they output, so they free up (or preserve) space.
 					const inputSum = Object.values(p.pcfg.inputs).reduce((s, n) => s + n, 0);
 					const netPerCycle = p.pcfg.outputAmt - inputSum;
 					if (netPerCycle > 0) {
@@ -838,9 +844,7 @@ function load() {
 						gained += gain;
 					}
 				}
-				if (gained > 0) {
-					setTimeout(() => announce(`Welcome back! Your workers produced ${gained.toLocaleString()} items while you were away.`), 500);
-				}
+				if (gained > 0) setTimeout(() => announce(`Welcome back! Your workers produced ${gained.toLocaleString()} items while you were away.`), 500);
 			}
 		}
 	} catch (e) {
@@ -860,8 +864,7 @@ function tryProduceSlot(bldKey, productKey, slot) {
 			runtime.stallAnnounced[stallKey] = "pending";
 		} else if (runtime.stallAnnounced[stallKey] === "pending") {
 			runtime.stallAnnounced[stallKey] = true;
-			if (runtime.selectedBuilding === bldKey)
-				announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`);
+			if (runtime.selectedBuilding === bldKey) announce(`${RESOURCES[pcfg.outputKey].label} stalled - storage full.`);
 		}
 		return false;
 	}
@@ -872,15 +875,12 @@ function tryProduceSlot(bldKey, productKey, slot) {
 				runtime.stallAnnounced[stallKey] = "pending";
 			} else if (runtime.stallAnnounced[stallKey] === "pending") {
 				runtime.stallAnnounced[stallKey] = true;
-				if (runtime.selectedBuilding === bldKey)
-					announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`);
+				if (runtime.selectedBuilding === bldKey) announce(`${RESOURCES[pcfg.outputKey].label} stalled - need ${formatInputs(pcfg.inputs)}.`);
 			}
 			return false;
 		}
 	}
-	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
-		state.inventory[inputKey] -= inputAmt;
-	}
+	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) state.inventory[inputKey] -= inputAmt;
 	state.inventory[pcfg.outputKey] += pcfg.outputAmt;
 	delete runtime.stallAnnounced[stallKey];
 	return true;
@@ -913,9 +913,7 @@ function advanceBuildings(deltaSec) {
 				if (pst.manual.progress >= 1.0) {
 					pst.manual.progress = 0;
 					pst.manual.active = false;
-					for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
-						state.inventory[inputKey] -= inputAmt;
-					}
+					for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) state.inventory[inputKey] -= inputAmt;
 					state.inventory[pcfg.outputKey] += pcfg.outputAmt;
 					announce(`${RESOURCES[pcfg.outputKey].singular} produced.`);
 				}
@@ -937,9 +935,7 @@ function unlockBuilding(bldKey) {
 	state.gold -= buildCost;
 	bst.unlocked = true;
 	for (const [pk, pcfg] of Object.entries(cfg.products)) {
-		if (pcfg.unlockCost === 0 && !pcfg.prereqProduct) {
-			bst.products[pk].unlocked = true;
-		}
+		if (pcfg.unlockCost === 0 && !pcfg.prereqProduct) bst.products[pk].unlocked = true;
 	}
 	addBuildingOption(bldKey);
 	runtime.selectedBuilding = bldKey;
@@ -1014,7 +1010,7 @@ function manualProduce(bldKey, productKey) {
 	}
 	for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
 		if (state.inventory[inputKey] < inputAmt) {
-		announce(`Need ${formatInputs(pcfg.inputs)}.`);
+			announce(`Need ${formatInputs(pcfg.inputs)}.`);
 			return;
 		}
 	}
@@ -1093,7 +1089,10 @@ function clearSaveData() {
 
 function importSaveFromText() {
 	const text = document.getElementById("save-textarea")?.value?.trim();
-	if (!text) { announce("Nothing to import."); return; }
+	if (!text) {
+		announce("Nothing to import.");
+		return;
+	}
 	try {
 		const json = atob(text);
 		const parsed = JSON.parse(json);
@@ -1145,10 +1144,7 @@ function renderHUD() {
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
 	const inventoryEl = document.getElementById("hud-inventory");
 	if (inventoryEl) {
-		const invText = Object.entries(state.inventory)
-			.filter(([, v]) => v > 0)
-			.map(([k, v]) => `${v.toLocaleString()} ${formatResourceName(k, v)}`)
-			.join(", ");
+		const invText = Object.entries(state.inventory).filter(([, v]) => v > 0).map(([k, v]) => `${v.toLocaleString()} ${formatResourceName(k, v)}`).join(", ");
 		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
 	}
 	const chainEl = document.getElementById("hud-chain");
@@ -1193,35 +1189,22 @@ function getProductionOverview() {
 			if (!pst.enabled || n === 0) continue;
 			const actualCycleMs = pcfg.baseCycleMs / cycleSpeedMult;
 			supplyRates[pcfg.outputKey] = (supplyRates[pcfg.outputKey] || 0) + n * pcfg.outputAmt * 60000 / actualCycleMs;
-			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) {
-				demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / actualCycleMs;
-			}
+			for (const [inputKey, inputAmt] of Object.entries(pcfg.inputs)) demandRates[inputKey] = (demandRates[inputKey] || 0) + n * inputAmt * 60000 / actualCycleMs;
 		}
 	}
 	const hasChain = Object.keys(demandRates).length > 0;
-	const balances = Array.from(new Set([
-		...Object.keys(supplyRates),
-		...Object.keys(demandRates),
-	]))
-		.filter(resourceKey => RESOURCES[resourceKey])
-		.map(resourceKey => ({
-			resourceKey,
-			supply: supplyRates[resourceKey] || 0,
-			demand: demandRates[resourceKey] || 0,
-			net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
-		}));
-	const deficits = balances
-		.filter(entry => entry.demand > 0 && entry.net < -0.05)
-		.sort((a, b) => a.net - b.net);
+	const balances = Array.from(new Set([...Object.keys(supplyRates), ...Object.keys(demandRates)])).filter(resourceKey => RESOURCES[resourceKey]).map(resourceKey => ({
+		resourceKey,
+		supply: supplyRates[resourceKey] || 0,
+		demand: demandRates[resourceKey] || 0,
+		net: (supplyRates[resourceKey] || 0) - (demandRates[resourceKey] || 0),
+	}));
+	const deficits = balances.filter(entry => entry.demand > 0 && entry.net < -0.05).sort((a, b) => a.net - b.net);
 	const totalDemand = Object.values(demandRates).reduce((sum, value) => sum + value, 0);
-	const fulfillment = totalDemand <= 0
-		? 0
-		: balances
-			.filter(entry => entry.demand > 0)
-			.reduce((sum, entry) => {
-				const coverage = Math.min(entry.supply / entry.demand, 1);
-				return sum + (entry.demand * coverage);
-			}, 0);
+	const fulfillment = totalDemand <= 0 ? 0 : balances.filter(entry => entry.demand > 0).reduce((sum, entry) => {
+		const coverage = Math.min(entry.supply / entry.demand, 1);
+		return sum + (entry.demand * coverage);
+	}, 0);
 	const efficiencyPct = totalDemand <= 0 ? null : Math.round((fulfillment / totalDemand) * 100);
 	return { productRows, hasChain, deficits, balances, efficiencyPct };
 }
@@ -1230,7 +1213,6 @@ function bestNextPurchase() {
 	const { deficits } = getProductionOverview();
 	const deficitMap = {};
 	for (const d of deficits) deficitMap[d.resourceKey] = d.net;
-
 	let best = null;
 	let bestScore = -Infinity;
 	for (const [bk, bst] of Object.entries(state.buildings)) {
@@ -1241,8 +1223,7 @@ function bestNextPurchase() {
 			if (cost <= 0) continue;
 			const outputRate = pcfg.outputAmt * 60000 / pcfg.baseCycleMs;
 			let score = (outputRate * currentPrice(pcfg.outputKey)) / cost;
-			if (deficitMap[pcfg.outputKey] !== undefined)
-				score *= 1 + Math.abs(deficitMap[pcfg.outputKey]);
+			if (deficitMap[pcfg.outputKey] !== undefined) score *= 1 + Math.abs(deficitMap[pcfg.outputKey]);
 			if (score > bestScore) {
 				bestScore = score;
 				best = {
@@ -1268,7 +1249,9 @@ function doFixBottleneck() {
 				if (!bst.unlocked) continue;
 				for (const [pk, pcfg] of Object.entries(BUILDING_CONFIG[bk].products)) {
 					if (bst.products[pk].unlocked && pcfg.outputKey === deficit.resourceKey) {
-						foundBld = bk; foundProd = pk; break outer;
+						foundBld = bk;
+						foundProd = pk;
+						break outer;
 					}
 				}
 			}
@@ -1287,9 +1270,7 @@ function doFixBottleneck() {
 		save();
 		renderAll();
 		announce(`Bought ${totalBought} slot${totalBought === 1 ? "" : "s"} to fix production bottlenecks.`);
-	} else {
-		announce("Not enough gold to fix any bottleneck.");
-	}
+	} else announce("Not enough gold to fix any bottleneck.");
 }
 
 function renderChainOverview() {
@@ -1307,13 +1288,9 @@ function renderChainOverview() {
 		sentences.push(`<p class="chain-item-pos">Surplus:</p><ul class="chain-item-pos">${items}</ul>`);
 	}
 	if (shortages.length === 0 && surpluses.length === 0) sentences.push(`<p>Your production chain is perfectly balanced.</p>`);
-	const fixBtn = shortages.length > 0
-		? `<button class="chain-fix-btn" data-action="fix-bottleneck">Buy slots to fix bottleneck</button>`
-		: "";
+	const fixBtn = shortages.length > 0 ? `<button class="chain-fix-btn" data-action="fix-bottleneck">Buy slots to fix bottleneck</button>` : "";
 	const suggestion = bestNextPurchase();
-	const suggestionHtml = suggestion
-		? `<p class="chain-suggestion ${suggestion.isDeficit ? "chain-item-neg" : "chain-item-muted"}">${suggestion.isDeficit ? "Suggested fix" : "Best value"}: add a ${suggestion.label} slot (${suggestion.cost.toLocaleString()} gold)</p>`
-		: "";
+	const suggestionHtml = suggestion ? `<p class="chain-suggestion ${suggestion.isDeficit ? "chain-item-neg" : "chain-item-muted"}">${suggestion.isDeficit ? "Suggested fix" : "Best value"}: add a ${suggestion.label} slot (${suggestion.cost.toLocaleString()} gold)</p>` : "";
 	return `
 		<div class="chain-overview">
 			<h3>Production Summary</h3>
@@ -1330,10 +1307,7 @@ function renderBuildingSection() {
 	const panel = document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
-	
-	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k =>
-		!state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq()
-	);
+	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
 	let nextHtml = "";
 	if (nextBldKey) {
 		const ncfg = BUILDING_CONFIG[nextBldKey];
@@ -1355,9 +1329,7 @@ function renderBuildingSection() {
 		const slotWord = n === 1 ? "slot" : "slots";
 		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
 		const summaryText = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
-		const inputDesc = Object.keys(pcfg.inputs).length === 0
-			? ""
-			: `<p class="product-inputs">Requires ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])))} per cycle</p>`;
+		const inputDesc = Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])))} per cycle</p>`;
 		const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 		const statusClass = pst.enabled ? "health-ok" : "health-warn";
 		return `<div class="product-section">
@@ -1367,43 +1339,30 @@ function renderBuildingSection() {
 			</div>
 			${inputDesc}
 			<div class="manual-produce-row">
-				<button class="manual-produce-btn" data-action="manual-produce"
-				 data-bld="${bldKey}" data-product="${productKey}">
+				<button class="manual-produce-btn" data-action="manual-produce" data-bld="${bldKey}" data-product="${productKey}">
 					Produce ${res.singular}
 				</button>
-				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}"
-				 data-action="toggle-product"
-				 data-bld="${bldKey}" data-product="${productKey}"
-				 ${n === 0 ? "hidden" : ""}>
+				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}" data-action="toggle-product" data-bld="${bldKey}" data-product="${productKey}" ${n === 0 ? "hidden" : ""}>
 					${pst.enabled ? "Pause" : "Resume"}
 				</button>
 			</div>
 			<p class="slot-summary">${summaryText}</p>
-			<button class="add-slot-btn" data-action="add-slot"
-			 data-bld="${bldKey}" data-product="${productKey}"
-			 ${state.gold >= slotCost ? "" : "disabled"}>
+			<button class="add-slot-btn" data-action="add-slot" data-bld="${bldKey}" data-product="${productKey}" ${state.gold >= slotCost ? "" : "disabled"}>
 				Add Slot for ${slotCost.toLocaleString()} gold (+${cycleFmt})
 			</button>
-			<button class="sell-slot-btn" data-action="sell-slot"
-			 data-bld="${bldKey}" data-product="${productKey}"
-			 ${n > 0 ? "" : "disabled"}>
+			<button class="sell-slot-btn" data-action="sell-slot" data-bld="${bldKey}" data-product="${productKey}" ${n > 0 ? "" : "disabled"}>
 				Sell Slot for ${refund.toLocaleString()} gold (-${cycleFmt})
 			</button>
 		</div>`;
 	}).join("");
-	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) =>
-		!bst.products[pk].unlocked &&
-		(!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked)
-	);
+	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) => !bst.products[pk].unlocked && (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked));
 	const unlockHtml = unlockables.length === 0 ? "" : `<section class="unlock-group">
 		<h3>Unlockable Products</h3>
 		<div class="unlock-section">
 			${unlockables.map(([pk, pcfg]) => {
 				const res = RESOURCES[pcfg.outputKey];
 				const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
-				return `<button class="unlock-product-btn" data-action="unlock-product"
-				 data-bld="${bldKey}" data-product="${pk}"
-				 ${state.gold >= unlockCost ? "" : "disabled"}>
+				return `<button class="unlock-product-btn" data-action="unlock-product" data-bld="${bldKey}" data-product="${pk}" ${state.gold >= unlockCost ? "" : "disabled"}>
 					Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
 				</button>`;
 			}).join("")}
@@ -1413,7 +1372,6 @@ function renderBuildingSection() {
 	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
 	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
 }
-
 
 function updateMarketProducts() {
 	const panel = document.getElementById("panel-market");
@@ -1460,7 +1418,6 @@ function updateMarketProducts() {
 	}
 }
 
-
 function renderMarketSection() {
 	const panel = document.getElementById("panel-market");
 	if (!panel) return;
@@ -1470,9 +1427,7 @@ function renderMarketSection() {
 	const cost = storageUpgradeCost();
 	const next = nextStorageMax();
 	const storageLabel = `${used} / ${max} items (${pct}% full)`;
-	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>
-		Expand Storage: ${max} to ${next} items for ${cost} gold
-	</button>`;
+	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>Expand Storage: ${max} to ${next} items for ${cost} gold</button>`;
 	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
 	const hasStock = withStock.length > 0;
 	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
@@ -1486,14 +1441,11 @@ function renderMarketSection() {
 				<h4 class="market-product-name">${res.label}</h4>
 				<span class="market-product-stock">${inv} in stock, ${price} gold each</span>
 			</div>
-			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>
-				Sell All ${res.label} for ${earned} gold
-			</button>
+			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>Sell All ${res.label} for ${earned} gold</button>
 		</div>`;
 	}).join("");
 	panel.innerHTML = `<div class="storage-info">
-		<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used"
-		 aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+		<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
 			<div class="storage-bar-fill" style="width:${pct}%"></div>
 		</div>
 		<p class="storage-used-label">${storageLabel}</p>
@@ -1568,17 +1520,13 @@ function renderTreasure() {
 			btn.textContent = "Open Treasure Chest!";
 			container.appendChild(btn);
 		}
-	} else {
-		container.innerHTML = "";
-	}
+	} else container.innerHTML = "";
 }
 
 function tick() {
 	const now = Date.now();
 	const delta = (now - state.lastTick) / 1000;
 	state.lastTick = now;
-
-	// Treasure spawning
 	if (state.treasure.activeUntil && now > state.treasure.activeUntil) {
 		state.treasure.activeUntil = 0;
 		renderTreasure();
@@ -1590,8 +1538,11 @@ function tick() {
 		announce(`Treasure chest spawned, active for ${Math.round(duration/1000)} seconds!`);
 		renderTreasure();
 	}
-
-	try { advanceBuildings(delta); } catch (e) { console.error("advanceBuildings:", e); }
+	try {
+		advanceBuildings(delta);
+	} catch (e) {
+		console.error("advanceBuildings:", e);
+	}
 	checkQuestCompletion();
 	renderHUD();
 	updateMarketProducts();
@@ -1605,28 +1556,62 @@ function handleClick(e) {
 	const bld = btn.dataset.bld;
 	const product = btn.dataset.product;
 	switch (action) {
-		case "open-treasure": handleOpenTreasure(); break;
-		case "build": unlockBuilding(bld); break;
-		case "unlock-product": unlockProduct(bld, product); break;
-		case "add-slot": addSlot(bld, product); break;
-		case "sell-slot": sellSlot(bld, product); break;
-		case "manual-produce": manualProduce(bld, product); break;
-		case "storage-upgrade": upgradeStorage(); break;
-		case "sell": sellProduct(btn.dataset.resource); break;
-		case "sell-all": sellAll(); break;
-		case "toggle-product": toggleProductEnabled(bld, product); break;
-		case "fix-bottleneck": doFixBottleneck(); break;
-		case "reroll-quest": rerollQuest(+btn.dataset.index); break;
-		case "prestige-reset": doPrestigeReset(); break;
-		case "save-now": saveNow(); break;
-		case "import-save-text": importSaveFromText(); break;
-		case "clear-save": clearSaveData(); break;
+		case "open-treasure":
+			handleOpenTreasure();
+			break;
+		case "build":
+			unlockBuilding(bld);
+			break;
+		case "unlock-product":
+			unlockProduct(bld, product);
+			break;
+		case "add-slot":
+			addSlot(bld, product);
+			break;
+		case "sell-slot":
+			sellSlot(bld, product);
+			break;
+		case "manual-produce":
+			manualProduce(bld, product);
+			break;
+		case "storage-upgrade":
+			upgradeStorage();
+			break;
+		case "sell":
+			sellProduct(btn.dataset.resource);
+			break;
+		case "sell-all":
+			sellAll();
+			break;
+		case "toggle-product":
+			toggleProductEnabled(bld, product);
+			break;
+		case "fix-bottleneck":
+			doFixBottleneck();
+			break;
+		case "reroll-quest":
+			rerollQuest(+btn.dataset.index);
+			break;
+		case "prestige-reset":
+			doPrestigeReset();
+			break;
+		case "save-now":
+			saveNow();
+			break;
+		case "import-save-text":
+			importSaveFromText();
+			break;
+		case "clear-save":
+			clearSaveData();
+			break;
 		case "victory-keep-playing":
 			state.prestige.victoryShown = true;
 			save();
 			document.getElementById("victory-overlay").hidden = true;
 			break;
-		case "victory-new-game": doVictoryNewGame(); break;
+		case "victory-new-game":
+			doVictoryNewGame();
+			break;
 		case "settings-open":
 			document.getElementById("app").classList.add("settings-open");
 			renderSettingsSection();
@@ -1656,9 +1641,7 @@ function flushSatisfiedQuests() {
 				state.prestige.rewards.push(q.reward);
 				completed.add(questId);
 				changed = true;
-			} else {
-				break;
-			}
+			} else break;
 		}
 	}
 	if (changed) save();
@@ -1793,9 +1776,7 @@ function doPrestigeReset() {
 	const incomplete = totalActive - completedCount;
 	const msg = incomplete > 0 ? `Reset with ${completedCount}/${totalActive} quests complete?\n\nYou'll miss ${incomplete} reward${incomplete === 1 ? "" : "s"}. You can always keep playing to finish them.` : "All quests complete! Reset and claim your rewards?";
 	if (!confirm(msg)) return;
-	for (const [bk, bst] of Object.entries(state.buildings)) {
-		if (bst.unlocked && !state.prestige.seenBuildings.includes(bk)) state.prestige.seenBuildings.push(bk);
-	}
+	for (const [bk, bst] of Object.entries(state.buildings)) if (bst.unlocked && !state.prestige.seenBuildings.includes(bk)) state.prestige.seenBuildings.push(bk);
 	for (let i = 0; i < state.quests.active.length; i++) {
 		if (!state.quests.completed[i]) continue;
 		const qid = state.quests.active[i];
@@ -1806,31 +1787,24 @@ function doPrestigeReset() {
 		}
 	}
 	state.prestige.runs++;
-	// Accumulate stats
 	state.prestige.accumulatedStats.goldEarned += state.stats.goldEarned;
 	state.prestige.accumulatedStats.storageUpgrades += state.storage.tier;
 	state.prestige.accumulatedStats.treasureChestsOpened += (state.stats.treasureChestsOpened ?? 0);
-	for (const [bk, bst] of Object.entries(state.buildings))
+	for (const [bk, bst] of Object.entries(state.buildings)) {
 		for (const [pk, pst] of Object.entries(bst.products)) {
 			state.prestige.accumulatedStats.totalSlots += pst.slots.length;
 			const key = `${bk}.${pk}`;
 			state.prestige.accumulatedStats.maxSlotsByProduct[key] = Math.max(state.prestige.accumulatedStats.maxSlotsByProduct[key] ?? 0, pst.slots.length);
 			state.prestige.accumulatedStats.totalSlotsByProduct[key] = (state.prestige.accumulatedStats.totalSlotsByProduct[key] ?? 0) + pst.slots.length;
 		}
-	for (const [k, v] of Object.entries(state.stats.soldByResource)) {
-		state.prestige.accumulatedStats.soldByResource[k] = (state.prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	}
-	
+	for (const [k, v] of Object.entries(state.stats.soldByResource)) state.prestige.accumulatedStats.soldByResource[k] = (state.prestige.accumulatedStats.soldByResource[k] ?? 0) + v;
 	const incompleteActive = state.quests.active.filter((_, i) => !state.quests.completed[i]);
 	const incompleteBaselines = {};
-	for (const id of incompleteActive) {
-		if (state.quests.baselines?.[id] !== undefined) incompleteBaselines[id] = state.quests.baselines[id];
-	}
-
+	for (const id of incompleteActive) if (state.quests.baselines?.[id] !== undefined) incompleteBaselines[id] = state.quests.baselines[id];
 	const preservedPrestige = state.prestige;
 	state = deepClone(DEFAULT_STATE);
 	state.prestige = preservedPrestige;
-	
 	state.quests.active = incompleteActive;
 	state.quests.completed = new Array(incompleteActive.length).fill(false);
 	state.quests.baselines = incompleteBaselines;
@@ -1960,10 +1934,7 @@ function renderQuestsSection() {
 		const progressRow = done ? "" : isBoolean
 			? `<div class="quest-progress-row"><span class="quest-prog-text">Not yet</span></div>`
 			: `<div class="quest-progress-row">
-				<div class="quest-bar-wrap" role="progressbar"
-					data-quest-bar="${id}"
-					aria-label="quest progress"
-					aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+				<div class="quest-bar-wrap" role="progressbar" data-quest-bar="${id}" aria-label="quest progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
 					<div class="quest-bar-fill" style="width:${pct}%"></div>
 				</div>
 				<span class="quest-prog-text" data-quest-text="${id}">${formatNum(current)} / ${formatNum(target)}</span>
@@ -2020,9 +1991,7 @@ function _updateQuestBars(panel) {
 	}
 	const cost = rerollCost();
 	const canAfford = state.gold >= cost;
-	for (const btn of panel.querySelectorAll(".reroll-quest-btn")) {
-		btn.disabled = !canAfford;
-	}
+	for (const btn of panel.querySelectorAll(".reroll-quest-btn")) btn.disabled = !canAfford;
 }
 
 function init() {
@@ -2031,9 +2000,7 @@ function init() {
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
 	if (state.quests.active.length === 0 || hasStaleIds) drawQuests();
 	state.lastTick = Date.now();
-	for (const bldKey of Object.keys(BUILDING_CONFIG)) {
-		if (state.buildings[bldKey].unlocked) addBuildingOption(bldKey);
-	}
+	for (const bldKey of Object.keys(BUILDING_CONFIG)) if (state.buildings[bldKey].unlocked) addBuildingOption(bldKey);
 	const firstBuilt = Object.keys(BUILDING_CONFIG).find(k => state.buildings[k].unlocked);
 	runtime.selectedBuilding = firstBuilt ?? null;
 	const sel = document.getElementById("building-select");
@@ -2050,9 +2017,6 @@ function init() {
 }
 
 if (typeof document !== "undefined") {
-	if (document.readyState === "loading") {
-		document.addEventListener("DOMContentLoaded", init);
-	} else {
-		init();
-	}
+	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
+	else init();
 }
