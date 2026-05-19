@@ -614,6 +614,21 @@ const runtime = {
 	selectedBuilding: null,
 };
 
+const guiState = {
+	hud: {
+		gold: null,
+		storage: null,
+		chain: null,
+		inventory: null,
+	},
+	production: {
+		panel: null,
+		buildings: {},
+	},
+	market: {},
+	quests: {},
+};
+
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
@@ -1133,21 +1148,19 @@ function renderAll() {
 }
 
 function renderHUD() {
-	const gold = Math.floor(state.gold);
-	const used = totalItems();
-	const max = storageMax();
-	const goldText = `${gold.toLocaleString()} gold`;
-	const storageText = `${used.toLocaleString()}/${max.toLocaleString()} items`;
-	const goldEl = document.getElementById("hud-gold");
-	const storageEl = document.getElementById("hud-storage");
+	const hud = guiState.hud ??= {};
+	const goldText = `${Math.floor(state.gold).toLocaleString()} gold`;
+	const goldEl = hud.gold ??= document.getElementById("hud-gold");
 	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
+	const storageText = `${totalItems().toLocaleString()}/${storageMax().toLocaleString()} items`;
+	const storageEl = hud.storage ??= document.getElementById("hud-storage");
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
-	const inventoryEl = document.getElementById("hud-inventory");
+	const inventoryEl = hud.inventory ??= document.getElementById("hud-inventory");
 	if (inventoryEl) {
 		const invText = Object.entries(state.inventory).filter(([, v]) => v > 0).map(([k, v]) => `${v.toLocaleString()} ${formatResourceName(k, v)}`).join(", ");
 		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
 	}
-	const chainEl = document.getElementById("hud-chain");
+	const chainEl = hud.chain ??= document.getElementById("hud-chain");
 	if (chainEl) {
 		const { hasChain, deficits, efficiencyPct } = getProductionOverview();
 		let chainText = "";
@@ -1304,7 +1317,7 @@ function renderChainOverview() {
 }
 
 function renderBuildingSection() {
-	const panel = document.getElementById("panel-production");
+	const panel = guiState.production.panel ??= document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
 	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
@@ -1371,6 +1384,10 @@ function renderBuildingSection() {
 	const chainHtml = renderChainOverview();
 	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
 	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
+}
+
+function renderBuilding(building) {
+	const fragment = ((guiState.production ??= {}).buildings ??= {})[building] ??= document.createDocumentFragment();
 }
 
 function updateMarketProducts() {
