@@ -754,7 +754,7 @@ function getPrestigeBonus(type) {
 
 function getPrestigeMult(type) {
 	const rewards = state.prestige.rewards.filter(r => r.type === type);
-	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
+	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1) * 100;
 	return rewards.reduce((m, r) => m * (1 - r.amount / 100), 1);
 }
 
@@ -1316,10 +1316,18 @@ function renderChainOverview() {
 	`;
 }
 
+let neoProductSection;
 function renderBuildingSection() {
 	const panel = guiState.production.panel ??= document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
+	if (neoProductSection === undefined || neoProductSection.getAttribute("bld") !== bldKey) {
+		if (neoProductSection !== undefined) neoProductSection.remove();
+		// delete neoProductSection;
+		neoProductSection = document.createElement("building-unlocked-section");
+		neoProductSection.bld = bldKey;
+		document.body.appendChild(neoProductSection);
+	}
 	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
 	let nextHtml = "";
 	if (nextBldKey) {
@@ -1335,6 +1343,7 @@ function renderBuildingSection() {
 	const bst = state.buildings[bldKey];
 	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
 	const unlockedCards = unlockedProducts.map(([productKey, pcfg]) => {
+		// neoProductSection.push(productKey);
 		const card = new BuildingProductCard();
 		card.bld = bldKey;
 		card.product = productKey;
@@ -1355,6 +1364,8 @@ function renderBuildingSection() {
 		card.saleAmt = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 		return card;
 	});
+	console.log("Refreshing building unlock section from render building");
+	neoProductSection.refresh();
 	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) => !bst.products[pk].unlocked && (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked));
 	const unlockHtml = unlockables.length === 0 ? "" : `<section class="unlock-group">
 		<h3>Unlockable Products</h3>
@@ -1374,7 +1385,11 @@ function renderBuildingSection() {
 	const h3 = document.createElement("h3");
 	h3.textContent = "Products";
 	productsSection.append(h3, ...unlockedCards);
+	// const newProductsSection = document.createElement("building-unlocked-section");
+	// newProductsSection.bld = bldKey;
+	// newProductsSection.append(...unlockedProducts);
 	panel.innerHTML = `${nextHtml}${productsSection.outerHTML}${unlockHtml}${chainHtml}`;
+	// panel.appendChild(newProductsSection);
 }
 
 function updateMarketProducts() {
@@ -2000,6 +2015,7 @@ function _updateQuestBars(panel) {
 
 function init() {
 	window.customElements.define("building-product-card", BuildingProductCard);
+	window.customElements.define("building-unlocked-section", BuildingUnlockedSection);
 	load();
 	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
@@ -2159,6 +2175,7 @@ class BuildingProductCard extends HTMLElement{
 				if (this.#sellSlot) this.#sellSlot.disabled = newValue !== null;
 				break;
 		}
+		// console.log(`Changed ${name} from ${oldValue} to ${newValue}`);
 	}
 	
 	set label(value) { this.setAttribute("label", value); }
@@ -2176,6 +2193,36 @@ class BuildingProductCard extends HTMLElement{
 	set inputs(value) {
 		if (value) this.setAttribute("inputs", value);
 		else this.removeAttribute("inputs");
+	}
+	
+	refresh() {
+		// console.log("Refreshing product card");
+		const bldKey = this.getAttribute("bld");
+		const productKey = this.getAttribute("product");
+		if (bldKey === null || productKey === null) return;
+		// console.log(`bldKey=${bldKey}; productKey=${productKey}`);
+		const cfg = BUILDING_CONFIG[bldKey];
+		// console.log(`cfg=${cfg}`);
+		const bst = state.buildings[bldKey];
+		// console.log(`bst=${bst}`);
+		const pst = bst.products[productKey];
+		// console.log(`pst=${pst}`);
+		const pcfg = cfg.products[productKey];
+		// console.log(`pcfg=${pcfg}`);
+		this.paused = !pst.enabled;
+		const res = RESOURCES[pcfg.outputKey];
+		this.label = res.label;
+		this.singular = res.singular;
+		const slotCost = nextSlotCost(bldKey, productKey);
+		this.slotCost = slotCost;
+		this.addSlotDisabled = state.gold < slotCost;
+		const n = pst.slots.length;
+		this.toggleProductionHidden = n === 0;
+		this.sellSlotDisabled = n === 0;
+		this.cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
+		this.summary = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
+		this.inputs = formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])));
+		this.saleAmt = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
 	}
 	
 	#setBooleanAttribute(attribute, value) {
@@ -2226,5 +2273,149 @@ class BuildingProductCard extends HTMLElement{
 			this.#inputs.textContent = value;
 			this.#inputs.parentElement.hidden = false;
 		}
+	}
+}
+
+class UnlockProductButton extends HTMLElement {
+	#bld = null;
+	#product = null;
+	#button;
+	
+	static get observedAttributes() { return ["bld", "product"]; }
+	attributeChangedCallback(name, oldValue, newValue) {
+		console.log(`Change ${name} from ${oldValue} to ${newValue}`);
+		if (newValue === oldValue) return;
+		if (name === "bld") {
+			if (this.#bld === null) this.#bld = newValue;
+			else if (this.#bld !== newValue) this.setAttribute("bld", this.#bld);
+		} else if (name === "product") {
+			if (this.#product === null) this.#product = newValue;
+			else if (this.#product !== newValue) this.setAttribute("product", this.#product);
+		}
+	}
+}
+
+class BuildingUnlockedSection extends HTMLElement {
+	#productCards = new Map();
+	#unlockedSection;
+	#unlockButtons = new Map();
+	#unlockSection;
+	#unlockGroup;
+	
+	constructor() {
+		// console.log("Enter BuildingUnlockedSection constructor");
+		super();
+		// console.log("Exit BuildingUnlockedSection constructor");
+	}
+	
+	connectedCallback() {
+		// console.log("Enter BuildingUnlockedSection connectedCallback");
+		const productsSection = document.createElement("section");
+		this.#unlockedSection = productsSection;
+		productsSection.className = "product-group";
+		const productsH3 = document.createElement("h3");
+		productsH3.textContent = "NeoProducts";
+		// console.log(this.#products);
+		productsSection.append(productsH3, ...this.#productCards.values());
+		const unlockGroup = document.createElement("section");
+		this.#unlockGroup = unlockGroup;
+		unlockGroup.className = "unlock-group";
+		const unlockH3 = document.createElement("h3");
+		unlockH3.textContent = "Unlockable Products";
+		const unlockSection = document.createElement("div");
+		this.#unlockSection = unlockSection;
+		unlockSection.className = "unlock-section";
+		unlockGroup.append(unlockH3, unlockSection);
+		this.replaceChildren(productsSection, unlockGroup);
+		/*
+			${unlockables.map(([pk, pcfg]) => {
+				const res = RESOURCES[pcfg.outputKey];
+				const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
+				return `<button class="unlock-product-btn" data-action="unlock-product" data-bld="${bldKey}" data-product="${pk}" ${state.gold >= unlockCost ? "" : "disabled"}>
+					Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
+				</button>`;
+			}).join("")}
+*/
+		// console.log("exit BuildingUnlockedSection connectedCallback");
+	}
+	
+	static get observedAttributes() {
+		return ["bld"];
+	}
+	
+	attributeChangedCallback(name, oldValue, newValue) {
+		// console.log("Enter BuildingUnlockedSection attributeChangedCallback");
+		if (newValue === oldValue) return;
+		switch(name) {
+			case "bld":
+				this.#productCards.forEach((card, ..._) => { card.bld = newValue});
+				break;
+		}
+		// console.log(`Changed ${name} from ${oldValue} to ${newValue}`);
+		// console.log("exit BuildingUnlockedSection attributeChangedCallback");
+	}
+	
+	set bld(value) { this.setAttribute("bld", value); }
+	get bld() { return this.getAttribute("bld"); }
+	
+	push(productKey) {
+		// console.log("Enter BuildingUnlockedSection push");
+		if (this.#productCards.has(productKey)) return;
+		console.log(`Pushing product ${this.bld}/${productKey}`);
+		const card = this.#createProductCard(productKey);
+		this.#productCards.set(productKey, card);
+		if (this.#unlockedSection !== undefined) this.#unlockedSection.appendChild(card);
+		// console.log("exit BuildingUnlockedSection push");
+	}
+	
+	append(...productKeys) {
+		// console.log("Enter BuildingUnlockedSection append");
+		if (productKeys.length === 0) return;
+		const cards = productKeys.filter(productKey => !this.#productCards.has(productKey)).map((productKey) => {
+			console.log(`Appending product ${this.bld}/${productKey}`);
+			const card = this.#createProductCard(productKey);
+			this.#productCards.set(productKey, card);
+			return card;
+		});
+		if (this.#unlockedSection !== undefined) this.#unlockedSection.append(...cards);
+		// console.log("exit BuildingUnlockedSection append");
+	}
+	
+	#createProductCard(productKey) {
+		// console.log("Enter BuildingUnlockedSection createProductCard");
+		const card = new BuildingProductCard();
+		card.product = productKey;
+		const bld = this.bld;
+		if (bld !== null) card.bld = bld;
+		card.refresh();
+		// console.log("exit BuildingUnlockedSection createProductCard");
+		return card;
+	}
+	
+	#createUnlockButton(productKey) {
+		// const res = RESOURCES[pcfg.outputKey];
+				// const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
+				// return `<button class="unlock-product-btn" data-action="unlock-product" data-bld="${bldKey}" data-product="${pk}" ${state.gold >= unlockCost ? "" : "disabled"}>
+					// Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
+				// </button>`;
+	}
+	
+	refresh() {
+		// console.log("Refreshing building unlocked section");
+		const bldKey = this.bld;
+		if (bldKey === null) return;
+		const cfg = BUILDING_CONFIG[bldKey];
+		const bst = state.buildings[bldKey];
+		Object.entries(cfg.products).forEach(([pk, pcfg]) => {
+			console.log(`Processing ${bldKey}/${pk}`);
+			if (bst.products[pk].unlocked) {
+				this.push(pk);
+			} else if (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked) {
+				if (this.#unlockSection === undefined) return;
+				this.#unlockSection.append(pk);
+			}
+		});
+		// const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) => !bst.products[pk].unlocked && (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked));
+		this.#productCards.values().forEach((card, _) => card.refresh());
 	}
 }
