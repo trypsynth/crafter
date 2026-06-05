@@ -2044,8 +2044,11 @@ if (typeof document !== "undefined") {
 }
 
 class BuildingProductCard extends HTMLElement{
+	#bld = null;
+	#product = null;
 	#label;
 	#status;
+	#inputDesc;
 	#inputs;
 	#singular;
 	#toggleProduction;
@@ -2056,10 +2059,7 @@ class BuildingProductCard extends HTMLElement{
 	#sellSlot;
 	#wantsBldAndProduct = new Set();
 	#wantsCycleFmt = new Set();
-	
-	constructor() {
-		super();
-	}
+	#paused;
 	
 	connectedCallback() {
 		this.className = "product-section";
@@ -2068,12 +2068,12 @@ class BuildingProductCard extends HTMLElement{
 		const title = document.createElement("h4");
 		this.#label = title;
 		title.className = "product-title";
-		title.textContent = this.getAttribute("label") ?? "Product";
 		const status = document.createElement("span");
 		this.#status = status;
 		status.style.fontSize = "var(--font-sm)";
 		header.append(title, status)
 		const inputDesc = document.createElement("p");
+		this.#inputDesc = inputDesc;
 		inputDesc.className = "product-inputs";
 		const inputs = document.createTextNode("");
 		this.#inputs = inputs;
@@ -2084,7 +2084,7 @@ class BuildingProductCard extends HTMLElement{
 		this.#wantsBldAndProduct.add(manualProduce);
 		manualProduce.className = "manual-produce-btn";
 		manualProduce.dataset.action = "manual-produce";
-		const singular = document.createTextNode(this.getAttribute("singular") ?? "Product");
+		const singular = document.createTextNode("");
 		this.#singular = singular;
 		manualProduce.append("Produce ", singular);
 		const toggleProduction = document.createElement("button");
@@ -2092,21 +2092,18 @@ class BuildingProductCard extends HTMLElement{
 		this.#toggleProduction = toggleProduction;
 		toggleProduction.className = "toggle-product-btn";
 		toggleProduction.dataset.action = "toggle-product";
-		toggleProduction.hidden = this.getAttribute("toggle-production-hidden") !== null;
 		manualProduceRow.append(manualProduce, toggleProduction);
 		const summary = document.createElement("p");
 		this.#summary = summary;
 		summary.className = "slot-summary";
-		summary.textContent = this.getAttribute("summary") ?? "Summary";
 		const addSlot = document.createElement("button");
 		this.#addSlot = addSlot;
 		this.#wantsBldAndProduct.add(addSlot);
 		addSlot.className = "add-slot-btn";
 		addSlot.dataset.action = "add-slot";
-		addSlot.disabled = this.getAttribute("add-slot-disabled") !== null;
-		const slotCost = document.createTextNode(this.getAttribute("slot-cost") ?? "∞");
+		const slotCost = document.createTextNode("");
 		this.#slotCost = slotCost;
-		let cycleFmt = document.createTextNode(this.getAttribute("cycle-fmt") ?? "?");
+		let cycleFmt = document.createTextNode("");
 		this.#wantsCycleFmt.add(cycleFmt);
 		addSlot.append("Add Slot for ", slotCost, " gold (+", cycleFmt, ")");
 		const sellSlot = document.createElement("button");
@@ -2114,165 +2111,96 @@ class BuildingProductCard extends HTMLElement{
 		this.#wantsBldAndProduct.add(sellSlot);
 		sellSlot.className = "sell-slot-btn";
 		sellSlot.dataset.action = "sell-slot";
-		sellSlot.disabled = this.getAttribute("sell-slot-disabled") !== null;
-		const saleAmt = document.createTextNode(this.getAttribute("sale-amt") ?? "0");
+		const saleAmt = document.createTextNode("");
 		this.#saleAmt = saleAmt;
-		cycleFmt = cycleFmt.cloneNode(true);
+		cycleFmt = cycleFmt.cloneNode();
 		this.#wantsCycleFmt.add(cycleFmt);
 		sellSlot.append("Sell Slot for ", saleAmt, " gold (-", cycleFmt, ")");
-		const bld = this.getAttribute("bld");
-		if (bld !== null) this.#setBldKey(bld);
-		const product = this.getAttribute("product");
-		if (product !== null) this.#setProductKey(product);
-		this.#setStatus(this.getAttribute("paused"));
-		this.#setInputs(this.getAttribute("inputs"));
+		if (this.#bld !== null) this.#setDatasetMany(this.#wantsBldAndProduct, "bld", this.#bld);
+		if (this.#product !== null) this.#setDatasetMany(this.#wantsBldAndProduct, "product", this.#product);
+		this.#init();
 		this.replaceChildren(header, inputDesc, manualProduceRow, summary, addSlot, sellSlot);
 	}
 	
 	static get observedAttributes() {
-		return ["label", "singular", "bld", "product", "slot-cost", "sale-amt", "cycle-fmt", "paused", "summary", "inputs", "toggle-production-hidden", "add-slot-disabled", "sell-slot-disabled"];
+		return ["bld", "product"];
 	}
 	
 	attributeChangedCallback(name, oldValue, newValue) {
 		if (oldValue === newValue) return;
-		switch(name) {
-			case "label":
-				if (this.#label) this.#label.textContent = newValue;
-				break;
-			case "singular":
-				if (this.#singular) this.#singular.textContent = newValue;
-				break;
-			case "bld":
-				this.#setBldKey(newValue);
-				break;
-			case "product":
-				this.#setProductKey(newValue);
-				break;
-			case "slot-cost":
-				if (this.#slotCost) this.#slotCost.textContent = newValue;
-				break;
-			case "sale-amt":
-				if (this.#saleAmt) this.#saleAmt.textContent = newValue;
-				break;
-			case "cycle-fmt":
-				this.#setCycleFmt(newValue);
-				break;
-			case "paused":
-				this.#setStatus(newValue);
-				break;
-			case "summary":
-				if (this.#summary) this.#summary.textContent = newValue;
-				break;
-			case "inputs":
-				this.#setInputs(newValue);
-				break;
-			case "toggle-production-hidden":
-				if (this.#toggleProduction) this.#toggleProduction.hidden = newValue !== null;
-				break;
-			case "add-slot-disabled":
-				if (this.#addSlot) this.#addSlot.disabled = newValue !== null;
-				break;
-			case "sell-slot-disabled":
-				if (this.#sellSlot) this.#sellSlot.disabled = newValue !== null;
-				break;
-		}
-		// console.log(`Changed ${name} from ${oldValue} to ${newValue}`);
+		if (name === "bld") {
+			if (this.#bld === null) this.#bld = newValue;
+			else if (this.#bld !== newValue) return this.setAttribute("bld", this.#bld);
+			else return;
+		} else if (name === "product") {
+			if (this.#product === null) this.#product = newValue;
+			else if (this.#product !== newValue) return this.setAttribute("product", this.#product);
+			else return;
+		} else return;
+		this.#setDatasetMany(this.#wantsBldAndProduct, name, newValue);
+		this.#init();
 	}
 	
-	set label(value) { this.setAttribute("label", value); }
-	set singular(value) { this.setAttribute("singular", value); }
 	set bld(value) { this.setAttribute("bld", value); }
 	set product(value) { this.setAttribute("product", value); }
-	set slotCost(value) { this.setAttribute("slot-cost", value); }
-	set saleAmt(value) { this.setAttribute("sale-amt", value); }
-	set cycleFmt(value) { this.setAttribute("cycle-fmt", value); }
-	set summary(value) { this.setAttribute("summary", value); }
-	set paused(value) { this.#setBooleanAttribute("paused", value); }
-	set toggleProductionHidden(value) { this.#setBooleanAttribute("toggle-production-hidden", value); }
-	set addSlotDisabled(value) { this.#setBooleanAttribute("add-slot-disabled", value); }
-	set sellSlotDisabled(value) { this.#setBooleanAttribute("sell-slot-disabled", value); }
-	set inputs(value) {
-		if (value) this.setAttribute("inputs", value);
-		else this.removeAttribute("inputs");
+	
+	#init() {
+		if (![this.#bld, this.#product, this.#label, this.#singular, this.#inputDesc, this.#inputs].every(el => el ?? false)) return;
+		const res = RESOURCES[BUILDING_CONFIG[this.#bld]?.products[this.#product]?.outputKey];
+		if (res === undefined) return;
+		this.#label.textContent = res.label;
+		this.#singular.textContent = res.singular;
 	}
 	
 	refresh() {
-		// console.log("Refreshing product card");
-		const bldKey = this.getAttribute("bld");
-		const productKey = this.getAttribute("product");
-		if (bldKey === null || productKey === null) return;
-		// console.log(`bldKey=${bldKey}; productKey=${productKey}`);
-		const cfg = BUILDING_CONFIG[bldKey];
-		// console.log(`cfg=${cfg}`);
-		const bst = state.buildings[bldKey];
-		// console.log(`bst=${bst}`);
-		const pst = bst.products[productKey];
-		// console.log(`pst=${pst}`);
-		const pcfg = cfg.products[productKey];
-		// console.log(`pcfg=${pcfg}`);
-		this.paused = !pst.enabled;
-		const res = RESOURCES[pcfg.outputKey];
-		this.label = res.label;
-		this.singular = res.singular;
-		const slotCost = nextSlotCost(bldKey, productKey);
-		this.slotCost = slotCost;
-		this.addSlotDisabled = state.gold < slotCost;
+		if (![this.#bld, this.#product, this.#status, this.#toggleProduction, this.#summary, this.#addSlot, this.#sellSlot, this.#saleAmt, this.#inputDesc, this.#inputs].every(el => el ?? false)) { console.log("Not refreshing"); return; }
+		const pst = state.buildings[this.#bld]?.products[this.#product];
+		const pcfg = BUILDING_CONFIG[this.#bld]?.products[this.#product];
+		if (pcfg === undefined || pst === undefined) return;
+		const paused = !pst.enabled;
+		if (this.#paused !== paused) {
+			this.#paused = paused;
+			let statusClass, statusText, toggleText, force;
+			if (paused) {
+				statusClass =  "health-warn";
+				statusText = "Paused";
+				toggleText = "Resume";
+				force = true;
+			} else {
+				statusClass = "health-ok";
+				statusText = "Active";
+				toggleText = "Pause";
+				force = false;
+			}
+			this.#status.textContent = statusText;
+			this.#status.className = statusClass;
+			this.#toggleProduction.textContent = toggleText;
+			this.#toggleProduction.classList.toggle("paused", force);
+		}
+		const slotCost = nextSlotCost(this.#bld, this.#product);
+		this.#slotCost.textContent = slotCost;
+		this.#addSlot.disabled = state.gold < slotCost;
 		const n = pst.slots.length;
-		this.toggleProductionHidden = n === 0;
-		this.sellSlotDisabled = n === 0;
-		this.cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
-		this.summary = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
-		this.inputs = formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])));
-		this.saleAmt = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
-	}
-	
-	#setBooleanAttribute(attribute, value) {
-		if (value) this.setAttribute(attribute, "");
-		else this.removeAttribute(attribute);
+		this.#toggleProduction.hidden = n === 0;
+		this.#sellSlot.disabled = n === 0;
+		const inputs = formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])));
+		if (inputs === "") {
+			this.#inputDesc.hidden = true
+		} else {
+			this.#inputs.textContent = inputs;
+			this.#inputDesc.hidden = false;
+		}
+		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
+		for (const el of this.#wantsCycleFmt) {
+			el.textContent = cycleFmt;
+		}
+		this.#summary.textContent = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
+		this.#saleAmt.textContent = Math.floor(lastSlotCost(this.#bld, this.#product) * 0.5);
 	}
 	
 	#setDatasetMany(els, key, value) {
 		for (const el of els) {
 			el.dataset[key] = value;
-		}
-	}
-	#setBldKey(value) { this.#setDatasetMany(this.#wantsBldAndProduct, "bld", value); }
-	#setProductKey(value) { this.#setDatasetMany(this.#wantsBldAndProduct, "product", value); }
-	
-	#setCycleFmt(value) {
-		for (const el of this.#wantsCycleFmt) {
-			el.textContent = value;
-		}
-	}
-	
-	#setStatus(value) {
-		if (!this.#status || !this.#toggleProduction) return;
-		let statusClass, statusText, toggleText, force;
-		if (value === null) {
-			statusClass = "health-ok";
-			statusText = "Active";
-			toggleText = "Pause";
-			force = false;
-		} else {
-			statusClass =  "health-warn";
-			statusText = "Paused";
-			toggleText = "Resume";
-			force = true;
-		}
-		this.#status.textContent = statusText;
-		this.#status.className = statusClass;
-		this.#toggleProduction.textContent = toggleText;
-		this.#toggleProduction.classList.toggle("paused", force);
-	}
-	
-	#setInputs(value) {
-		if (!this.#inputs || !this.#inputs.parentElement) return;
-		if (value === null) {
-			this.#inputs.parentElement.hidden = true
-			this.#inputs.textContent = "";
-		} else {
-			this.#inputs.textContent = value;
-			this.#inputs.parentElement.hidden = false;
 		}
 	}
 }
