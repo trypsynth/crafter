@@ -1350,51 +1350,6 @@ function renderBuildingSection() {
 	neoChainSection.innerHTML = renderChainOverview();
 }
 
-function updateMarketProducts() {
-	const panel = document.getElementById("panel-market");
-	if (!panel) return;
-	const container = panel.querySelector("#market-products");
-	if (!container) return;
-	const used = totalItems();
-	const max = storageMax();
-	const pct = Math.min(100, Math.floor(used / max * 100));
-	const barFill = panel.querySelector(".storage-bar-fill");
-	const barWrap = panel.querySelector(".storage-bar-wrap");
-	const usedLabel = panel.querySelector(".storage-used-label");
-	if (barFill) barFill.style.width = `${pct}%`;
-	if (barWrap) barWrap.setAttribute("aria-valuenow", pct);
-	if (usedLabel) {
-		const label = `${used.toLocaleString()} / ${max.toLocaleString()} items (${pct}% full)`;
-		if (usedLabel.textContent !== label) usedLabel.textContent = label;
-	}
-	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-	const hasStock = withStock.length > 0;
-	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
-	if (sellAllBtn) {
-		sellAllBtn.hidden = !hasStock;
-		if (hasStock) sellAllBtn.textContent = `Sell Everything for ${totalValue.toLocaleString()} gold`;
-	}
-	const emptyMsg = panel.querySelector(".market-empty");
-	if (emptyMsg) emptyMsg.hidden = hasStock;
-	for (const [resourceKey, res] of Object.entries(RESOURCES)) {
-		const inv = state.inventory[resourceKey] || 0;
-		const hasItem = inv > 0;
-		const card = container.querySelector(`[data-market-resource="${resourceKey}"]`);
-		if (!card) continue;
-		card.hidden = !hasItem;
-		const price = currentPrice(resourceKey);
-		const earned = inv * price;
-		const stockEl = card.querySelector(".market-product-stock");
-		if (stockEl) stockEl.textContent = `${inv.toLocaleString()} in stock, ${price.toLocaleString()} gold each`;
-		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) {
-			sellBtn.disabled = !hasItem;
-			sellBtn.textContent = `Sell All ${res.label} for ${earned.toLocaleString()} gold`;
-		}
-	}
-}
-
 let neoMarketSection;
 function renderMarketSection() {
 	const panel = document.getElementById("panel-market");
@@ -1491,7 +1446,7 @@ function tick() {
 	}
 	checkQuestCompletion();
 	renderHUD();
-	updateMarketProducts();
+	renderMarketSection();
 	renderQuestsSection();
 }
 
