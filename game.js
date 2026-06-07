@@ -1305,91 +1305,49 @@ function renderChainOverview() {
 	const suggestion = bestNextPurchase();
 	const suggestionHtml = suggestion ? `<p class="chain-suggestion ${suggestion.isDeficit ? "chain-item-neg" : "chain-item-muted"}">${suggestion.isDeficit ? "Suggested fix" : "Best value"}: add a ${suggestion.label} slot (${suggestion.cost.toLocaleString()} gold)</p>` : "";
 	return `
-		<div class="chain-overview">
-			<h3>Production Summary</h3>
-			<div class="chain-prose">
-				${sentences.join("")}
-				${suggestionHtml}
-			</div>
-			${fixBtn}
+		<h3>Production Summary</h3>
+		<div class="chain-prose">
+			${sentences.join("")}
+			${suggestionHtml}
 		</div>
+		${fixBtn}
 	`;
 }
 
-let neoProductSection;
+let neoUnlockSection, neoProductSection, neoChainSection;
 function renderBuildingSection() {
 	const panel = guiState.production.panel ??= document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
-	if (neoProductSection === undefined) {
-neoProductSection = document.createElement("building-section");
-		neoProductSection.bld = bldKey;
-		document.body.appendChild(neoProductSection);
-	}
-	if (neoProductSection.getAttribute("bld") !== bldKey) neoProductSection.bld = bldKey;
-	neoProductSection.refresh();
 	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
-	let nextHtml = "";
+	if (neoUnlockSection === undefined) {
+		neoUnlockSection = document.createElement("div");
+		neoUnlockSection.className = "unlock-section";
+		neoUnlockSection.style.marginTop = "0";
+		neoUnlockSection.style.marginBottom = "var(--space-md)";
+		panel.appendChild(neoUnlockSection);
+	}
+	let nextHtml = "No next building";
 	if (nextBldKey) {
 		const ncfg = BUILDING_CONFIG[nextBldKey];
 		const ncost = Math.round(ncfg.buildCost * prestigeBuildCostMult());
-		nextHtml = `<div class="unlock-section" style="margin-top:0; margin-bottom:var(--space-md)">
-			<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
-				Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
-			</button>
-		</div>`;
+		nextHtml = `<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
+			Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
+		</button>`;
 	}
-	const cfg = BUILDING_CONFIG[bldKey];
-	const bst = state.buildings[bldKey];
-	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
-	const unlockedCards = unlockedProducts.map(([productKey, pcfg]) => {
-		// neoProductSection.push(productKey);
-		const card = new BuildingProductCard();
-		card.bld = bldKey;
-		card.product = productKey;
-		const pst = bst.products[productKey];
-		card.paused = !pst.enabled;
-		const res = RESOURCES[pcfg.outputKey];
-		card.label = res.label;
-		card.singular = res.singular;
-		const slotCost = nextSlotCost(bldKey, productKey);
-		card.slotCost = slotCost;
-		card.addSlotDisabled = state.gold < slotCost;
-		const n = pst.slots.length;
-		card.toggleProductionHidden = n === 0;
-		card.sellSlotDisabled = n === 0;
-		card.cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
-		card.summary = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
-		card.inputs = formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])));
-		card.saleAmt = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
-		return card;
-	});
-	console.log("Refreshing building unlock section from render building");
+	neoUnlockSection.innerHTML = nextHtml;
+	if (neoProductSection === undefined) {
+		neoProductSection = document.createElement("building-section");
+		panel.appendChild(neoProductSection);
+	}
+	if (neoProductSection.getAttribute("bld") !== bldKey) neoProductSection.bld = bldKey;
 	neoProductSection.refresh();
-	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) => !bst.products[pk].unlocked && (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked));
-	const unlockHtml = unlockables.length === 0 ? "" : `<section class="unlock-group">
-		<h3>Unlockable Products</h3>
-		<div class="unlock-section">
-			${unlockables.map(([pk, pcfg]) => {
-				const res = RESOURCES[pcfg.outputKey];
-				const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
-				return `<button class="unlock-product-btn" data-action="unlock-product" data-bld="${bldKey}" data-product="${pk}" ${state.gold >= unlockCost ? "" : "disabled"}>
-					Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
-				</button>`;
-			}).join("")}
-		</div>
-	</section>`;
-	const chainHtml = renderChainOverview();
-	const productsSection = document.createElement("section");
-	productsSection.className = "product-group";
-	const h3 = document.createElement("h3");
-	h3.textContent = "Products";
-	productsSection.append(h3, ...unlockedCards);
-	// const newProductsSection = document.createElement("building-unlocked-section");
-	// newProductsSection.bld = bldKey;
-	// newProductsSection.append(...unlockedProducts);
-	panel.innerHTML = `${nextHtml}${productsSection.outerHTML}${unlockHtml}${chainHtml}`;
-	// panel.appendChild(newProductsSection);
+	if (neoChainSection === undefined) {
+		neoChainSection = document.createElement("div");
+		neoChainSection.className = "chain-overview";
+		panel.appendChild(neoChainSection);
+	}
+	neoChainSection.innerHTML = renderChainOverview();
 }
 
 function updateMarketProducts() {
@@ -2312,7 +2270,9 @@ class BuildingSection extends HTMLElement {
 		const cfg = BUILDING_CONFIG[bldKey];
 		const bst = state.buildings[bldKey];
 		Object.entries(cfg.products).forEach(([pk, pcfg]) => {
+			let unlocked = false, unlockable = false;
 			if (bst.products[pk].unlocked) {
+				unlocked = true;
 				const card = this.#productCards.getOrInsertComputed(pk, pk => {
 					const card = new BuildingProductCard();
 					card.product = pk;
@@ -2321,11 +2281,8 @@ class BuildingSection extends HTMLElement {
 				});
 				if (!this.#productSection.contains(card)) this.#productSection.appendChild(card);
 				card.refresh();
-				if (this.#unlockButtons.has(pk)) {
-					this.#unlockSection.removeChild(this.#unlockButtons.get(pk));
-					this.#unlockButtons.delete(pk);
-				}
 			} else if (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked) {
+				unlockable = true;
 				const button  = this.#unlockButtons.getOrInsertComputed(pk, pk => {
 					const button = new UnlockProductButton();
 					button.product = pk;
@@ -2335,7 +2292,16 @@ class BuildingSection extends HTMLElement {
 				if (!this.#unlockSection.contains(button)) this.#unlockSection.append(button);
 				button.refresh();
 			}
+			if (!unlockable && this.#unlockButtons.has(pk)) {
+				this.#unlockSection.removeChild(this.#unlockButtons.get(pk));
+				this.#unlockButtons.delete(pk);
+			}
+			if (!unlocked && this.#productCards.has(pk)) {
+				this.#productSection.removeChild(this.#productCards.get(pk));
+				this.#productCards.delete(pk);
+			}
 		});
+		// this.#productGroup.hidden = this.#productCards.size === 0;
 		this.#unlockGroup.hidden = this.#unlockButtons.size === 0;
 	}
 }
