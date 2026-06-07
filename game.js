@@ -214,33 +214,33 @@ const RESOURCES = {
 	dowels:        { label: "Dowels",        singular: "Dowel",        price: 75 },
 	handles:       { label: "Handles",       singular: "Handle",       price: 120 },
 	shafts:        { label: "Shafts",        singular: "Shaft",        price: 500 },
-	planks:        { label: "Planks",        singular: "Plank",        price: 50 },
-	boards:        { label: "Boards",        singular: "Board",        price: 200 },
-	beams:         { label: "Beams",         singular: "Beam",         price: 750 },
-	crates:        { label: "Crates",        singular: "Crate",        price: 2000 },
-	furniture:     { label: "Furniture",     singular: "Furniture",    price: 10000 },
-	coaches:       { label: "Coaches",       singular: "Coach",        price: 50000 },
-	manors:        { label: "Manors",        singular: "Manor",        price: 500000 },
+	// planks:        { label: "Planks",        singular: "Plank",        price: 50 },
+	// boards:        { label: "Boards",        singular: "Board",        price: 200 },
+	// beams:         { label: "Beams",         singular: "Beam",         price: 750 },
+	// crates:        { label: "Crates",        singular: "Crate",        price: 2000 },
+	// furniture:     { label: "Furniture",     singular: "Furniture",    price: 10000 },
+	// coaches:       { label: "Coaches",       singular: "Coach",        price: 50000 },
+	// manors:        { label: "Manors",        singular: "Manor",        price: 500000 },
 	// Iron chain
-	iron_ore:      { label: "Iron Ore",      singular: "Iron Ore",     price: 250 },
-	iron_bars:     { label: "Iron Bars",     singular: "Iron Bar",     price: 2500 },
-	nails:         { label: "Nails",         singular: "Nail",         price: 5000 },
-	iron_fittings: { label: "Iron Fittings", singular: "Iron Fitting", price: 15000 },
+	// iron_ore:      { label: "Iron Ore",      singular: "Iron Ore",     price: 250 },
+	// iron_bars:     { label: "Iron Bars",     singular: "Iron Bar",     price: 2500 },
+	// nails:         { label: "Nails",         singular: "Nail",         price: 5000 },
+	// iron_fittings: { label: "Iron Fittings", singular: "Iron Fitting", price: 15000 },
 	// Foundry chain
-	gears:         { label: "Gears",         singular: "Gear",         price: 100000 },
-	springs:       { label: "Springs",       singular: "Spring",       price: 250000 },
-	mechanisms:    { label: "Mechanisms",    singular: "Mechanism",    price: 1250000 },
-	clockwork:     { label: "Clockwork",     singular: "Clockwork",    price: 7500000 },
+	// gears:         { label: "Gears",         singular: "Gear",         price: 100000 },
+	// springs:       { label: "Springs",       singular: "Spring",       price: 250000 },
+	// mechanisms:    { label: "Mechanisms",    singular: "Mechanism",    price: 1250000 },
+	// clockwork:     { label: "Clockwork",     singular: "Clockwork",    price: 7500000 },
 	// Armoury chain
-	blades:        { label: "Blades",        singular: "Blade",        price: 100000 },
-	crossbows:     { label: "Crossbows",     singular: "Crossbow",     price: 750000 },
-	cannons:       { label: "Cannons",       singular: "Cannon",       price: 7500000 },
-	artillery:     { label: "Artillery",     singular: "Artillery",    price: 150000000 },
+	// blades:        { label: "Blades",        singular: "Blade",        price: 100000 },
+	// crossbows:     { label: "Crossbows",     singular: "Crossbow",     price: 750000 },
+	// cannons:       { label: "Cannons",       singular: "Cannon",       price: 7500000 },
+	// artillery:     { label: "Artillery",     singular: "Artillery",    price: 150000000 },
 	// Shipyard chain
-	hulls:         { label: "Hulls",         singular: "Hull",         price: 2500000 },
-	rigging:       { label: "Rigging",       singular: "Rigging",      price: 1500000 },
-	galleons:      { label: "Galleons",      singular: "Galleon",      price: 100000000 },
-	dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 1000000000 },
+	// hulls:         { label: "Hulls",         singular: "Hull",         price: 2500000 },
+	// rigging:       { label: "Rigging",       singular: "Rigging",      price: 1500000 },
+	// galleons:      { label: "Galleons",      singular: "Galleon",      price: 100000000 },
+	// dreadnoughts:  { label: "Dreadnoughts",  singular: "Dreadnought",  price: 1000000000 },
 };
 
 const BUILDING_CONFIG = {
@@ -1395,46 +1395,15 @@ function updateMarketProducts() {
 	}
 }
 
+let neoMarketSection;
 function renderMarketSection() {
 	const panel = document.getElementById("panel-market");
 	if (!panel) return;
-	const used = totalItems();
-	const max = storageMax();
-	const pct = Math.min(100, Math.floor(used / max * 100));
-	const cost = storageUpgradeCost();
-	const next = nextStorageMax();
-	const storageLabel = `${used} / ${max} items (${pct}% full)`;
-	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>Expand Storage: ${max} to ${next} items for ${cost} gold</button>`;
-	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-	const hasStock = withStock.length > 0;
-	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-	const productCards = Object.entries(RESOURCES).map(([resourceKey, res]) => {
-		const inv = state.inventory[resourceKey] || 0;
-		const hasItem = inv > 0;
-		const price = currentPrice(resourceKey);
-		const earned = inv * price;
-		return `<div class="market-product" data-market-resource="${resourceKey}"${hasItem ? "" : " hidden"}>
-			<div class="market-product-header">
-				<h4 class="market-product-name">${res.label}</h4>
-				<span class="market-product-stock">${inv} in stock, ${price} gold each</span>
-			</div>
-			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>Sell All ${res.label} for ${earned} gold</button>
-		</div>`;
-	}).join("");
-	panel.innerHTML = `<div class="storage-info">
-		<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
-			<div class="storage-bar-fill" style="width:${pct}%"></div>
-		</div>
-		<p class="storage-used-label">${storageLabel}</p>
-		${upgHtml}
-	</div>
-	<div class="market-divider"></div>
-	<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
-	<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
-	<section class="market-inventory-section">
-		<h3>Inventory</h3>
-		<div id="market-products">${productCards}</div>
-	</section>`;
+	if (neoMarketSection === undefined) {
+		neoMarketSection = new MarketSection();
+		panel.replaceChildren(neoMarketSection);
+	}
+	neoMarketSection.refresh();
 }
 
 function renderSettingsSection() {
@@ -1975,6 +1944,8 @@ function init() {
 	window.customElements.define("building-product-card", BuildingProductCard);
 	window.customElements.define("building-section", BuildingSection);
 	window.customElements.define("unlock-product-button", UnlockProductButton);
+	window.customElements.define("market-product-card", MarketProductCard);
+	window.customElements.define("market-section", MarketSection);
 	load();
 	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
@@ -2111,7 +2082,7 @@ class BuildingProductCard extends HTMLElement{
 	}
 	
 	refresh() {
-		if (![this.#bld, this.#product, this.#status, this.#toggleProduction, this.#summary, this.#addSlot, this.#sellSlot, this.#saleAmt, this.#inputDesc, this.#inputs].every(el => el ?? false)) { console.log("Not refreshing"); return; }
+		if (![this.#bld, this.#product, this.#status, this.#toggleProduction, this.#summary, this.#addSlot, this.#sellSlot, this.#saleAmt, this.#inputDesc, this.#inputs].every(el => el ?? false)) return;
 		const pst = state.buildings[this.#bld]?.products[this.#product];
 		const pcfg = BUILDING_CONFIG[this.#bld]?.products[this.#product];
 		if (pcfg === undefined || pst === undefined) return;
@@ -2264,7 +2235,7 @@ class BuildingSection extends HTMLElement {
 	get bld() { return this.getAttribute("bld"); }
 
 	refresh() {
-		if (![this.bld, this.#productSection, this.#unlockGroup, this.#unlockSection].every(el => el ?? false)) { console.log("Not refreshing"); return; }
+		if (![this.bld, this.#productSection, this.#unlockGroup, this.#unlockSection].every(el => el ?? false)) return;
 		const bldKey = this.bld;
 		if (bldKey === null) return;
 		const cfg = BUILDING_CONFIG[bldKey];
@@ -2303,5 +2274,178 @@ class BuildingSection extends HTMLElement {
 		});
 		// this.#productGroup.hidden = this.#productCards.size === 0;
 		this.#unlockGroup.hidden = this.#unlockButtons.size === 0;
+	}
+}
+
+class MarketProductCard  extends HTMLElement {
+	#invCount;
+	#unitValue;
+	#totalValue;
+	#sell;
+	#wantsLabel = new Set();
+	#resource = null;
+	
+	connectedCallback() {
+		this.class = "market-product";
+		const header = document.createElement("div");
+		header.className = "market-product-header";
+		const name = document.createElement("h4");
+		this.#wantsLabel.add(name);
+		name.className = "market-product-name";
+		const stock = document.createElement("span");
+		stock.className = "market-product-stock";
+		const invCount = document.createTextNode("");
+		this.#invCount = invCount;
+		const unitValue = document.createTextNode("");
+		this.#unitValue = unitValue;
+		stock.append(invCount, " in stock, ", unitValue, " gold each");
+		header.append(name, stock);
+		const sell = document.createElement("button");
+		this.#sell = sell;
+		sell.className = "sell-btn";
+		sell.dataset.action = "sell";
+		if (this.#resource !== null) sell.dataset.resource = this.#resource;
+		const label = document.createTextNode("");
+		this.#wantsLabel.add(label);
+		const totalValue = document.createTextNode("");
+		this.#totalValue = totalValue;
+		sell.append("Sell All ", label, " for ", totalValue, " gold");
+		this.replaceChildren(header, sell);
+		this.#init();
+	}
+	
+	static get observedAttributes() { return ["resource"]; }
+	
+	attributeChangedCallback(name, oldValue, newValue) {
+		if (oldValue === newValue) return;
+		if (name !== "resource") return;
+		if (this.#resource === null) {
+			this.#resource = newValue;
+			if (this.#sell !== undefined) this.#sell.dataset.resource = newValue;
+			this.#init();
+		} else if (this.#resource !== newValue) return this.setAttribute("resource", this.#resource);
+	}
+	
+	set resource(value) { this.setAttribute("resource", value); }
+	
+	#init() {
+		if (this.#resource === null || this.#wantsLabel.size === 0) return;
+		const label = RESOURCES[this.#resource]?.label;
+		if (label === undefined) return;
+		this.#wantsLabel.forEach(el => el.textContent = label);
+	}
+	
+	refresh() {
+		if (![this.#resource, this.#invCount, this.#unitValue, this.#totalValue, this.#sell].every(el => el ?? false)) return;
+		const inv = state.inventory[this.#resource] || 0;
+		const hasStock = inv > 0;
+		const price = currentPrice(this.#resource);
+		const earned = inv * price;
+		this.#invCount.textContent = inv.toLocaleString();
+		this.hidden = !hasStock;
+		this.#sell.disabled = !hasStock;
+		this.#unitValue.textContent = price.toLocaleString();
+		this.#totalValue.textContent = earned.toLocaleString();
+	}
+}
+
+class MarketSection extends HTMLElement {
+	#progressBar;
+	#progressFill;
+	#used;
+	#pct;
+	#upgrade;
+	#next;
+	#cost;
+	#sellAll;
+	#totalValue;
+	#emptyText;
+	#productGroup;
+	#productCards = new Map();
+	#wantsMax = new Set();
+	
+	connectedCallback() {
+		const info = document.createElement("div");
+		info.className = "storage-info";
+		const progressBar = document.createElement("div");
+		this.#progressBar = progressBar;
+		progressBar.className = "storage-bar-wrap";
+		progressBar.role = "progressbar";
+		progressBar.ariaLabel = "Storage used";
+		progressBar.ariaValueMin = "0";
+		progressBar.ariaValueMax = "100";
+		const progressFill = document.createElement("div");
+		this.#progressFill = progressFill;
+		progressFill.className = "storage-bar-fill";
+		progressBar.appendChild(progressFill);
+		const label = document.createElement("p");
+		label.className = "storage-used-label";
+		this.#used = document.createTextNode("");
+		let max = document.createTextNode("");
+		this.#wantsMax.add(max);
+		this.#pct = document.createTextNode("");
+		label.append(this.#used, " / ", max, " items (", this.#pct, "% full)");
+		const upgrade = document.createElement("button");
+		this.#upgrade = upgrade;
+		upgrade.dataset.action = "storage-upgrade";
+		max = max.cloneNode();
+		this.#wantsMax.add(max);
+		this.#next = document.createTextNode("");
+		this.#cost = document.createTextNode("");
+		upgrade.append("Expand Storage: ", max, " to ", this.#next, " items for ", this.#cost, " gold");
+		info.append(progressBar, label, upgrade);
+		const divider = document.createElement("div");
+		divider.className = "market-divider";
+		const sellAll = document.createElement("button");
+		this.#sellAll = sellAll;
+		sellAll.className = "sell-all-btn";
+		sellAll.dataset.action = "sell-all";
+		this.#totalValue = document.createTextNode("");
+		sellAll.append("Sell Everything for ", this.#totalValue, " gold");
+		const emptyText = document.createElement("p");
+		this.#emptyText = emptyText;
+		emptyText.className = "market-empty";
+		emptyText.textContent = "Nothing to sell yet.";
+		const inventorySection = document.createElement("section");
+		inventorySection.className = "market-inventory-section";
+		const heading = document.createElement("h3");
+		heading.textContent = "Neo Inventory";
+		const productGroup = document.createElement("div");
+		this.#productGroup = productGroup;
+		productGroup.id = "market-products";
+		inventorySection.append(heading, productGroup);
+		this.replaceChildren(info, divider, sellAll, emptyText, inventorySection);
+	}
+	
+	refresh() {
+		if(![this.#used, this.#pct, this.#progressBar, this.#progressFill, this.#cost, this.#totalValue, this.#emptyText, this.#sellAll, this.#next, this.#upgrade].every(el => el ?? false)) return;
+		const used = totalItems();
+		const max = storageMax();
+		const pct = Math.min(100, Math.floor(used / max * 100));
+		const cost = storageUpgradeCost();
+		const next = nextStorageMax();
+		const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
+		const hasStock = withStock.length > 0;
+		const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
+		this.#used.textContent = used.toLocaleString();
+		this.#wantsMax.forEach(el => el.textContent = max.toLocaleString());
+		this.#pct.textContent = pct.toLocaleString();
+		this.#progressBar.ariaValueNow = pct;
+		this.#progressFill.style.width = `${pct}%`;
+		this.#cost.textContent = cost.toLocaleString();
+		this.#upgrade.disabled = state.gold < cost;
+		this.#next.textContent = next.toLocaleString();
+		this.#sellAll.hidden = !hasStock;
+		this.#emptyText.hidden = hasStock;
+		this.#totalValue.textContent = totalValue.toLocaleString();
+		Object.keys(RESOURCES).forEach(rk => {
+			const card = this.#productCards.getOrInsertComputed(rk, rk => {
+				const card = new MarketProductCard();
+				card.resource = rk;
+				this.#productGroup.appendChild(card);
+				return card;
+			});
+			card.refresh();
+		});
 	}
 }
