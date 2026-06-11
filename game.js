@@ -614,6 +614,24 @@ const runtime = {
 	selectedBuilding: null,
 };
 
+const guiState = {
+	hud: {
+		gold: null,
+		storage: null,
+		chain: null,
+		inventory: null,
+	},
+	production: {
+		panel: null,
+		unlockSection: null,
+		productSection: null,
+		chainSection: null,
+	},
+	market: {
+		panel: null,
+	},
+};
+
 function deepClone(obj) {
 	return JSON.parse(JSON.stringify(obj));
 }
@@ -980,7 +998,6 @@ function addSlot(bldKey, productKey) {
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
 	announce(`Slot added. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`);
 	renderAll();
-	document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`)?.focus();
 }
 
 function sellSlot(bldKey, productKey) {
@@ -1133,21 +1150,19 @@ function renderAll() {
 }
 
 function renderHUD() {
-	const gold = Math.floor(state.gold);
-	const used = totalItems();
-	const max = storageMax();
-	const goldText = `${gold.toLocaleString()} gold`;
-	const storageText = `${used.toLocaleString()}/${max.toLocaleString()} items`;
-	const goldEl = document.getElementById("hud-gold");
-	const storageEl = document.getElementById("hud-storage");
+	const hud = guiState.hud ??= {};
+	const goldText = `${Math.floor(state.gold).toLocaleString()} gold`;
+	const goldEl = hud.gold ??= document.getElementById("hud-gold");
 	if (goldEl && goldEl.textContent !== goldText) goldEl.textContent = goldText;
+	const storageText = `${totalItems().toLocaleString()}/${storageMax().toLocaleString()} items`;
+	const storageEl = hud.storage ??= document.getElementById("hud-storage");
 	if (storageEl && storageEl.textContent !== storageText) storageEl.textContent = storageText;
-	const inventoryEl = document.getElementById("hud-inventory");
+	const inventoryEl = hud.inventory ??= document.getElementById("hud-inventory");
 	if (inventoryEl) {
 		const invText = Object.entries(state.inventory).filter(([, v]) => v > 0).map(([k, v]) => `${v.toLocaleString()} ${formatResourceName(k, v)}`).join(", ");
 		if (inventoryEl.textContent !== invText) inventoryEl.textContent = invText;
 	}
-	const chainEl = document.getElementById("hud-chain");
+	const chainEl = hud.chain ??= document.getElementById("hud-chain");
 	if (chainEl) {
 		const { hasChain, deficits, efficiencyPct } = getProductionOverview();
 		let chainText = "";
@@ -1292,172 +1307,65 @@ function renderChainOverview() {
 	const suggestion = bestNextPurchase();
 	const suggestionHtml = suggestion ? `<p class="chain-suggestion ${suggestion.isDeficit ? "chain-item-neg" : "chain-item-muted"}">${suggestion.isDeficit ? "Suggested fix" : "Best value"}: add a ${suggestion.label} slot (${suggestion.cost.toLocaleString()} gold)</p>` : "";
 	return `
-		<div class="chain-overview">
-			<h3>Production Summary</h3>
-			<div class="chain-prose">
-				${sentences.join("")}
-				${suggestionHtml}
-			</div>
-			${fixBtn}
+		<h3>Production Summary</h3>
+		<div class="chain-prose">
+			${sentences.join("")}
+			${suggestionHtml}
 		</div>
+		${fixBtn}
 	`;
 }
 
 function renderBuildingSection() {
-	const panel = document.getElementById("panel-production");
+	const production = guiState.production ??= {};
+	const panel = production.panel ??= document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
 	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
-	let nextHtml = "";
+	const unlockSection = production.unlockSection ??= (() => {
+		const unlockSection = document.createElement("div");
+		unlockSection.className = "unlock-section";
+		unlockSection.style.marginTop = "0";
+		unlockSection.style.marginBottom = "var(--space-md)";
+		panel.appendChild(unlockSection);
+		return unlockSection;
+	})();
+	let nextHtml = "No next building";
 	if (nextBldKey) {
 		const ncfg = BUILDING_CONFIG[nextBldKey];
 		const ncost = Math.round(ncfg.buildCost * prestigeBuildCostMult());
-		nextHtml = `<div class="unlock-section" style="margin-top:0; margin-bottom:var(--space-md)">
-			<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
-				Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
-			</button>
-		</div>`;
+		nextHtml = `<button class="unlock-product-btn" data-action="build" data-bld="${nextBldKey}" ${state.gold >= ncost ? "" : "disabled"}>
+			Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
+		</button>`;
 	}
-	const cfg = BUILDING_CONFIG[bldKey];
-	const bst = state.buildings[bldKey];
-	const unlockedProducts = Object.entries(cfg.products).filter(([pk]) => bst.products[pk].unlocked);
-	const unlockedHtml = unlockedProducts.map(([productKey, pcfg]) => {
-		const pst = bst.products[productKey];
-		const res = RESOURCES[pcfg.outputKey];
-		const slotCost = nextSlotCost(bldKey, productKey);
-		const n = pst.slots.length;
-		const slotWord = n === 1 ? "slot" : "slots";
-		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
-		const summaryText = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${slotWord}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
-		const inputDesc = Object.keys(pcfg.inputs).length === 0 ? "" : `<p class="product-inputs">Requires ${formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])))} per cycle</p>`;
-		const refund = Math.floor(lastSlotCost(bldKey, productKey) * 0.5);
-		const statusClass = pst.enabled ? "health-ok" : "health-warn";
-		return `<div class="product-section">
-			<div class="product-header">
-				<h4 class="product-title">${res.label}</h4>
-				<span class="${statusClass}" style="font-size:var(--font-sm)">${pst.enabled ? "Active" : "Paused"}</span>
-			</div>
-			${inputDesc}
-			<div class="manual-produce-row">
-				<button class="manual-produce-btn" data-action="manual-produce" data-bld="${bldKey}" data-product="${productKey}">
-					Produce ${res.singular}
-				</button>
-				<button class="toggle-product-btn ${pst.enabled ? "" : "paused"}" data-action="toggle-product" data-bld="${bldKey}" data-product="${productKey}" ${n === 0 ? "hidden" : ""}>
-					${pst.enabled ? "Pause" : "Resume"}
-				</button>
-			</div>
-			<p class="slot-summary">${summaryText}</p>
-			<button class="add-slot-btn" data-action="add-slot" data-bld="${bldKey}" data-product="${productKey}" ${state.gold >= slotCost ? "" : "disabled"}>
-				Add Slot for ${slotCost.toLocaleString()} gold (+${cycleFmt})
-			</button>
-			<button class="sell-slot-btn" data-action="sell-slot" data-bld="${bldKey}" data-product="${productKey}" ${n > 0 ? "" : "disabled"}>
-				Sell Slot for ${refund.toLocaleString()} gold (-${cycleFmt})
-			</button>
-		</div>`;
-	}).join("");
-	const unlockables = Object.entries(cfg.products).filter(([pk, pcfg]) => !bst.products[pk].unlocked && (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked));
-	const unlockHtml = unlockables.length === 0 ? "" : `<section class="unlock-group">
-		<h3>Unlockable Products</h3>
-		<div class="unlock-section">
-			${unlockables.map(([pk, pcfg]) => {
-				const res = RESOURCES[pcfg.outputKey];
-				const unlockCost = Math.round(pcfg.unlockCost * prestigeUnlockCostMult());
-				return `<button class="unlock-product-btn" data-action="unlock-product" data-bld="${bldKey}" data-product="${pk}" ${state.gold >= unlockCost ? "" : "disabled"}>
-					Unlock ${res.label} for ${unlockCost.toLocaleString()} gold
-				</button>`;
-			}).join("")}
-		</div>
-	</section>`;
-	const chainHtml = renderChainOverview();
-	const productsSection = unlockedHtml ? `<section class="product-group"><h3>Products</h3>${unlockedHtml}</section>` : "";
-	panel.innerHTML = `${nextHtml}${productsSection}${unlockHtml}${chainHtml}`;
-}
-
-function updateMarketProducts() {
-	const panel = document.getElementById("panel-market");
-	if (!panel) return;
-	const container = panel.querySelector("#market-products");
-	if (!container) return;
-	const used = totalItems();
-	const max = storageMax();
-	const pct = Math.min(100, Math.floor(used / max * 100));
-	const barFill = panel.querySelector(".storage-bar-fill");
-	const barWrap = panel.querySelector(".storage-bar-wrap");
-	const usedLabel = panel.querySelector(".storage-used-label");
-	if (barFill) barFill.style.width = `${pct}%`;
-	if (barWrap) barWrap.setAttribute("aria-valuenow", pct);
-	if (usedLabel) {
-		const label = `${used.toLocaleString()} / ${max.toLocaleString()} items (${pct}% full)`;
-		if (usedLabel.textContent !== label) usedLabel.textContent = label;
-	}
-	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-	const hasStock = withStock.length > 0;
-	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-	const sellAllBtn = panel.querySelector("[data-action='sell-all']");
-	if (sellAllBtn) {
-		sellAllBtn.hidden = !hasStock;
-		if (hasStock) sellAllBtn.textContent = `Sell Everything for ${totalValue.toLocaleString()} gold`;
-	}
-	const emptyMsg = panel.querySelector(".market-empty");
-	if (emptyMsg) emptyMsg.hidden = hasStock;
-	for (const [resourceKey, res] of Object.entries(RESOURCES)) {
-		const inv = state.inventory[resourceKey] || 0;
-		const hasItem = inv > 0;
-		const card = container.querySelector(`[data-market-resource="${resourceKey}"]`);
-		if (!card) continue;
-		card.hidden = !hasItem;
-		const price = currentPrice(resourceKey);
-		const earned = inv * price;
-		const stockEl = card.querySelector(".market-product-stock");
-		if (stockEl) stockEl.textContent = `${inv.toLocaleString()} in stock, ${price.toLocaleString()} gold each`;
-		const sellBtn = card.querySelector(".sell-btn");
-		if (sellBtn) {
-			sellBtn.disabled = !hasItem;
-			sellBtn.textContent = `Sell All ${res.label} for ${earned.toLocaleString()} gold`;
-		}
-	}
+	unlockSection.innerHTML = nextHtml;
+	const productSection = production.productSection ??= (() => {
+		const productSection = document.createElement("building-section");
+		panel.appendChild(productSection);
+		return productSection;
+	})();
+	if (productSection.getAttribute("bld") !== bldKey) productSection.bld = bldKey;
+	productSection.refresh();
+	const chainSection = production.chainSection ??=  (() => {
+		const chainSection = document.createElement("div");
+		chainSection.className = "chain-overview";
+		panel.appendChild(chainSection);
+		return chainSection;
+	})();
+	chainSection.innerHTML = renderChainOverview();
 }
 
 function renderMarketSection() {
-	const panel = document.getElementById("panel-market");
-	if (!panel) return;
-	const used = totalItems();
-	const max = storageMax();
-	const pct = Math.min(100, Math.floor(used / max * 100));
-	const cost = storageUpgradeCost();
-	const next = nextStorageMax();
-	const storageLabel = `${used} / ${max} items (${pct}% full)`;
-	const upgHtml = `<button data-action="storage-upgrade" ${state.gold >= cost ? "" : "disabled"}>Expand Storage: ${max} to ${next} items for ${cost} gold</button>`;
-	const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
-	const hasStock = withStock.length > 0;
-	const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
-	const productCards = Object.entries(RESOURCES).map(([resourceKey, res]) => {
-		const inv = state.inventory[resourceKey] || 0;
-		const hasItem = inv > 0;
-		const price = currentPrice(resourceKey);
-		const earned = inv * price;
-		return `<div class="market-product" data-market-resource="${resourceKey}"${hasItem ? "" : " hidden"}>
-			<div class="market-product-header">
-				<h4 class="market-product-name">${res.label}</h4>
-				<span class="market-product-stock">${inv} in stock, ${price} gold each</span>
-			</div>
-			<button class="sell-btn" data-action="sell" data-resource="${resourceKey}"${hasItem ? "" : " disabled"}>Sell All ${res.label} for ${earned} gold</button>
-		</div>`;
-	}).join("");
-	panel.innerHTML = `<div class="storage-info">
-		<div class="storage-bar-wrap" role="progressbar" aria-label="Storage used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
-			<div class="storage-bar-fill" style="width:${pct}%"></div>
-		</div>
-		<p class="storage-used-label">${storageLabel}</p>
-		${upgHtml}
-	</div>
-	<div class="market-divider"></div>
-	<button class="sell-all-btn" data-action="sell-all"${hasStock ? "" : " hidden"}>Sell Everything for ${totalValue} gold</button>
-	<p class="market-empty"${hasStock ? " hidden" : ""}>Nothing to sell yet.</p>
-	<section class="market-inventory-section">
-		<h3>Inventory</h3>
-		<div id="market-products">${productCards}</div>
-	</section>`;
+	const market = guiState.market ??= {};
+	const marketSection  = market.marketSection ??= (() => {
+		const panel = market.panel ??= document.getElementById("panel-market");
+		if (!panel) return;
+		const marketSection = new MarketSection();
+		panel.replaceChildren(marketSection);
+		return marketSection;
+	})();
+	if (!marketSection) return;
+	marketSection.refresh();
 }
 
 function renderSettingsSection() {
@@ -1545,7 +1453,7 @@ function tick() {
 	}
 	checkQuestCompletion();
 	renderHUD();
-	updateMarketProducts();
+	renderMarketSection();
 	renderQuestsSection();
 }
 
@@ -1995,6 +1903,11 @@ function _updateQuestBars(panel) {
 }
 
 function init() {
+	window.customElements.define("building-product-card", BuildingProductCard);
+	window.customElements.define("building-section", BuildingSection);
+	window.customElements.define("unlock-product-button", UnlockProductButton);
+	window.customElements.define("market-product-card", MarketProductCard);
+	window.customElements.define("market-section", MarketSection);
 	load();
 	const questPoolIds = new Set(QUEST_POOL.map(q => q.id));
 	const hasStaleIds = state.quests.active.some(id => !questPoolIds.has(id));
@@ -2019,4 +1932,482 @@ function init() {
 if (typeof document !== "undefined") {
 	if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
 	else init();
+}
+
+class BuildingProductCard extends HTMLElement{
+	#bld = null;
+	#product = null;
+	#label;
+	#status;
+	#inputDesc;
+	#inputs;
+	#singular;
+	#toggleProduction;
+	#summary;
+	#slotCost;
+	#addSlot;
+	#saleAmt;
+	#sellSlot;
+	#wantsBldAndProduct = new Set();
+	#wantsCycleFmt = new Set();
+	#paused;
+	
+	connectedCallback() {
+		this.className = "product-section";
+		const header = document.createElement("div");
+		header.className = "product-header";
+		const title = document.createElement("h4");
+		this.#label = title;
+		title.className = "product-title";
+		const status = document.createElement("span");
+		this.#status = status;
+		status.style.fontSize = "var(--font-sm)";
+		header.append(title, status)
+		const inputDesc = document.createElement("p");
+		this.#inputDesc = inputDesc;
+		inputDesc.className = "product-inputs";
+		const inputs = document.createTextNode("");
+		this.#inputs = inputs;
+		inputDesc.append("Requires ", inputs, " per cycle");
+		const manualProduceRow = document.createElement("div");
+		manualProduceRow.className = "manual-produce-row";
+		const manualProduce = document.createElement("button");
+		this.#wantsBldAndProduct.add(manualProduce);
+		manualProduce.className = "manual-produce-btn";
+		manualProduce.dataset.action = "manual-produce";
+		const singular = document.createTextNode("");
+		this.#singular = singular;
+		manualProduce.append("Produce ", singular);
+		const toggleProduction = document.createElement("button");
+		this.#wantsBldAndProduct.add(toggleProduction);
+		this.#toggleProduction = toggleProduction;
+		toggleProduction.className = "toggle-product-btn";
+		toggleProduction.dataset.action = "toggle-product";
+		manualProduceRow.append(manualProduce, toggleProduction);
+		const summary = document.createElement("p");
+		this.#summary = summary;
+		summary.className = "slot-summary";
+		const addSlot = document.createElement("button");
+		this.#addSlot = addSlot;
+		this.#wantsBldAndProduct.add(addSlot);
+		addSlot.className = "add-slot-btn";
+		addSlot.dataset.action = "add-slot";
+		const slotCost = document.createTextNode("");
+		this.#slotCost = slotCost;
+		let cycleFmt = document.createTextNode("");
+		this.#wantsCycleFmt.add(cycleFmt);
+		addSlot.append("Add Slot for ", slotCost, " gold (+", cycleFmt, ")");
+		const sellSlot = document.createElement("button");
+		this.#sellSlot = sellSlot;
+		this.#wantsBldAndProduct.add(sellSlot);
+		sellSlot.className = "sell-slot-btn";
+		sellSlot.dataset.action = "sell-slot";
+		const saleAmt = document.createTextNode("");
+		this.#saleAmt = saleAmt;
+		cycleFmt = cycleFmt.cloneNode();
+		this.#wantsCycleFmt.add(cycleFmt);
+		sellSlot.append("Sell Slot for ", saleAmt, " gold (-", cycleFmt, ")");
+		if (this.#bld !== null) this.#setDatasetMany(this.#wantsBldAndProduct, "bld", this.#bld);
+		if (this.#product !== null) this.#setDatasetMany(this.#wantsBldAndProduct, "product", this.#product);
+		this.#init();
+		this.replaceChildren(header, inputDesc, manualProduceRow, summary, addSlot, sellSlot);
+	}
+	
+	static get observedAttributes() {
+		return ["bld", "product"];
+	}
+	
+	attributeChangedCallback(name, oldValue, newValue) {
+		if (oldValue === newValue) return;
+		if (name === "bld") {
+			if (this.#bld === null) this.#bld = newValue;
+			else if (this.#bld !== newValue) return this.setAttribute("bld", this.#bld);
+			else return;
+		} else if (name === "product") {
+			if (this.#product === null) this.#product = newValue;
+			else if (this.#product !== newValue) return this.setAttribute("product", this.#product);
+			else return;
+		} else return;
+		this.#setDatasetMany(this.#wantsBldAndProduct, name, newValue);
+		this.#init();
+	}
+	
+	set bld(value) { this.setAttribute("bld", value); }
+	set product(value) { this.setAttribute("product", value); }
+	
+	#init() {
+		if (![this.#bld, this.#product, this.#label, this.#singular, this.#inputDesc, this.#inputs].every(el => el ?? false)) return;
+		const res = RESOURCES[BUILDING_CONFIG[this.#bld]?.products[this.#product]?.outputKey];
+		if (res === undefined) return;
+		this.#label.textContent = res.label;
+		this.#singular.textContent = res.singular;
+	}
+	
+	refresh() {
+		if (![this.#bld, this.#product, this.#status, this.#toggleProduction, this.#summary, this.#addSlot, this.#sellSlot, this.#saleAmt, this.#inputDesc, this.#inputs].every(el => el ?? false)) return;
+		const pst = state.buildings[this.#bld]?.products[this.#product];
+		const pcfg = BUILDING_CONFIG[this.#bld]?.products[this.#product];
+		if (pcfg === undefined || pst === undefined) return;
+		const paused = !pst.enabled;
+		if (this.#paused !== paused) {
+			this.#paused = paused;
+			let statusClass, statusText, toggleText, force;
+			if (paused) {
+				statusClass =  "health-warn";
+				statusText = "Paused";
+				toggleText = "Resume";
+				force = true;
+			} else {
+				statusClass = "health-ok";
+				statusText = "Active";
+				toggleText = "Pause";
+				force = false;
+			}
+			this.#status.textContent = statusText;
+			this.#status.className = statusClass;
+			this.#toggleProduction.textContent = toggleText;
+			this.#toggleProduction.classList.toggle("paused", force);
+		}
+		const slotCost = nextSlotCost(this.#bld, this.#product);
+		this.#slotCost.textContent = slotCost;
+		this.#addSlot.disabled = state.gold < slotCost;
+		const n = pst.slots.length;
+		this.#toggleProduction.hidden = n === 0;
+		this.#sellSlot.disabled = n === 0;
+		const inputs = formatInputs(Object.fromEntries(Object.entries(pcfg.inputs).map(([k, v]) => [k, v * Math.max(1, n)])));
+		if (inputs === "") {
+			this.#inputDesc.hidden = true
+		} else {
+			this.#inputs.textContent = inputs;
+			this.#inputDesc.hidden = false;
+		}
+		const cycleFmt = formatProductOutput(1, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey, true);
+		for (const el of this.#wantsCycleFmt) {
+			el.textContent = cycleFmt;
+		}
+		this.#summary.textContent = n === 0 ? "No slots yet." : `${n.toLocaleString()} ${n === 1 ? "slot" : "slots"}, ${formatProductOutput(n, pcfg.outputAmt, pcfg.baseCycleMs, pcfg.outputKey)}`;
+		this.#saleAmt.textContent = Math.floor(lastSlotCost(this.#bld, this.#product) * 0.5);
+	}
+	
+	#setDatasetMany(els, key, value) {
+		for (const el of els) {
+			el.dataset[key] = value;
+		}
+	}
+}
+
+class UnlockProductButton extends HTMLElement {
+	#bld = null;
+	#product = null;
+	#button;
+	#label;
+	#cost;
+	
+	connectedCallback() {
+		const button = document.createElement("button");
+		this.#button = button;
+		button.className = "unlock-product-btn";
+		button.dataset.action = "unlock-product";
+		if (this.#bld !== null) button.dataset.bld = this.#bld;
+		if (this.#product !== null) button.dataset.product = this.#product;
+		const name = document.createTextNode(this.#getLabelText());
+		this.#label = name;
+		const cost = document.createTextNode("");
+		this.#cost = cost;
+		button.append("Unlock ", name, " for ", cost, " gold");
+		this.replaceChildren(button);
+	}
+	
+	static get observedAttributes() { return ["bld", "product"]; }
+	attributeChangedCallback(name, oldValue, newValue) {
+		if (newValue === oldValue) return;
+		if (name === "bld") {
+			if (this.#bld === null) this.#bld = newValue;
+			else if (this.#bld !== newValue) return this.setAttribute("bld", this.#bld);
+			else return;
+		} else if (name === "product") {
+			if (this.#product === null) this.#product = newValue;
+			else if (this.#product !== newValue) return this.setAttribute("product", this.#product);
+			else return;
+		} else return;
+		if (this.#button !== undefined) this.#button.dataset[name] = newValue;
+		if (this.#bld !== null && this.#product !== null && this.#label !== undefined) {
+			this.#label.textContent = this.#getLabelText();
+		}
+		this.refresh();
+	}
+	
+	set bld(value) { this.setAttribute("bld", value); }
+	set product(value) { this.setAttribute("product", value); }
+	#getLabelText() {
+		return RESOURCES[BUILDING_CONFIG[this.#bld]?.products[this.#product]?.outputKey]?.label ?? "[product]";
+	}
+	
+	refresh() {
+		if (![this.#bld, this.#product, this.#button, this.#cost].every(el => el ?? false)) return;
+		let unlockCost = Math.round(BUILDING_CONFIG[this.#bld].products[this.#product].unlockCost * prestigeUnlockCostMult());
+		this.#button.disabled = state.gold < unlockCost;
+		unlockCost = unlockCost.toLocaleString();
+		if (this.#cost.textContent !== unlockCost) this.#cost.textContent = unlockCost;
+	}
+}
+
+class BuildingSection extends HTMLElement {
+	#productCards = new Map();
+	#unlockButtons = new Map();
+	#productSection;
+	#unlockGroup;
+	#unlockSection;
+	
+	connectedCallback() {
+		const productGroup = document.createElement("section");
+		productGroup.className = "product-group";
+		const productsH3 = document.createElement("h3");
+		productsH3.textContent = "Products";
+		const productSection = document.createElement("div");
+		this.#productSection = productSection;
+		productSection.className = "product-section";
+		productGroup.append(productsH3, productSection);
+		const unlockGroup = document.createElement("section");
+		this.#unlockGroup = unlockGroup;
+		unlockGroup.className = "unlock-group";
+		unlockGroup.hidden = true;
+		const unlockH3 = document.createElement("h3");
+		unlockH3.textContent = "Unlockable Products";
+		const unlockSection = document.createElement("div");
+		this.#unlockSection = unlockSection;
+		unlockSection.className = "unlock-section";
+		unlockGroup.append(unlockH3, unlockSection);
+		this.replaceChildren(productGroup, unlockGroup);
+	}
+	
+	static get observedAttributes() { return ["bld"]; }
+	
+	attributeChangedCallback(name, oldValue, newValue) {
+		if (newValue === oldValue) return;
+		if (name === "bld") {
+			this.#productCards.clear();
+			this.#unlockButtons.clear();
+			if (this.#productSection !== undefined) this.#productSection.replaceChildren();
+			if (this.#unlockSection !== undefined) this.#unlockSection.replaceChildren();
+		}
+	}
+	
+	set bld(value) { this.setAttribute("bld", value); }
+	get bld() { return this.getAttribute("bld"); }
+
+	refresh() {
+		if (![this.bld, this.#productSection, this.#unlockGroup, this.#unlockSection].every(el => el ?? false)) return;
+		const bldKey = this.bld;
+		if (bldKey === null) return;
+		const cfg = BUILDING_CONFIG[bldKey];
+		const bst = state.buildings[bldKey];
+		Object.entries(cfg.products).forEach(([pk, pcfg]) => {
+			let unlocked = false, unlockable = false;
+			if (bst.products[pk].unlocked) {
+				unlocked = true;
+				const card = this.#productCards.getOrInsertComputed(pk, pk => {
+					const card = new BuildingProductCard();
+					card.product = pk;
+					card.bld = bldKey;
+					return card;
+				});
+				if (!this.#productSection.contains(card)) this.#productSection.appendChild(card);
+				card.refresh();
+			} else if (!pcfg.prereqProduct || bst.products[pcfg.prereqProduct].unlocked) {
+				unlockable = true;
+				const button  = this.#unlockButtons.getOrInsertComputed(pk, pk => {
+					const button = new UnlockProductButton();
+					button.product = pk;
+					button.bld = bldKey;
+					return button;
+				});
+				if (!this.#unlockSection.contains(button)) this.#unlockSection.append(button);
+				button.refresh();
+			}
+			if (!unlockable && this.#unlockButtons.has(pk)) {
+				this.#unlockSection.removeChild(this.#unlockButtons.get(pk));
+				this.#unlockButtons.delete(pk);
+			}
+			if (!unlocked && this.#productCards.has(pk)) {
+				this.#productSection.removeChild(this.#productCards.get(pk));
+				this.#productCards.delete(pk);
+			}
+		});
+		// this.#productGroup.hidden = this.#productCards.size === 0;
+		this.#unlockGroup.hidden = this.#unlockButtons.size === 0;
+	}
+}
+
+class MarketProductCard  extends HTMLElement {
+	#invCount;
+	#unitValue;
+	#totalValue;
+	#sell;
+	#wantsLabel = new Set();
+	#resource = null;
+	
+	connectedCallback() {
+		this.className = "market-product";
+		const header = document.createElement("div");
+		header.className = "market-product-header";
+		const name = document.createElement("h4");
+		this.#wantsLabel.add(name);
+		name.className = "market-product-name";
+		const stock = document.createElement("span");
+		stock.className = "market-product-stock";
+		const invCount = document.createTextNode("");
+		this.#invCount = invCount;
+		const unitValue = document.createTextNode("");
+		this.#unitValue = unitValue;
+		stock.append(invCount, " in stock, ", unitValue, " gold each");
+		header.append(name, stock);
+		const sell = document.createElement("button");
+		this.#sell = sell;
+		sell.className = "sell-btn";
+		sell.dataset.action = "sell";
+		if (this.#resource !== null) sell.dataset.resource = this.#resource;
+		const label = document.createTextNode("");
+		this.#wantsLabel.add(label);
+		const totalValue = document.createTextNode("");
+		this.#totalValue = totalValue;
+		sell.append("Sell All ", label, " for ", totalValue, " gold");
+		this.replaceChildren(header, sell);
+		this.#init();
+	}
+	
+	static get observedAttributes() { return ["resource"]; }
+	
+	attributeChangedCallback(name, oldValue, newValue) {
+		if (oldValue === newValue) return;
+		if (name !== "resource") return;
+		if (this.#resource === null) {
+			this.#resource = newValue;
+			if (this.#sell !== undefined) this.#sell.dataset.resource = newValue;
+			this.#init();
+		} else if (this.#resource !== newValue) return this.setAttribute("resource", this.#resource);
+	}
+	
+	set resource(value) { this.setAttribute("resource", value); }
+	
+	#init() {
+		if (this.#resource === null || this.#wantsLabel.size === 0) return;
+		const label = RESOURCES[this.#resource]?.label;
+		if (label === undefined) return;
+		this.#wantsLabel.forEach(el => el.textContent = label);
+	}
+	
+	refresh() {
+		if (![this.#resource, this.#invCount, this.#unitValue, this.#totalValue, this.#sell].every(el => el ?? false)) return;
+		const inv = state.inventory[this.#resource] || 0;
+		const hasStock = inv > 0;
+		const price = currentPrice(this.#resource);
+		const earned = inv * price;
+		this.#invCount.textContent = inv.toLocaleString();
+		this.hidden = !hasStock;
+		this.#sell.disabled = !hasStock;
+		this.#unitValue.textContent = price.toLocaleString();
+		this.#totalValue.textContent = earned.toLocaleString();
+	}
+}
+
+class MarketSection extends HTMLElement {
+	#progressBar;
+	#progressFill;
+	#used;
+	#pct;
+	#upgrade;
+	#next;
+	#cost;
+	#sellAll;
+	#totalValue;
+	#emptyText;
+	#productGroup;
+	#productCards = new Map();
+	#wantsMax = new Set();
+	
+	connectedCallback() {
+		const info = document.createElement("div");
+		info.className = "storage-info";
+		const progressBar = document.createElement("div");
+		this.#progressBar = progressBar;
+		progressBar.className = "storage-bar-wrap";
+		progressBar.role = "progressbar";
+		progressBar.ariaLabel = "Storage used";
+		progressBar.ariaValueMin = "0";
+		progressBar.ariaValueMax = "100";
+		const progressFill = document.createElement("div");
+		this.#progressFill = progressFill;
+		progressFill.className = "storage-bar-fill";
+		progressBar.appendChild(progressFill);
+		const label = document.createElement("p");
+		label.className = "storage-used-label";
+		this.#used = document.createTextNode("");
+		let max = document.createTextNode("");
+		this.#wantsMax.add(max);
+		this.#pct = document.createTextNode("");
+		label.append(this.#used, " / ", max, " items (", this.#pct, "% full)");
+		const upgrade = document.createElement("button");
+		this.#upgrade = upgrade;
+		upgrade.dataset.action = "storage-upgrade";
+		max = max.cloneNode();
+		this.#wantsMax.add(max);
+		this.#next = document.createTextNode("");
+		this.#cost = document.createTextNode("");
+		upgrade.append("Expand Storage: ", max, " to ", this.#next, " items for ", this.#cost, " gold");
+		info.append(progressBar, label, upgrade);
+		const divider = document.createElement("div");
+		divider.className = "market-divider";
+		const sellAll = document.createElement("button");
+		this.#sellAll = sellAll;
+		sellAll.className = "sell-all-btn";
+		sellAll.dataset.action = "sell-all";
+		this.#totalValue = document.createTextNode("");
+		sellAll.append("Sell Everything for ", this.#totalValue, " gold");
+		const emptyText = document.createElement("p");
+		this.#emptyText = emptyText;
+		emptyText.className = "market-empty";
+		emptyText.textContent = "Nothing to sell yet.";
+		const inventorySection = document.createElement("section");
+		inventorySection.className = "market-inventory-section";
+		const heading = document.createElement("h3");
+		heading.textContent = "Inventory";
+		const productGroup = document.createElement("div");
+		this.#productGroup = productGroup;
+		productGroup.id = "market-products";
+		inventorySection.append(heading, productGroup);
+		this.replaceChildren(info, divider, sellAll, emptyText, inventorySection);
+	}
+	
+	refresh() {
+		if(![this.#used, this.#pct, this.#progressBar, this.#progressFill, this.#cost, this.#totalValue, this.#emptyText, this.#sellAll, this.#next, this.#upgrade].every(el => el ?? false)) return;
+		const used = totalItems();
+		const max = storageMax();
+		const pct = Math.min(100, Math.floor(used / max * 100));
+		const cost = storageUpgradeCost();
+		const next = nextStorageMax();
+		const withStock = Object.keys(RESOURCES).filter(k => state.inventory[k] > 0);
+		const hasStock = withStock.length > 0;
+		const totalValue = withStock.reduce((sum, k) => sum + state.inventory[k] * currentPrice(k), 0);
+		this.#used.textContent = used.toLocaleString();
+		this.#wantsMax.forEach(el => el.textContent = max.toLocaleString());
+		this.#pct.textContent = pct.toLocaleString();
+		this.#progressBar.ariaValueNow = pct;
+		this.#progressFill.style.width = `${pct}%`;
+		this.#cost.textContent = cost.toLocaleString();
+		this.#upgrade.disabled = state.gold < cost;
+		this.#next.textContent = next.toLocaleString();
+		this.#sellAll.hidden = !hasStock;
+		this.#emptyText.hidden = hasStock;
+		this.#totalValue.textContent = totalValue.toLocaleString();
+		Object.keys(RESOURCES).forEach(rk => {
+			const card = this.#productCards.getOrInsertComputed(rk, rk => {
+				const card = new MarketProductCard();
+				card.resource = rk;
+				this.#productGroup.appendChild(card);
+				return card;
+			});
+			card.refresh();
+		});
+	}
 }
