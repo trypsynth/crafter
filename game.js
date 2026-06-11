@@ -2248,7 +2248,7 @@ class MarketProductCard  extends HTMLElement {
 	#resource = null;
 	
 	connectedCallback() {
-		this.class = "market-product";
+		this.className = "market-product";
 		const header = document.createElement("div");
 		header.className = "market-product-header";
 		const name = document.createElement("h4");
