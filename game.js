@@ -2163,7 +2163,7 @@ class BuildingSection extends HTMLElement {
 		const productGroup = document.createElement("section");
 		productGroup.className = "product-group";
 		const productsH3 = document.createElement("h3");
-		productsH3.textContent = "NeoProducts";
+		productsH3.textContent = "Products";
 		const productSection = document.createElement("div");
 		this.#productSection = productSection;
 		productSection.className = "product-section";
@@ -2371,7 +2371,7 @@ class MarketSection extends HTMLElement {
 		const inventorySection = document.createElement("section");
 		inventorySection.className = "market-inventory-section";
 		const heading = document.createElement("h3");
-		heading.textContent = "Neo Inventory";
+		heading.textContent = "Inventory";
 		const productGroup = document.createElement("div");
 		this.#productGroup = productGroup;
 		productGroup.id = "market-products";
