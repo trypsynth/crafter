@@ -623,10 +623,13 @@ const guiState = {
 	},
 	production: {
 		panel: null,
-		buildings: {},
+		unlockSection: null,
+		productSection: null,
+		chainSection: null,
 	},
-	market: {},
-	quests: {},
+	market: {
+		panel: null,
+	},
 };
 
 function deepClone(obj) {
@@ -995,7 +998,6 @@ function addSlot(bldKey, productKey) {
 	const label = RESOURCES[BUILDING_CONFIG[bldKey].products[productKey].outputKey].label;
 	announce(`Slot added. ${label} now has ${pst.slots.length.toLocaleString()} slot${pst.slots.length === 1 ? "" : "s"}.`);
 	renderAll();
-	document.querySelector(`[data-action="add-slot"][data-bld="${bldKey}"][data-product="${productKey}"]`)?.focus();
 }
 
 function sellSlot(bldKey, productKey) {
@@ -1314,19 +1316,20 @@ function renderChainOverview() {
 	`;
 }
 
-let neoUnlockSection, neoProductSection, neoChainSection;
 function renderBuildingSection() {
-	const panel = guiState.production.panel ??= document.getElementById("panel-production");
+	const production = guiState.production ??= {};
+	const panel = production.panel ??= document.getElementById("panel-production");
 	if (!panel) return;
 	const bldKey = runtime.selectedBuilding;
 	const nextBldKey = Object.keys(BUILDING_CONFIG).find(k => !state.buildings[k].unlocked && BUILDING_CONFIG[k].prereq());
-	if (neoUnlockSection === undefined) {
-		neoUnlockSection = document.createElement("div");
-		neoUnlockSection.className = "unlock-section";
-		neoUnlockSection.style.marginTop = "0";
-		neoUnlockSection.style.marginBottom = "var(--space-md)";
-		panel.appendChild(neoUnlockSection);
-	}
+	const unlockSection = production.unlockSection ??= (() => {
+		const unlockSection = document.createElement("div");
+		unlockSection.className = "unlock-section";
+		unlockSection.style.marginTop = "0";
+		unlockSection.style.marginBottom = "var(--space-md)";
+		panel.appendChild(unlockSection);
+		return unlockSection;
+	})();
 	let nextHtml = "No next building";
 	if (nextBldKey) {
 		const ncfg = BUILDING_CONFIG[nextBldKey];
@@ -1335,30 +1338,34 @@ function renderBuildingSection() {
 			Build ${ncfg.label} (${ncost === 0 ? "Free" : ncost.toLocaleString() + " gold"})
 		</button>`;
 	}
-	neoUnlockSection.innerHTML = nextHtml;
-	if (neoProductSection === undefined) {
-		neoProductSection = document.createElement("building-section");
-		panel.appendChild(neoProductSection);
-	}
-	if (neoProductSection.getAttribute("bld") !== bldKey) neoProductSection.bld = bldKey;
-	neoProductSection.refresh();
-	if (neoChainSection === undefined) {
-		neoChainSection = document.createElement("div");
-		neoChainSection.className = "chain-overview";
-		panel.appendChild(neoChainSection);
-	}
-	neoChainSection.innerHTML = renderChainOverview();
+	unlockSection.innerHTML = nextHtml;
+	const productSection = production.productSection ??= (() => {
+		const productSection = document.createElement("building-section");
+		panel.appendChild(productSection);
+		return productSection;
+	})();
+	if (productSection.getAttribute("bld") !== bldKey) productSection.bld = bldKey;
+	productSection.refresh();
+	const chainSection = production.chainSection ??=  (() => {
+		const chainSection = document.createElement("div");
+		chainSection.className = "chain-overview";
+		panel.appendChild(chainSection);
+		return chainSection;
+	})();
+	chainSection.innerHTML = renderChainOverview();
 }
 
-let neoMarketSection;
 function renderMarketSection() {
-	const panel = document.getElementById("panel-market");
-	if (!panel) return;
-	if (neoMarketSection === undefined) {
-		neoMarketSection = new MarketSection();
-		panel.replaceChildren(neoMarketSection);
-	}
-	neoMarketSection.refresh();
+	const market = guiState.market ??= {};
+	const marketSection  = market.marketSection ??= (() => {
+		const panel = market.panel ??= document.getElementById("panel-market");
+		if (!panel) return;
+		const marketSection = new MarketSection();
+		panel.replaceChildren(marketSection);
+		return marketSection;
+	})();
+	if (!marketSection) return;
+	marketSection.refresh();
 }
 
 function renderSettingsSection() {
