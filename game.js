@@ -757,7 +757,7 @@ function getPrestigeBonus(type) {
 
 function getPrestigeMult(type) {
 	const rewards = state.prestige.rewards.filter(r => r.type === type);
-	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1) * 100;
+	if (type === "sell_price_pct" || type === "cycle_speed_pct" || type === "treasure_gold_pct") return rewards.reduce((m, r) => m * (1 + r.amount / 100), 1);
 	return rewards.reduce((m, r) => m * (1 - r.amount / 100), 1);
 }
 
