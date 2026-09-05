@@ -3,6 +3,7 @@
 //   deno task sim                          all archetypes, default seeds
 //   deno task sim --archetype=casual       just one
 //   deno task sim --seeds=50 --days=180    wider sample, longer horizon
+//   deno task sim --cap=100000             bound the work per run, not just the calendar
 //   deno task sim --milestones             per milestone table
 //   deno task sim --step-check             does the answer depend on the step size
 //   deno task sim --replay=session.json    check a real recorded session replays exactly
@@ -79,6 +80,8 @@ function stepCheck(): number {
 function main(): number {
 	const seeds = Number(arg("seeds", "12"));
 	const days = Number(arg("days", "120"));
+	// The optimizer acts thousands of times a day, so a day count is not a work limit.
+	const cap = Number(arg("cap", "400000"));
 	const only = arg("archetype", "");
 	const names = only ? [only] : ARCHETYPE_NAMES;
 	for (const n of names) {
@@ -93,7 +96,7 @@ function main(): number {
 	const rows = names.map((name) => {
 		const arch = ARCHETYPES[name];
 		const runs: RunMetrics[] = [];
-		for (let s = 0; s < seeds; s++) runs.push(runSimulation({ archetype: arch, seed: 1000 + s, maxDays: days }));
+		for (let s = 0; s < seeds; s++) runs.push(runSimulation({ archetype: arch, seed: 1000 + s, maxDays: days, maxActions: cap }));
 		return aggregate(name, runs);
 	});
 	console.log(renderSummary(rows));
