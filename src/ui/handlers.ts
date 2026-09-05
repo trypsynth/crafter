@@ -13,7 +13,7 @@ import {
 } from "../core/actions.ts";
 import { rerollQuest } from "../core/quests.ts";
 import { applyPrestigeReset, dismissVictory, prestigeResetSummary, victoryNewGame } from "../core/prestige.ts";
-import { clearSaveData, importSaveFromText, renderSettingsSection, saveNow } from "./settings.ts";
+import { clearSaveData, exportRecording, importSaveFromText, renderSettingsSection, saveNow } from "./settings.ts";
 import { hideVictoryScreen } from "./victory.ts";
 import type { ResourceKey } from "../core/types.ts";
 
@@ -82,6 +82,9 @@ export function handleClick(e: MouseEvent): void {
 			break;
 		case "clear-save":
 			clearSaveData();
+			break;
+		case "export-recording":
+			exportRecording();
 			break;
 		case "victory-keep-playing":
 			dismissVictory();

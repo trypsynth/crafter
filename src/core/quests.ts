@@ -4,6 +4,7 @@ import { QUEST_SLOTS, REROLL_BASE_COST, REROLL_COST_GROWTH } from "./constants.t
 import { shuffle } from "./rng.ts";
 import { announce, emit, requestRender } from "./events.ts";
 import { save } from "./save.ts";
+import { record } from "./journal.ts";
 import type { QuestDef } from "./types.ts";
 
 export interface QuestProgress {
@@ -114,6 +115,7 @@ export function rerollCost(): number {
 }
 
 export function rerollQuest(index: number): void {
+	record("reroll", index);
 	const cost = rerollCost();
 	if (state.gold < cost) {
 		announce(`Need ${cost.toLocaleString()} gold to reroll.`);

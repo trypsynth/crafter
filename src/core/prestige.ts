@@ -3,6 +3,7 @@ import { freshState, runtime, setState, state } from "./state.ts";
 import { getPrestigeBonus, getPrestigeMult } from "./economy.ts";
 import { announce, emit, requestRender } from "./events.ts";
 import { save } from "./save.ts";
+import { record } from "./journal.ts";
 import { now } from "./clock.ts";
 import { entries } from "./util.ts";
 import type { ResourceKey, RewardType } from "./types.ts";
@@ -20,6 +21,7 @@ export function prestigeResetSummary(): PrestigeSummary {
 }
 
 export function applyPrestigeReset(): void {
+	record("prestige");
 	const { completedCount } = prestigeResetSummary();
 	if (completedCount === 0) return;
 	for (const [bk, bst] of entries(state.buildings)) {
@@ -73,6 +75,7 @@ export function applyPrestigeReset(): void {
 }
 
 export function victoryNewGame(): void {
+	record("newGame");
 	const victoryCount = (state.prestige.victoryCount ?? 0) + 1;
 	setState(freshState());
 	state.prestige.victoryCount = victoryCount;

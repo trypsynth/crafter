@@ -7,11 +7,12 @@
 		"build": "deno bundle --platform=browser --minify --sourcemap=linked --outdir=dist src/main.ts",
 		"check": "deno check src/main.ts tools/ tests/",
 		"test": "deno test --allow-none tests/",
-		"sim": "deno run src/sim/headless.ts",
+		"sim": "deno run --allow-read src/sim/headless.ts",
 		"fmt": "deno fmt",
 		"lint": "deno lint",
 		"smoke": "deno run --allow-read --allow-write --allow-net --allow-run --allow-env tools/browser_smoke.ts",
-		"bench": "deno run --allow-read tools/bench_catchup.ts"
+		"bench": "deno run --allow-read tools/bench_catchup.ts",
+		"diagnose": "deno run --allow-read tools/diagnose_run.ts"
 	},
 	"compilerOptions": {
 		"strict": true,

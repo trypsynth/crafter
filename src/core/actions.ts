@@ -21,9 +21,11 @@ import { announce, emit, requestRender } from "./events.ts";
 import { save } from "./save.ts";
 import { now } from "./clock.ts";
 import { entries, keys } from "./util.ts";
+import { record } from "./journal.ts";
 import type { ProductKey, ResourceKey } from "./types.ts";
 
 export function unlockBuilding(bldKey: string): void {
+	record("build", bldKey);
 	const cfg = BUILDINGS[bldKey];
 	const bst = state.buildings[bldKey];
 	if (bst.unlocked) return;
@@ -43,6 +45,7 @@ export function unlockBuilding(bldKey: string): void {
 }
 
 export function unlockProduct(bldKey: string, productKey: ProductKey): void {
+	record("unlock", bldKey, productKey);
 	const pcfg = BUILDINGS[bldKey].products[productKey];
 	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.unlocked) return;
@@ -59,6 +62,7 @@ export function unlockProduct(bldKey: string, productKey: ProductKey): void {
 }
 
 export function addSlot(bldKey: string, productKey: ProductKey): void {
+	record("addSlot", bldKey, productKey);
 	const pst = state.buildings[bldKey].products[productKey];
 	if (!pst.unlocked) return;
 	const cost = nextSlotCost(bldKey, productKey);
@@ -74,6 +78,7 @@ export function addSlot(bldKey: string, productKey: ProductKey): void {
 }
 
 export function sellSlot(bldKey: string, productKey: ProductKey): void {
+	record("sellSlot", bldKey, productKey);
 	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.slots.length === 0) return;
 	const refund = slotRefund(bldKey, productKey);
@@ -86,6 +91,7 @@ export function sellSlot(bldKey: string, productKey: ProductKey): void {
 }
 
 export function manualProduce(bldKey: string, productKey: ProductKey): void {
+	record("manual", bldKey, productKey);
 	const pcfg = BUILDINGS[bldKey].products[productKey];
 	const pst = state.buildings[bldKey].products[productKey];
 	if (pst.manual.active) {
@@ -111,6 +117,7 @@ export function manualProduce(bldKey: string, productKey: ProductKey): void {
 }
 
 export function upgradeStorage(): void {
+	record("storage");
 	const cost = storageUpgradeCost();
 	if (state.gold < cost) {
 		announce(`Need ${cost.toLocaleString()} gold to expand storage.`);
@@ -123,6 +130,7 @@ export function upgradeStorage(): void {
 }
 
 export function sellAll(): void {
+	record("sellAll");
 	const resources = keys(RESOURCES).filter((k) => state.inventory[k] > 0);
 	if (resources.length === 0) return;
 	let totalEarned = 0;
@@ -140,6 +148,7 @@ export function sellAll(): void {
 }
 
 export function sellProduct(resourceKey: ResourceKey): void {
+	record("sell", resourceKey);
 	const inv = state.inventory[resourceKey];
 	if (inv <= 0) return;
 	const earned = inv * currentPrice(resourceKey);
@@ -152,6 +161,7 @@ export function sellProduct(resourceKey: ResourceKey): void {
 }
 
 export function toggleProductEnabled(bldKey: string, productKey: ProductKey): void {
+	record("toggle", bldKey, productKey);
 	const pst = state.buildings[bldKey].products[productKey];
 	if (!pst.unlocked) return;
 	pst.enabled = !pst.enabled;
@@ -165,6 +175,7 @@ export function toggleProductEnabled(bldKey: string, productKey: ProductKey): vo
 }
 
 export function openTreasure(): void {
+	record("treasure");
 	if (!state.treasure.activeUntil || now() > state.treasure.activeUntil) return;
 	const amount = Math.round(getTreasureBaseValue() * prestigeTreasureMult());
 	state.gold += amount;
@@ -178,6 +189,7 @@ export function openTreasure(): void {
 // Autoplay helper kept from the original build. Phase 1 removes it or moves it
 // behind late game research, because it makes the purchase decision for the player.
 export function doFixBottleneck(): void {
+	record("fixBottleneck");
 	let totalBought = 0;
 	for (let i = 0; i < 500; i++) {
 		const { deficits } = getProductionOverview();

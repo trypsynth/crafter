@@ -1,6 +1,7 @@
 import { freshState, setState, state } from "../core/state.ts";
 import { clearSave, save, writeRawSave } from "../core/save.ts";
 import { announce } from "../core/events.ts";
+import { entryCount, getRecording } from "../core/journal.ts";
 
 export function renderSettingsSection(): void {
 	const panel = document.getElementById("panel-settings");
@@ -19,6 +20,11 @@ export function renderSettingsSection(): void {
 			<button data-action="import-save-text">Import</button>
 			<button data-action="clear-save">Clear Save</button>
 		</div>
+	</section>
+	<section class="settings-section">
+		<h3>Session Recording</h3>
+		<p class="settings-hint">Every action this session is journalled. Export it to check the balance simulator against a real playthrough.</p>
+		<button data-action="export-recording">Export Recording</button>
 	</section>`;
 }
 
@@ -54,4 +60,18 @@ export function importSaveFromText(): void {
 	} catch {
 		announce("Invalid save data.");
 	}
+}
+
+// The recording carries the state it started from, everything done since, and the state
+// right now. The simulator replays the middle and compares against the end.
+export function exportRecording(): void {
+	const recording = getRecording();
+	const box = document.getElementById("save-textarea") as HTMLTextAreaElement | null;
+	if (!recording || !box) {
+		announce("Nothing recorded yet.");
+		return;
+	}
+	box.value = JSON.stringify({ ...recording, endState: state, endedAt: Date.now() });
+	box.select();
+	announce(`Recording of ${entryCount().toLocaleString()} actions ready to copy.`);
 }

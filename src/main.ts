@@ -5,6 +5,8 @@ import { on } from "./core/events.ts";
 import { setBackend } from "./core/storage.ts";
 import { now } from "./core/clock.ts";
 import { load, save } from "./core/save.ts";
+import { startRecording } from "./core/journal.ts";
+import { rngState } from "./core/rng.ts";
 import { drawQuests, isGameComplete } from "./core/quests.ts";
 import { tick } from "./core/tick.ts";
 import { BuildingProductCard, BuildingSection, MarketProductCard, MarketSection, UnlockProductButton } from "./ui/components.ts";
@@ -82,6 +84,9 @@ function init(): void {
 	// Persist straight away so a migrated save is written in the new shape even if the
 	// tab is closed before the first autosave.
 	save();
+	// From here every action is journalled, so a real session can be replayed through the
+	// headless core and checked against what actually happened.
+	startRecording(JSON.parse(JSON.stringify(state)), rngState());
 	for (const bldKey of Object.keys(BUILDINGS)) if (state.buildings[bldKey].unlocked) addBuildingOption(bldKey);
 	const firstBuilt = Object.keys(BUILDINGS).find((k) => state.buildings[k].unlocked);
 	runtime.selectedBuilding = firstBuilt ?? null;
