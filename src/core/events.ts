@@ -23,7 +23,15 @@ export function emit(name: string, payload?: unknown): void {
 	for (const fn of set) fn(payload);
 }
 
+let muted = false;
+
+// Offline catch-up replays hours of game time. Nobody wants that backlog read out.
+export function setMuted(value: boolean): void {
+	muted = value;
+}
+
 export function announce(msg: string): void {
+	if (muted) return;
 	emit("announce", msg);
 }
 

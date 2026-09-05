@@ -128,6 +128,8 @@ export interface PrestigeState {
 }
 
 export interface GameState {
+	version: number;
+	rngState: number;
 	gold: number;
 	lastTick: number | null;
 	inventory: Record<ResourceKey, number>;

@@ -185,6 +185,29 @@ try {
 	await sleep(200);
 	check("settings panel closes", !(await cdp.evaluate<boolean>("document.getElementById('app').classList.contains('settings-open')")));
 
+	console.log("save migration and offline catch-up");
+	// Write a save in the pre-versioning shape a real player would still have, with the
+	// clock set six hours back, then reload and see it migrate and pay out the time away.
+	await cdp.evaluate(`
+		const s = JSON.parse(localStorage.getItem('crafter'));
+		delete s.version;
+		delete s.rngState;
+		delete s.buildings.lumber_yard.products.logs.enabled;
+		delete s.buildings.lumber_yard.products.logs.manual;
+		s.gold = 4242;
+		s.lastTick = Date.now() - 6 * 3600 * 1000;
+		localStorage.setItem('crafter', JSON.stringify(s));
+	`);
+	const bootStart = Date.now();
+	await cdp.send("Page.navigate", { url: URL_UNDER_TEST });
+	await sleep(2000);
+	check("legacy save still loads", (await cdp.evaluate<number>("Number(document.getElementById('hud-gold').textContent.replace(/[^0-9]/g,''))")) >= 4242);
+	check("save is stamped with a version", (await cdp.evaluate<number>("JSON.parse(localStorage.getItem('crafter')).version")) >= 1);
+	check("generator state is persisted", (await cdp.evaluate<string>("typeof JSON.parse(localStorage.getItem('crafter')).rngState")) === "number");
+	const afterAway = await cdp.evaluate<number>("Number(document.getElementById('hud-storage').textContent.split('/')[0])");
+	check("time away produced goods", afterAway > 0, `storage=${afterAway}`);
+	check("boot with a 6h catch-up stays responsive", Date.now() - bootStart < 6000, `${Date.now() - bootStart}ms`);
+
 	const lateErrors = cdp.events
 		.filter((e) => e.method === "Runtime.exceptionThrown")
 		.map((e) => e.params.exceptionDetails?.exception?.description ?? "unknown");

@@ -79,6 +79,9 @@ function init(): void {
 	const hasStaleIds = state.quests.active.some((id) => !questPoolIds.has(id));
 	if (state.quests.active.length === 0 || hasStaleIds) drawQuests();
 	state.lastTick = now();
+	// Persist straight away so a migrated save is written in the new shape even if the
+	// tab is closed before the first autosave.
+	save();
 	for (const bldKey of Object.keys(BUILDINGS)) if (state.buildings[bldKey].unlocked) addBuildingOption(bldKey);
 	const firstBuilt = Object.keys(BUILDINGS).find((k) => state.buildings[k].unlocked);
 	runtime.selectedBuilding = firstBuilt ?? null;

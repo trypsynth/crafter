@@ -1,8 +1,9 @@
 import { RESOURCES } from "../content/resources.ts";
 import { BUILDINGS } from "../content/buildings.ts";
 import { now } from "./clock.ts";
-import { random } from "./rng.ts";
+import { random, randomSeed } from "./rng.ts";
 import { TREASURE_GAP_SPREAD_MS, TREASURE_MIN_GAP_MS } from "./constants.ts";
+import { SAVE_VERSION } from "./migrations.ts";
 import { keys } from "./util.ts";
 import type { BuildingState, GameState, ProductState, ResourceKey } from "./types.ts";
 
@@ -49,6 +50,8 @@ function freshBuildings(): Record<string, BuildingState> {
 // timer is seeded from the current clock and a seeded simulator run stays reproducible.
 export function freshState(): GameState {
 	return {
+		version: SAVE_VERSION,
+		rngState: randomSeed(),
 		gold: 0,
 		lastTick: null,
 		inventory: emptyInventory(),

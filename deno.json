@@ -10,7 +10,8 @@
 		"sim": "deno run src/sim/headless.ts",
 		"fmt": "deno fmt",
 		"lint": "deno lint",
-		"smoke": "deno run --allow-read --allow-write --allow-net --allow-run --allow-env tools/browser_smoke.ts"
+		"smoke": "deno run --allow-read --allow-write --allow-net --allow-run --allow-env tools/browser_smoke.ts",
+		"bench": "deno run --allow-read tools/bench_catchup.ts"
 	},
 	"compilerOptions": {
 		"strict": true,
