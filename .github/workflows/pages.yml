@@ -1,21 +1,16 @@
-name: Deploy to GitHub Pages
+name: Verify
 
 on:
   push:
     branches: [master]
+  pull_request:
   workflow_dispatch:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-concurrency:
-  group: pages
-  cancel-in-progress: true
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -30,29 +25,21 @@ jobs:
       - name: Lint
         run: deno lint
 
+      - name: Format
+        run: deno fmt --check
+
       - name: Test
         run: deno test tests/
 
+      # Pages is serving this repo from the branch root, so the built bundle is committed
+      # and has to match the source. Rebuilding and diffing catches a stale commit.
       - name: Build
         run: deno task build
 
-      - name: Stage site
+      - name: Committed bundle is up to date
         run: |
-          mkdir -p _site/dist
-          cp index.html style.css _site/
-          cp dist/main.js _site/dist/
-          cp dist/main.js.map _site/dist/ 2>/dev/null || true
-
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: _site
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          if ! git diff --quiet -- dist/; then
+            echo "dist/ is stale. Run 'deno task build' and commit the result."
+            git diff --stat -- dist/
+            exit 1
+          fi
