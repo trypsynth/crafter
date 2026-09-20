@@ -11,7 +11,7 @@
 import { ARCHETYPE_NAMES, ARCHETYPES } from "./archetypes.ts";
 import { runSimulation } from "./harness.ts";
 import { aggregate, renderMilestones, renderSummary } from "./report.ts";
-import { replay, stateFingerprint } from "./replay.ts";
+import { replay, replayTo, stateFingerprint } from "./replay.ts";
 import { STEP_MS } from "../core/sim.ts";
 import type { RunMetrics } from "./metrics.ts";
 import type { Recording } from "../core/journal.ts";
@@ -26,10 +26,14 @@ function flag(name: string): boolean {
 }
 
 async function runReplay(path: string): Promise<number> {
-	const recording = JSON.parse(await Deno.readTextFile(path)) as Recording & { endState?: unknown };
+	const recording = JSON.parse(await Deno.readTextFile(path)) as Recording & { endState?: unknown; endedAt?: number };
 	console.log(`replaying ${recording.entries.length} actions from ${path}`);
-	const result = replay(recording);
+	// The snapshot is taken when Export is pressed, which is later than the last click.
+	// The game kept ticking in between, so the replay has to be advanced to that same
+	// moment or the two are simply being compared at different times.
+	const result = recording.endedAt ? replayTo(recording, recording.endedAt) : replay(recording);
 	console.log(`  applied ${result.applied} actions`);
+	if (recording.endedAt) console.log(`  advanced to the export moment, ${((recording.endedAt - recording.startedAt) / 1000).toFixed(0)}s of session`);
 	if (result.skipped.length > 0) {
 		console.log(`  SKIPPED unknown actions: ${[...new Set(result.skipped)].join(", ")}`);
 		return 1;

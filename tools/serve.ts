@@ -1,6 +1,5 @@
-// Dev server. Bundles src/main.ts with the same command the Pages build uses, then
-// rebuilds on any change under src/. One process, one build path, no drift between
-// what you test locally and what gets deployed.
+// Dev server. Runs the exact deploy build, then reruns it on any change under src/.
+// One process, one build command, so what you test locally is byte for byte what ships.
 import { contentType } from "@std/media-types/content-type";
 import { extname, join, normalize, resolve } from "@std/path";
 
@@ -10,7 +9,11 @@ const PORT = Number(Deno.env.get("PORT") ?? 8080);
 async function build(): Promise<boolean> {
 	const started = performance.now();
 	const cmd = new Deno.Command(Deno.execPath(), {
-		args: ["bundle", "--platform=browser", "--sourcemap=inline", "--outdir=dist", "src/main.ts"],
+		// Runs the deploy build, not a variant of it. Two commands writing to the same
+		// dist/ with different flags means whichever ran last is what gets committed, which
+		// is the drift this was supposed to prevent. The linked sourcemap keeps the
+		// original TypeScript visible in devtools, so minified output costs nothing here.
+		args: ["task", "build"],
 		cwd: ROOT,
 		stdout: "piped",
 		stderr: "piped",
