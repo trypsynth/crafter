@@ -33,8 +33,8 @@ export type ActionKind = "sell" | "prestige" | "build" | "unlock" | "storage" | 
 
 /** Carried across a run so the policy can react to a pattern, not just to this instant. */
 export interface PolicyState {
-	/** Turns spent against a nearly full store since the last expansion. */
-	jam: number;
+	/** Rolling share of the store in use, as a fraction. */
+	fill: number;
 	/** Rerolls bought this run. The fee doubles each time, so this cannot run away. */
 	rerolls: number;
 	/** Turns since a quest last completed, used to notice a run that has stopped moving. */
@@ -44,7 +44,7 @@ export interface PolicyState {
 }
 
 export function newPolicyState(): PolicyState {
-	return { jam: 0, rerolls: 0, sinceProgress: 0, lastBanked: -1 };
+	return { fill: 0, rerolls: 0, sinceProgress: 0, lastBanked: -1 };
 }
 
 interface Candidate {
@@ -60,11 +60,23 @@ function sellThreshold(arch: Archetype): number {
 	return 0.95 - 0.35 * arch.skill;
 }
 
-// How many crowded turns a player tolerates before deciding the store is the problem.
-// An instantaneous "is it full right now" test never survives a sell, so the pressure has
-// to be remembered across turns.
-function jamTolerance(arch: Archetype): number {
-	return Math.max(1, Math.round(8 - 6 * arch.skill));
+// Whether widening the store is the best use of the next coin.
+//
+// An earlier version waited for the store to hit 90% full. A player who sells at 60% never
+// gets there, so the branch was dead and no simulated player ever bought storage at all. A
+// real one bought nine upgrades in three minutes, because that is simply the cheapest thing
+// on the shelf once slot prices start climbing. So compare the prices, which is what the
+// person was doing.
+const STORAGE_MIN_FILL = 0.25;
+
+function wantsStorage(arch: Archetype, ps: PolicyState, cheapestSlot: number | null): boolean {
+	const cost = storageUpgradeCost();
+	if (cost > state.gold) return false;
+	if (ps.fill < STORAGE_MIN_FILL) return false;
+	// A careless player needs it to be an obvious bargain before noticing.
+	const bias = 0.6 + 0.9 * arch.skill;
+	if (cheapestSlot === null) return true;
+	return cost <= cheapestSlot * bias;
 }
 
 function slotCandidates(arch: Archetype): Candidate[] {
@@ -92,8 +104,7 @@ function slotCandidates(arch: Archetype): Candidate[] {
 	return out;
 }
 
-function pickSlot(arch: Archetype): Candidate | null {
-	const candidates = slotCandidates(arch);
+function pickFrom(arch: Archetype, candidates: Candidate[]): Candidate | null {
 	if (candidates.length === 0) return null;
 	if (arch.skill >= 0.6) return candidates.reduce((best, c) => (c.score > best.score ? c : best));
 	// A less careful player buys whatever is cheapest and available.
@@ -177,7 +188,7 @@ function manualTarget(): { bldKey: string; productKey: string } | null {
 export function act(arch: Archetype, ps: PolicyState): ActionKind {
 	const cap = storageMax();
 	const held = totalItems();
-	if (held >= 0.9 * cap) ps.jam++;
+	ps.fill = ps.fill * 0.8 + (held / cap) * 0.2;
 	const banked = state.prestige.completedQuestIds.length + state.quests.completed.filter(Boolean).length;
 	if (banked > ps.lastBanked) {
 		ps.sinceProgress = 0;
@@ -193,14 +204,9 @@ export function act(arch: Archetype, ps: PolicyState): ActionKind {
 	}
 
 	// The decision.
-	if (ps.jam >= jamTolerance(arch) && storageUpgradeCost() <= state.gold) {
-		upgradeStorage();
-		ps.jam = 0;
-		return "storage";
-	}
 	if (wantsPrestige(arch, ps)) {
 		applyPrestigeReset();
-		ps.jam = 0;
+		ps.fill = 0;
 		ps.rerolls = 0;
 		ps.sinceProgress = 0;
 		ps.lastBanked = state.prestige.completedQuestIds.length;
@@ -216,7 +222,13 @@ export function act(arch: Archetype, ps: PolicyState): ActionKind {
 		unlockProduct(unlockable.bldKey, unlockable.productKey);
 		return "unlock";
 	}
-	const slot = pickSlot(arch);
+	const candidates = slotCandidates(arch);
+	const cheapestSlot = candidates.length === 0 ? null : candidates.reduce((lo, c) => Math.min(lo, c.cost), Infinity);
+	if (wantsStorage(arch, ps, cheapestSlot)) {
+		upgradeStorage();
+		return "storage";
+	}
+	const slot = pickFrom(arch, candidates);
 	if (slot) {
 		addSlot(slot.bldKey, slot.productKey);
 		return "slot";

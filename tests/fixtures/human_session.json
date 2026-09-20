@@ -1,0 +1,326 @@
+{
+	"format": 1,
+	"startedAt": 1789879886136,
+	"seed": 335768200,
+	"startState": {
+		"version": 1,
+		"rngState": 335768200,
+		"gold": 114,
+		"lastTick": 1789879886136,
+		"inventory": {
+			"logs": 100,
+			"timber": 0,
+			"dowels": 0,
+			"handles": 0,
+			"shafts": 0,
+			"planks": 0,
+			"boards": 0,
+			"beams": 0,
+			"crates": 0,
+			"furniture": 0,
+			"coaches": 0,
+			"manors": 0,
+			"iron_ore": 0,
+			"iron_bars": 0,
+			"nails": 0,
+			"iron_fittings": 0,
+			"gears": 0,
+			"springs": 0,
+			"mechanisms": 0,
+			"clockwork": 0,
+			"blades": 0,
+			"crossbows": 0,
+			"cannons": 0,
+			"artillery": 0,
+			"hulls": 0,
+			"rigging": 0,
+			"galleons": 0,
+			"dreadnoughts": 0
+		},
+		"storage": { "tier": 1 },
+		"stats": { "goldEarned": 700, "soldByResource": { "logs": 140 }, "treasureChestsOpened": 0 },
+		"treasure": { "nextSpawn": 1789879952452.5513, "activeUntil": 0 },
+		"quests": {
+			"active": ["sell_shafts_t0", "build_sawmill_t0", "treasure_chests_t0", "earn_gold_t0", "unlock_shafts_t0"],
+			"completed": [false, false, false, false, false],
+			"baselines": { "sell_shafts_t0": 0, "build_sawmill_t0": 0, "treasure_chests_t0": 0, "earn_gold_t0": 0, "unlock_shafts_t0": 0 },
+			"rerolls": 0
+		},
+		"prestige": {
+			"runs": 0,
+			"rewards": [],
+			"completedQuestIds": [],
+			"seenBuildings": [],
+			"accumulatedStats": {
+				"goldEarned": 0,
+				"soldByResource": {},
+				"storageUpgrades": 0,
+				"totalSlots": 0,
+				"maxSlotsByProduct": {},
+				"totalSlotsByProduct": {},
+				"treasureChestsOpened": 0
+			}
+		},
+		"buildings": {
+			"lumber_yard": {
+				"unlocked": true,
+				"products": {
+					"logs": {
+						"unlocked": true,
+						"enabled": true,
+						"slots": [{ "id": 1, "progress": 0.999 }, { "id": 2, "progress": 0.999 }, { "id": 3, "progress": 0.999 }],
+						"manual": { "active": false, "progress": 0 }
+					},
+					"timber": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"dowels": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"handles": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"shafts": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"sawmill": {
+				"unlocked": false,
+				"products": {
+					"planks": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"boards": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"beams": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"workshop": {
+				"unlocked": false,
+				"products": {
+					"crates": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"furniture": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"coaches": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"manors": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"forge": {
+				"unlocked": false,
+				"products": {
+					"iron_ore": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"iron_bars": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"nails": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"iron_fittings": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"foundry": {
+				"unlocked": false,
+				"products": {
+					"gears": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"springs": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"mechanisms": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"clockwork": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"armoury": {
+				"unlocked": false,
+				"products": {
+					"blades": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"crossbows": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"cannons": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"artillery": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"shipyard": {
+				"unlocked": false,
+				"products": {
+					"hulls": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"rigging": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"galleons": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"dreadnoughts": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			}
+		}
+	},
+	"entries": [
+		{ "t": 1789879905013, "a": "sellAll" },
+		{ "t": 1789879906999, "a": "sellAll" },
+		{ "t": 1789879910152, "a": "storage" },
+		{ "t": 1789879910416, "a": "storage" },
+		{ "t": 1789879910742, "a": "storage" },
+		{ "t": 1789879912420, "a": "sellAll" },
+		{ "t": 1789879928182, "a": "addSlot", "p": ["lumber_yard", "timber"] },
+		{ "t": 1789879933171, "a": "sellAll" },
+		{ "t": 1789879936313, "a": "addSlot", "p": ["lumber_yard", "logs"] },
+		{ "t": 1789879959512, "a": "treasure" },
+		{ "t": 1789879998648, "a": "addSlot", "p": ["lumber_yard", "logs"] },
+		{ "t": 1789879998839, "a": "addSlot", "p": ["lumber_yard", "logs"] },
+		{ "t": 1789879998951, "a": "addSlot", "p": ["lumber_yard", "logs"] },
+		{ "t": 1789879999056, "a": "addSlot", "p": ["lumber_yard", "logs"] },
+		{ "t": 1789880000128, "a": "addSlot", "p": ["lumber_yard", "timber"] },
+		{ "t": 1789880000248, "a": "addSlot", "p": ["lumber_yard", "timber"] },
+		{ "t": 1789880000363, "a": "addSlot", "p": ["lumber_yard", "timber"] },
+		{ "t": 1789880000504, "a": "addSlot", "p": ["lumber_yard", "timber"] },
+		{ "t": 1789880002263, "a": "sellAll" },
+		{ "t": 1789880003500, "a": "storage" },
+		{ "t": 1789880003701, "a": "storage" },
+		{ "t": 1789880003801, "a": "storage" },
+		{ "t": 1789880003958, "a": "storage" },
+		{ "t": 1789880004110, "a": "storage" },
+		{ "t": 1789880004271, "a": "storage" },
+		{ "t": 1789880015920, "a": "sellAll" },
+		{ "t": 1789880019132, "a": "sellAll" },
+		{ "t": 1789880021021, "a": "unlock", "p": ["lumber_yard", "dowels"] },
+		{ "t": 1789880030223, "a": "sellAll" },
+		{ "t": 1789880031787, "a": "sellAll" },
+		{ "t": 1789880037761, "a": "sellAll" },
+		{ "t": 1789880041521, "a": "addSlot", "p": ["lumber_yard", "dowels"] },
+		{ "t": 1789880041839, "a": "addSlot", "p": ["lumber_yard", "dowels"] }
+	],
+	"endState": {
+		"version": 1,
+		"rngState": -296067470,
+		"gold": 373,
+		"lastTick": 1789880072136,
+		"inventory": {
+			"logs": 136,
+			"timber": 34,
+			"dowels": 10,
+			"handles": 0,
+			"shafts": 0,
+			"planks": 0,
+			"boards": 0,
+			"beams": 0,
+			"crates": 0,
+			"furniture": 0,
+			"coaches": 0,
+			"manors": 0,
+			"iron_ore": 0,
+			"iron_bars": 0,
+			"nails": 0,
+			"iron_fittings": 0,
+			"gears": 0,
+			"springs": 0,
+			"mechanisms": 0,
+			"clockwork": 0,
+			"blades": 0,
+			"crossbows": 0,
+			"cannons": 0,
+			"artillery": 0,
+			"hulls": 0,
+			"rigging": 0,
+			"galleons": 0,
+			"dreadnoughts": 0
+		},
+		"storage": { "tier": 10 },
+		"stats": { "goldEarned": 7265, "soldByResource": { "logs": 638, "timber": 63 }, "treasureChestsOpened": 1 },
+		"treasure": { "nextSpawn": 1789880759098.2043, "activeUntil": 0 },
+		"quests": {
+			"active": ["sell_shafts_t0", "build_sawmill_t0", "treasure_chests_t0", "earn_gold_t0", "unlock_shafts_t0"],
+			"completed": [false, false, false, false, false],
+			"baselines": { "sell_shafts_t0": 0, "build_sawmill_t0": 0, "treasure_chests_t0": 0, "earn_gold_t0": 0, "unlock_shafts_t0": 0 },
+			"rerolls": 0
+		},
+		"prestige": {
+			"runs": 0,
+			"rewards": [],
+			"completedQuestIds": [],
+			"seenBuildings": [],
+			"accumulatedStats": {
+				"goldEarned": 0,
+				"soldByResource": {},
+				"storageUpgrades": 0,
+				"totalSlots": 0,
+				"maxSlotsByProduct": {},
+				"totalSlotsByProduct": {},
+				"treasureChestsOpened": 0
+			}
+		},
+		"buildings": {
+			"lumber_yard": {
+				"unlocked": true,
+				"products": {
+					"logs": {
+						"unlocked": true,
+						"enabled": true,
+						"slots": [
+							{ "id": 1, "progress": 0.19900000000000007 },
+							{ "id": 2, "progress": 0.19900000000000007 },
+							{ "id": 3, "progress": 0.19900000000000007 },
+							{ "id": 5, "progress": 0.40000000000000024 },
+							{ "id": 6, "progress": 0.6000000000000002 },
+							{ "id": 7, "progress": 0.6000000000000002 },
+							{ "id": 8, "progress": 0.6000000000000002 },
+							{ "id": 9, "progress": 0.6000000000000002 }
+						],
+						"manual": { "active": false, "progress": 0 }
+					},
+					"timber": {
+						"unlocked": true,
+						"enabled": true,
+						"slots": [
+							{ "id": 4, "progress": 0 },
+							{ "id": 10, "progress": 0.25 },
+							{ "id": 11, "progress": 0 },
+							{ "id": 12, "progress": 0 },
+							{ "id": 13, "progress": 0.9990000000000001 }
+						],
+						"manual": { "active": false, "progress": 0 }
+					},
+					"dowels": {
+						"unlocked": true,
+						"enabled": true,
+						"slots": [{ "id": 14, "progress": 0.16666666666666563 }, { "id": 15, "progress": 0.16666666666666563 }],
+						"manual": { "active": false, "progress": 0 }
+					},
+					"handles": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"shafts": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"sawmill": {
+				"unlocked": false,
+				"products": {
+					"planks": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"boards": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"beams": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"workshop": {
+				"unlocked": false,
+				"products": {
+					"crates": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"furniture": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"coaches": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"manors": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"forge": {
+				"unlocked": false,
+				"products": {
+					"iron_ore": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"iron_bars": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"nails": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"iron_fittings": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"foundry": {
+				"unlocked": false,
+				"products": {
+					"gears": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"springs": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"mechanisms": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"clockwork": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"armoury": {
+				"unlocked": false,
+				"products": {
+					"blades": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"crossbows": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"cannons": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"artillery": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			},
+			"shipyard": {
+				"unlocked": false,
+				"products": {
+					"hulls": { "unlocked": true, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"rigging": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"galleons": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } },
+					"dreadnoughts": { "unlocked": false, "enabled": true, "slots": [], "manual": { "active": false, "progress": 0 } }
+				}
+			}
+		}
+	},
+	"endedAt": 1789880072564
+}

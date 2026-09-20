@@ -14,7 +14,8 @@
 		"bench": "deno run --allow-read tools/bench_catchup.ts",
 		"diagnose": "deno run --allow-read tools/diagnose_run.ts",
 		"capture": "deno run --allow-read --allow-write --allow-net --allow-run --allow-env tools/capture_session.ts",
-		"anchor": "deno task capture --out=session.json && deno task sim --replay=session.json"
+		"anchor": "deno task capture --out=session.json && deno task sim --replay=session.json",
+		"calibrate": "deno run --allow-read tools/calibrate.ts"
 	},
 	"compilerOptions": {
 		"strict": true,
