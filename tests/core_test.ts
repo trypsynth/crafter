@@ -191,6 +191,41 @@ Deno.test("the same seed produces the same run twice", () => {
 	assertEquals(runOnce(), runOnce());
 });
 
+Deno.test("drawing quests cannot bank counted tiers from lifetime progress", () => {
+	resetWorld();
+	state.prestige.accumulatedStats.soldByResource.logs = 100_000;
+	state.prestige.accumulatedStats.goldEarned = 10_000_000_000;
+	state.prestige.accumulatedStats.storageUpgrades = 1000;
+	state.prestige.accumulatedStats.treasureChestsOpened = 100;
+	state.quests.active = ["sell_logs_t0"];
+	state.quests.completed = [false];
+	state.quests.baselines = { sell_logs_t0: 100_000 };
+	drawQuests();
+	checkQuestCompletion();
+	assertEquals(state.prestige.completedQuestIds, []);
+	assertEquals(state.prestige.rewards, []);
+	assertEquals(state.quests.completed[state.quests.active.indexOf("sell_logs_t0")], false);
+	state.stats.soldByResource.logs = 400;
+	checkQuestCompletion();
+	assertEquals(state.quests.completed[state.quests.active.indexOf("sell_logs_t0")], true);
+	applyPrestigeReset();
+	assert(state.prestige.completedQuestIds.includes("sell_logs_t0"));
+	assertEquals(state.prestige.completedQuestIds.includes("sell_logs_t1"), false);
+});
+
+Deno.test("already earned building milestones do not linger as active quests", () => {
+	resetWorld();
+	state.buildings.sawmill.unlocked = true;
+	state.quests.active = ["build_sawmill_t0"];
+	state.quests.completed = [false];
+	drawQuests();
+	assert(state.prestige.completedQuestIds.includes("build_sawmill_t0"));
+	assertEquals(state.quests.active.includes("build_sawmill_t0"), false);
+	const rewards = state.prestige.rewards.length;
+	drawQuests();
+	assertEquals(state.prestige.rewards.length, rewards);
+});
+
 Deno.test("no NaN leaks into gold or inventory over a long run", () => {
 	resetWorld();
 	state.gold = 5_000_000;

@@ -93,6 +93,9 @@ export function flushSatisfiedQuests(): void {
 	let changed = false;
 	for (const chain of QUEST_CHAINS) {
 		if (chain.prereq && !seen.has(chain.prereq)) continue;
+		// Counted quests require fresh progress after being offered. Lifetime totals
+		// must not cash out their later tiers while drawing the next quest batch.
+		if (BASELINE_QUEST_TYPES.has(chain.type)) continue;
 		for (let i = 0; i < chain.tiers.length; i++) {
 			const questId = `${chain.id}_t${i}`;
 			if (completed.has(questId)) continue;
@@ -152,7 +155,7 @@ export function drawQuests(): void {
 	const newCompleted: boolean[] = [];
 	const newBaselines: Record<string, number> = {};
 	for (let i = 0; i < currentActive.length; i++) {
-		if (!currentCompleted[i]) {
+		if (!currentCompleted[i] && !state.prestige.completedQuestIds.includes(currentActive[i])) {
 			const id = currentActive[i];
 			newActive.push(id);
 			newCompleted.push(false);

@@ -6,7 +6,7 @@
 		"dev": "deno run --allow-read --allow-net --allow-run --allow-env tools/serve.ts",
 		"build": "deno bundle --platform=browser --minify --sourcemap=linked --outdir=dist src/main.ts",
 		"check": "deno check src/main.ts tools/ tests/",
-		"test": "deno test --allow-none tests/",
+		"test": "deno test tests/",
 		"sim": "deno run --allow-read src/sim/headless.ts",
 		"fmt": "deno fmt",
 		"lint": "deno lint",
